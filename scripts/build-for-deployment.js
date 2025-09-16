@@ -120,8 +120,9 @@ runCommand('npm run clean', 'Cleaning previous builds');
 // Step 2: Build frontend with Vite
 runCommand('vite build', 'Building frontend');
 
-// Step 3: Build server with esbuild
-runCommand('npm run build:server', 'Building server');
+// Step 3: Build server with esbuild - with proper external configuration
+const esbuildCommand = 'esbuild server/index.ts --bundle --platform=node --format=esm --sourcemap --outfile=dist/server/index.js --external:path --external:fs --external:http --external:url --external:crypto --external:os --external:child_process --external:util --external:stream --external:events --external:querystring --external:node:* --external:pg-native --external:*.node';
+runCommand(esbuildCommand, 'Building server');
 
 // Step 4: Create main entry point
 createMainEntryPoint();
