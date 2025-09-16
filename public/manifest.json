@@ -1,0 +1,18 @@
+{
+  "name": "케어링크",
+  "short_name": "케어링크",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "description": "케어링크 - 패밀리를 위한 플랫폼",
+  "icons": [
+    {
+      "src": "/images/carelink-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

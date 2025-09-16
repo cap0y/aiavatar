@@ -1,0 +1,282 @@
+/* 상품 상세 페이지 스타일 */
+
+/* 반응형 미디어 요소 */
+.product-description .responsive-media {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+/* iframe 컨테이너 */
+.product-description .responsive-iframe-container {
+  position: relative;
+  padding-bottom: 56.25%; /* 16:9 비율 */
+  height: 0;
+  overflow: hidden;
+  max-width: 100%;
+  background: #f3f4f6;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+.product-description .responsive-iframe-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* 상품 설명 이미지 반응형 */
+.product-description img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 8px 0;
+}
+
+/* 상품 설명 비디오 반응형 */
+.product-description video {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 8px 0;
+}
+
+/* 스크롤바 스타일링 */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thumb-gray-300::-webkit-scrollbar {
+  height: 4px;
+}
+
+.scrollbar-thumb-gray-300::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 2px;
+}
+
+.scrollbar-thumb-gray-300::-webkit-scrollbar-track {
+  background-color: #f3f4f6;
+}
+
+/* 상품 이미지 썸네일 애니메이션 */
+.product-thumbnail {
+  transition: border-color 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.product-thumbnail:hover {
+  transform: scale(1.02);
+}
+
+/* 탭 콘텐츠 스타일링 */
+.prose {
+  color: #111827; /* 회색(#374151)에서 검정색(#111827)으로 변경 */
+  line-height: 1.75;
+}
+
+.prose h3 {
+  color: #111827;
+  font-weight: 700;
+}
+
+.prose p {
+  margin-bottom: 1rem;
+  color: #111827; /* 문단 텍스트도 검정색으로 */
+}
+
+.prose ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.prose li {
+  margin-bottom: 0.5rem;
+  color: #111827; /* 리스트 아이템도 검정색으로 */
+}
+
+/* 상품 설명 텍스트 색상 강제 적용 */
+.product-description {
+  color: #111827 !important; /* 상품 설명도 검정색으로 */
+}
+
+.product-description * {
+  color: #111827 !important; /* 모든 하위 요소도 검정색으로 */
+}
+
+.product-description h1,
+.product-description h2,
+.product-description h3,
+.product-description h4,
+.product-description h5,
+.product-description h6 {
+  color: #111827 !important;
+  font-weight: 600;
+}
+
+.product-description p {
+  color: #111827 !important;
+  margin-bottom: 1rem;
+}
+
+.product-description ul,
+.product-description ol {
+  color: #111827 !important;
+}
+
+.product-description li {
+  color: #111827 !important;
+}
+
+.product-description strong,
+.product-description b {
+  color: #111827 !important;
+  font-weight: 600;
+}
+
+.product-description em,
+.product-description i {
+  color: #111827 !important;
+}
+
+.product-description div {
+  color: #111827 !important;
+}
+
+.product-description span {
+  color: #111827 !important;
+}
+
+/* 반응형 조정 */
+@media (max-width: 640px) {
+  .product-description {
+    font-size: 14px;
+  }
+  
+  .responsive-iframe-container {
+    margin: 12px 0;
+  }
+  
+  .prose {
+    font-size: 14px;
+  }
+}
+
+/* 별점 호버 효과 */
+.star-rating .lucide-star {
+  cursor: pointer;
+  transition: color 0.2s ease-in-out;
+}
+
+.star-rating .lucide-star:hover {
+  color: #fbbf24 !important;
+}
+
+/* 옵션 선택 스타일 */
+.option-select {
+  transition: border-color 0.2s ease-in-out;
+}
+
+.option-select:focus {
+  border-color: #3b82f6;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* 가격 표시 애니메이션 */
+.price-display {
+  transition: all 0.3s ease-in-out;
+}
+
+/* 버튼 로딩 상태 */
+.button-loading {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* 댓글 영역 스타일 */
+.comment-section {
+  border-left: 2px solid #e5e7eb;
+  padding-left: 1rem;
+}
+
+.comment-reply-form {
+  background-color: #f9fafb;
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
+/* 배지 스타일 커스터마이징 */
+.badge-admin {
+  background-color: #ef4444;
+  color: white;
+}
+
+.badge-seller {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.badge-answer {
+  background-color: #10b981;
+  color: white;
+}
+
+/* 모바일 최적화 */
+@media (max-width: 768px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .grid-product-detail {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .product-image-container {
+    height: 16rem;
+  }
+  
+  .product-thumbnail-container {
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+  
+  .product-thumbnail {
+    width: 3rem;
+    height: 3rem;
+  }
+  
+  .product-info-section {
+    padding: 0;
+  }
+  
+  .tab-trigger {
+    font-size: 12px;
+    padding: 0.5rem;
+  }
+  
+  .comment-reply-form {
+    padding: 0.5rem;
+  }
+}
+
+/* 다크모드 지원 (필요시) */
+@media (prefers-color-scheme: dark) {
+  .product-description {
+    color: #d1d5db;
+  }
+  
+  .prose {
+    color: #d1d5db;
+  }
+  
+  .prose h3 {
+    color: #f9fafb;
+  }
+} 

@@ -1,37 +1,71 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import path from "path";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
 
+// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [
-    react(),
-    runtimeErrorOverlay(),
-    ...(process.env.NODE_ENV !== "production" &&
-    process.env.REPL_ID !== undefined
-      ? [
-          await import("@replit/vite-plugin-cartographer").then((m) =>
-            m.cartographer(),
-          ),
-        ]
-      : []),
-  ],
+  plugins: [react()],
+  root: './client',
+  publicDir: '../public',
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+      '@': path.resolve('./client/src'),
     },
-  },
-  root: path.resolve(import.meta.dirname, "client"),
-  build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true,
   },
   server: {
-    fs: {
-      strict: true,
-      deny: ["**/.*"],
+    port: 3001, // 포트 충돌 방지를 위해 3001로 변경
+    host: true,
+    open: true, // 자동으로 브라우저 열기
+    cors: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000', // 백엔드 API 서버로 프록시
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+        timeout: 10000,
+        // 연결 풀 관리
+        agent: false,
+        headers: {
+          'Connection': 'keep-alive',
+        },
+      },
+    },
+    // HMR 연결 관리 강화
+    hmr: {
+      port: 3002, // HMR 포트도 변경
+      host: 'localhost',
+      overlay: true, // 에러 오버레이 표시
+    },
+    // 파일 감시 설정
+    watch: {
+      usePolling: true, // 파일 시스템 폴링 사용 (일부 환경에서 필요)
+      interval: 100, // 폴링 간격 (ms)
+      ignored: ['**/node_modules/**', '**/dist/**'], // 감시에서 제외할 폴더
     },
   },
-});
+  build: {
+    outDir: '../dist/public',
+    emptyOutDir: true,
+    // 소스맵 생성으로 디버깅 개선
+    sourcemap: true,
+  },
+  // 최적화 설정 - 문제가 되는 패키지들 제외
+  optimizeDeps: {
+    force: true, // 의존성 사전 번들링 강제 재실행
+    include: ['react', 'react-dom'], // 사전 번들링에 포함할 패키지
+    exclude: [
+      '@radix-ui/react-scroll-area', // 문제가 되는 패키지 제외
+      'react-day-picker', // 문제가 되는 패키지 제외
+    ],
+  },
+  // 개발 모드에서 캐시 비활성화
+  define: {
+    __DEV__: JSON.stringify(true),
+  },
+  // CSS 설정
+  css: {
+    devSourcemap: true, // CSS 소스맵 활성화
+  },
+})
+

@@ -1,71 +1,97 @@
-import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import path from "path";
+import { registerRoutes } from "./routes.js";
+// import { runMigrations } from "./db"; // 마이그레이션 비활성화로 인해 제거
+import { storage } from "./storage.js"; // storage import 추가
+import fs from "fs";
+import http from 'http';
+import { setupSocketServer } from './socket-server.js';
+
+// 런타임 루트 디렉터리 (모든 환경에서 안전)
+const isPkg = typeof (process as any).pkg !== 'undefined';
+const rootDir = isPkg
+  ? path.resolve(path.dirname(process.execPath), "..")
+  : process.cwd();
+
+// 환경 변수 로드
+dotenv.config({ path: path.join(rootDir, ".env") });
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
 
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+// CORS 설정
+app.use(cors());
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
+// JSON 파싱 - 이미지 업로드를 위해 크기 제한 증가
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
+// 정적 파일 서빙 설정 - 클라이언트 빌드 파일이 있는 경우에만
+const distPublicUnderProjectRoot = path.join(rootDir, "dist", "public");
+const distPublicUnderDist = path.join(rootDir, "public");
+const distPath = fs.existsSync(distPublicUnderProjectRoot)
+  ? distPublicUnderProjectRoot
+  : distPublicUnderDist;
+if (fs.existsSync(distPath)) {
+  console.log("클라이언트 빌드 파일 서빙:", distPath);
+  app.use(express.static(distPath));
+} else {
+  console.log("클라이언트 빌드 파일이 없습니다. API 서버만 실행합니다.");
+}
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
+// API 경로 설정
+console.log("API 라우트 등록 중...");
+const startServer = async () => {
+  try {
+    // HTTP 서버 생성
+    const httpServer = http.createServer(app);
+    
+    // Socket.io 서버 설정
+    setupSocketServer(httpServer);
+    
+    // 라우트 등록
+    await registerRoutes(app);
+    
+    // 클라이언트 라우트를 위한 모든 요청 처리
+    if (fs.existsSync(distPath)) {
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      });
+    } else {
+      // API 서버만 실행 중인 경우 루트 경로 처리
+      app.get("/", (req, res) => {
+        res.json({ 
+          message: "API 서버가 실행 중입니다",
+          documentation: "API 문서는 /api/docs 에서 확인할 수 있습니다.",
+          time: new Date().toISOString()
+        });
+      });
     }
-  });
-
-  next();
-});
-
-(async () => {
-  const server = await registerRoutes(app);
-
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+    
+    // 포트 설정 - Cloud Run은 PORT 환경 변수를 제공하며, 기본값은 8080
+    // 개발 환경에서는 5000을 사용하고, 프로덕션에서는 PORT 환경 변수 사용
+    const port = parseInt(process.env.PORT || (process.env.NODE_ENV === 'production' ? '8080' : '5000'));
+    
+    // 서버 시작 - Cloud Run 호환을 위해 항상 0.0.0.0으로 바인딩 (모든 인터페이스에서 접근 가능)
+    const host = '0.0.0.0';
+    httpServer.listen(port, host, () => {
+      console.log(`서버 실행 중: http://${host}:${port}`);
+      console.log(`API 엔드포인트: http://${host}:${port}/api`);
+      console.log(`WebSocket 서버 실행 중: ws://${host}:${port}`);
+      
+      // 개발 서버 안내
+      if (process.env.NODE_ENV === "development" && !fs.existsSync(distPath)) {
+        console.log("\n개발 모드 안내:");
+        console.log("클라이언트 개발 서버를 다음 명령어로 실행하세요:");
+        console.log("cd client && npm run dev");
+      }
+    });
+  } catch (error) {
+    console.error("서버 시작 중 오류 발생:", error);
+    process.exit(1);
   }
+};
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
-})();
+// 서버 시작
+startServer();
