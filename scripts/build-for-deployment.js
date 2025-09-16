@@ -120,8 +120,38 @@ runCommand('npm run clean', 'Cleaning previous builds');
 // Step 2: Build frontend with Vite
 runCommand('vite build', 'Building frontend');
 
-// Step 3: Build server with esbuild - with proper external configuration
-const esbuildCommand = 'esbuild server/index.ts --bundle --platform=node --format=esm --sourcemap --outfile=dist/server/index.js --external:path --external:fs --external:http --external:url --external:crypto --external:os --external:child_process --external:util --external:stream --external:events --external:querystring --external:node:* --external:pg-native --external:*.node';
+// Step 3: Build server with esbuild - with comprehensive external configuration
+const nodeBuiltins = [
+  'assert', 'async_hooks', 'buffer', 'child_process', 'cluster', 'console', 'constants',
+  'crypto', 'dgram', 'dns', 'domain', 'events', 'fs', 'http', 'http2', 'https',
+  'inspector', 'module', 'net', 'os', 'path', 'perf_hooks', 'process', 'punycode',
+  'querystring', 'readline', 'repl', 'stream', 'string_decoder', 'sys', 'timers',
+  'tls', 'trace_events', 'tty', 'url', 'util', 'v8', 'vm', 'worker_threads', 'zlib'
+];
+
+// External configuration for Node.js built-ins and problematic packages
+const externals = [
+  ...nodeBuiltins,
+  'node:*',
+  'pg-native',
+  '*.node',
+  // Database and native modules
+  'sqlite3',
+  'better-sqlite3',
+  'mysql2',
+  'mysql',
+  'oracledb',
+  'pg-query-stream',
+  'tedious',
+  // Common problematic packages
+  'bufferutil',
+  'utf-8-validate',
+  'supports-color',
+  'cardinal'
+];
+
+const externalFlags = externals.map(ext => `--external:${ext}`).join(' ');
+const esbuildCommand = `esbuild server/index.ts --bundle --platform=node --format=esm --sourcemap --outfile=dist/server/index.js --packages=external ${externalFlags}`;
 runCommand(esbuildCommand, 'Building server');
 
 // Step 4: Create main entry point
@@ -130,7 +160,21 @@ createMainEntryPoint();
 // Step 5: Create production package.json
 createProductionPackageJson();
 
-// Step 6: Verify all required files exist
+// Step 6: Install production dependencies in dist directory
+console.log('📦 Installing production dependencies in dist directory...');
+try {
+  process.chdir('dist');
+  runCommand('npm install --only=production --ignore-scripts', 'Installing production dependencies');
+  process.chdir('..');
+  console.log('✅ Production dependencies installed successfully\n');
+} catch (error) {
+  console.error('❌ Failed to install production dependencies:', error.message);
+  // Don't exit on failure, but warn
+  console.log('⚠️  Continuing without installing dependencies - they may need to be installed manually\n');
+  process.chdir('..');
+}
+
+// Step 7: Verify all required files exist
 console.log('🔍 Verifying build outputs...');
 
 const requiredFiles = [
