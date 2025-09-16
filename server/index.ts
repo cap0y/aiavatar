@@ -3,8 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import { registerRoutes } from "./routes.js";
-// import { runMigrations } from "./db"; // 마이그레이션 비활성화로 인해 제거
-import { storage } from "./storage.js"; // storage import 추가
+import { runMigrations } from "./db.js"; // 마이그레이션 활성화
+import { storage } from "./storage.js";
 import fs from "fs";
 import http from 'http';
 import { setupSocketServer } from './socket-server.js';
@@ -44,6 +44,16 @@ if (fs.existsSync(distPath)) {
 console.log("API 라우트 등록 중...");
 const startServer = async () => {
   try {
+    // 마이그레이션 실행
+    console.log("데이터베이스 마이그레이션 실행 중...");
+    try {
+      await runMigrations();
+      console.log("마이그레이션 완료");
+    } catch (migrationError) {
+      console.error("마이그레이션 실패:", migrationError);
+      // 마이그레이션 실패해도 서버는 계속 실행
+    }
+    
     // HTTP 서버 생성
     const httpServer = http.createServer(app);
     
@@ -69,9 +79,8 @@ const startServer = async () => {
       });
     }
     
-    // 포트 설정 - Cloud Run은 PORT 환경 변수를 제공하며, 기본값은 8080
-    // 개발 환경에서는 5000을 사용하고, 프로덕션에서는 PORT 환경 변수 사용
-    const port = parseInt(process.env.PORT || (process.env.NODE_ENV === 'production' ? '8080' : '5000'));
+    // 포트 설정 - 5000 대신 5001 포트 사용
+    const port = parseInt(process.env.PORT || (process.env.NODE_ENV === 'production' ? '8080' : '5001'));
     
     // 서버 시작 - Cloud Run 호환을 위해 항상 0.0.0.0으로 바인딩 (모든 인터페이스에서 접근 가능)
     const host = '0.0.0.0';

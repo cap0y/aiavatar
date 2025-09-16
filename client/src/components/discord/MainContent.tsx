@@ -858,6 +858,101 @@ const MainContent: React.FC<MainContentProps> = ({ children, currentChannel, cha
     );
   };
 
+  // 아바타-채팅 채널 설명 섹션 추가
+  const renderAvatarChatHeader = () => {
+    if (currentChannel === 'avatar-chat' || channelType === 'vtuber') {
+      return (
+        <div className="relative bg-gradient-to-br from-purple-700/80 via-pink-600/70 to-purple-800/90 border-b border-purple-500 overflow-hidden">
+          {/* 배경 장식 요소들 - 보라색/핑크 톤 */}
+          <div className="absolute top-4 left-8 w-20 h-20 bg-purple-500/30 rounded-full blur-xl"></div>
+          <div className="absolute bottom-6 right-16 w-24 h-24 bg-pink-500/30 rounded-full blur-xl"></div>
+          <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-violet-500/30 rounded-full blur-lg"></div>
+          
+          {/* VTuber 캐릭터 - 오른쪽 배치 */}
+          <div className="absolute right-6 top-1/2 transform -translate-y-1/2 z-20 hidden lg:block">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-400/30 to-pink-400/30 rounded-full blur-2xl scale-150 animate-pulse"></div>
+              <img 
+                src="/images/2dmodel/7.png" 
+                alt="AI Avatar Character" 
+                className="w-36 h-44 object-contain relative z-10 drop-shadow-2xl hover:scale-105 transition-transform duration-300"
+                style={{
+                  filter: 'drop-shadow(0 0 20px rgba(168, 85, 247, 0.6))',
+                  animation: 'float 5s ease-in-out infinite'
+                }}
+              />
+            </div>
+          </div>
+          
+          {/* 추가 작은 캐릭터 - 왼쪽 하단 */}
+          <div className="absolute left-6 bottom-4 z-15 hidden lg:block opacity-80">
+            <div className="relative">
+              <img 
+                src="/images/2dmodel/1.png" 
+                alt="AI Avatar Character" 
+                className="w-24 h-28 object-contain drop-shadow-lg hover:scale-110 transition-transform duration-300"
+                style={{
+                  filter: 'drop-shadow(0 0 12px rgba(236, 72, 153, 0.4))',
+                  animation: 'float 3.5s ease-in-out infinite 0.8s'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* 컨텐츠 영역 */}
+          <div className="relative z-10 px-6 py-8 max-w-2xl">
+            <div className="bg-black/30 backdrop-blur-sm rounded-2xl p-6 border border-purple-300/20">
+              <div className="flex items-center mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mr-4">
+                  <i className="fas fa-magic text-white text-lg"></i>
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white mb-1">AI 아바타와 실시간 대화하세요!</h3>
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="outline" className="bg-purple-500/30 text-purple-200 border-purple-400/40">
+                      <i className="fas fa-robot mr-1"></i>
+                      AI 대화
+                    </Badge>
+                    <Badge variant="outline" className="bg-pink-500/30 text-pink-200 border-pink-400/40">
+                      <i className="fas fa-bolt mr-1"></i>
+                      실시간
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-3 text-gray-100">
+                <p className="text-lg leading-relaxed">
+                  <i className="fas fa-wand-magic-sparkles text-pink-400 mr-2"></i>
+                  최첨단 AI 기술로 구현된 생생한 대화 경험을 만나보세요!
+                </p>
+                <p className="text-sm leading-relaxed opacity-90">
+                  실시간으로 반응하는 AI 아바타와 자연스러운 대화를 나누세요. 
+                  감정 표현, 개성 있는 응답, 그리고 놀라운 대화 능력을 체험해보세요.
+                </p>
+                <div className="flex items-center space-x-4 pt-2">
+                  <div className="flex items-center text-sm text-green-300">
+                    <i className="fas fa-circle text-green-400 mr-2 text-xs animate-pulse"></i>
+                    실시간 응답
+                  </div>
+                  <div className="flex items-center text-sm text-purple-300">
+                    <i className="fas fa-brain mr-2"></i>
+                    고급 AI
+                  </div>
+                  <div className="flex items-center text-sm text-pink-300">
+                    <i className="fas fa-heart mr-2"></i>
+                    감정 표현
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   if (children) {
     return (
       <div className="flex-1 bg-gray-600 flex flex-col">
@@ -1485,6 +1580,12 @@ const MainContent: React.FC<MainContentProps> = ({ children, currentChannel, cha
                     <div className="inline-flex items-center px-4 py-2 bg-blue-600/20 rounded-full border border-blue-500/30">
                       <i className="fas fa-question-circle text-blue-400 mr-2"></i>
                       <span className="text-gray-200 text-sm">궁금한 것이 있으시면 언제든 질문해주세요!</span>
+                    </div>
+                  )}
+                  {currentChannel === 'avatar-chat' && (
+                    <div className="inline-flex items-center px-4 py-2 bg-purple-600/30 rounded-full border border-purple-400/40">
+                      <i className="fas fa-robot text-purple-400 mr-2"></i>
+                      <span className="text-gray-200 text-sm">AI 아바타와 실시간으로 대화해보세요!</span>
                     </div>
                   )}
                 </div>

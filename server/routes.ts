@@ -2133,4 +2133,123 @@ export async function registerRoutes(app: Express): Promise<void> {
       res.status(500).json({ error: '장바구니 비우기에 실패했습니다.' });
     }
   });
+
+  // 장바구니 API 엔드포인트 추가
+  // 사용자의 장바구니 조회
+  app.get("/api/users/:userId/cart", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "사용자 ID가 필요합니다." });
+      }
+      
+      console.log(`[SERVER] 사용자 ${userId}의 장바구니 조회 요청`);
+      
+      // 메모리 기반 장바구니 데이터 (실제로는 DB에서 가져와야 함)
+      const cartItems = [];
+      
+      return res.status(200).json({ cartItems });
+    } catch (error) {
+      console.error("장바구니 조회 오류:", error);
+      return res.status(500).json({ error: "장바구니 조회 중 오류가 발생했습니다." });
+    }
+  });
+
+  // 장바구니에 상품 추가
+  app.post("/api/users/:userId/cart", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { productId, quantity, selected_options } = req.body;
+      
+      if (!userId || !productId) {
+        return res.status(400).json({ error: "사용자 ID와 상품 ID가 필요합니다." });
+      }
+      
+      console.log(`[SERVER] 사용자 ${userId}의 장바구니에 상품 ${productId} 추가 요청`);
+      
+      // 메모리 기반 장바구니 데이터 (실제로는 DB에 저장해야 함)
+      const cartItem = {
+        id: Date.now().toString(),
+        userId,
+        productId,
+        quantity: quantity || 1,
+        selected_options: selected_options || null,
+        createdAt: new Date()
+      };
+      
+      return res.status(201).json(cartItem);
+    } catch (error) {
+      console.error("장바구니 상품 추가 오류:", error);
+      return res.status(500).json({ error: "장바구니에 상품을 추가하는 중 오류가 발생했습니다." });
+    }
+  });
+
+  // 장바구니 상품 수정
+  app.put("/api/users/:userId/cart/:itemId", async (req, res) => {
+    try {
+      const { userId, itemId } = req.params;
+      const { quantity, selected_options } = req.body;
+      
+      if (!userId || !itemId) {
+        return res.status(400).json({ error: "사용자 ID와 상품 ID가 필요합니다." });
+      }
+      
+      console.log(`[SERVER] 사용자 ${userId}의 장바구니 상품 ${itemId} 수정 요청`);
+      
+      // 메모리 기반 장바구니 데이터 (실제로는 DB에서 수정해야 함)
+      const cartItem = {
+        id: itemId,
+        userId,
+        quantity: quantity || 1,
+        selected_options: selected_options || null,
+        updatedAt: new Date()
+      };
+      
+      return res.status(200).json(cartItem);
+    } catch (error) {
+      console.error("장바구니 상품 수정 오류:", error);
+      return res.status(500).json({ error: "장바구니 상품을 수정하는 중 오류가 발생했습니다." });
+    }
+  });
+
+  // 장바구니 상품 삭제
+  app.delete("/api/users/:userId/cart/:itemId", async (req, res) => {
+    try {
+      const { userId, itemId } = req.params;
+      
+      if (!userId || !itemId) {
+        return res.status(400).json({ error: "사용자 ID와 상품 ID가 필요합니다." });
+      }
+      
+      console.log(`[SERVER] 사용자 ${userId}의 장바구니에서 상품 ${itemId} 삭제 요청`);
+      
+      // 메모리 기반 장바구니 데이터 (실제로는 DB에서 삭제해야 함)
+      
+      return res.status(200).json({ success: true, message: "상품이 장바구니에서 삭제되었습니다." });
+    } catch (error) {
+      console.error("장바구니 상품 삭제 오류:", error);
+      return res.status(500).json({ error: "장바구니에서 상품을 삭제하는 중 오류가 발생했습니다." });
+    }
+  });
+
+  // 장바구니 비우기
+  app.delete("/api/users/:userId/cart", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "사용자 ID가 필요합니다." });
+      }
+      
+      console.log(`[SERVER] 사용자 ${userId}의 장바구니 비우기 요청`);
+      
+      // 메모리 기반 장바구니 데이터 (실제로는 DB에서 삭제해야 함)
+      
+      return res.status(200).json({ success: true, message: "장바구니가 비워졌습니다." });
+    } catch (error) {
+      console.error("장바구니 비우기 오류:", error);
+      return res.status(500).json({ error: "장바구니를 비우는 중 오류가 발생했습니다." });
+    }
+  });
 }

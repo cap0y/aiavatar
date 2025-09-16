@@ -2,6 +2,305 @@
 import { db } from "./db.js";
 import { users, careManagers, services, bookings, messages, type User, type InsertUser, type CareManager, type InsertCareManager, type Service, type InsertService, type Booking, type InsertBooking, type Message, type InsertMessage, notices, type InsertNotice, products, productCategories, type Product, type InsertProduct, type ProductCategory, type InsertProductCategory, favorites, inquiries, userNotificationSettings, userPrivacySettings, type Favorite, type InsertFavorite, type Inquiry, type InsertInquiry, type UserNotificationSettings, type InsertUserNotificationSettings, type UserPrivacySettings, type InsertUserPrivacySettings, productReviews, type InsertProductReview, type ProductReview, productComments, type InsertProductComment, type ProductComment, UserType, UserGrade, cartItems, type CartItem, type InsertCartItem } from "../shared/schema.ts";
 import { and, asc, desc, eq, like, or, sql, ilike, gte, lte } from "drizzle-orm";
+
+// 메모리 기반 아바타 카테고리 데이터 (1.sql 파일 기준)
+const memoryProductCategories = [
+  { id: 1, name: '전체', description: '모든 아바타 캐릭터', categoryOrder: 0 },
+  { id: 2, name: 'VTuber', description: 'VTuber 스타일 아바타 캐릭터', categoryOrder: 1 },
+  { id: 3, name: '애니메이션', description: '애니메이션 스타일 아바타', categoryOrder: 2 },
+  { id: 4, name: '리얼리스틱', description: '사실적인 스타일 아바타', categoryOrder: 3 },
+  { id: 5, name: '판타지', description: '판타지 테마 아바타 캐릭터', categoryOrder: 4 },
+  { id: 6, name: 'SF/미래', description: 'SF 및 미래형 아바타', categoryOrder: 5 },
+  { id: 7, name: '동물/펫', description: '동물 및 펫 형태 아바타', categoryOrder: 6 },
+  { id: 8, name: '커스텀', description: '맞춤 제작 아바타', categoryOrder: 7 },
+  { id: 9, name: '액세서리', description: '아바타용 의상 및 액세서리', categoryOrder: 8 },
+  { id: 10, name: '이모션팩', description: '아바타 감정 표현 팩', categoryOrder: 9 }
+];
+
+// 메모리 기반 아바타 상품 데이터 (1.sql 파일 기준)
+const memoryProducts = [
+  // VTuber 카테고리
+  {
+    id: 1,
+    title: '미라이 - VTuber 아바타',
+    description: 'AI 기반 상호작용이 가능한 미래형 VTuber 아바타입니다. 실시간 채팅과 감정 표현이 뛰어납니다.',
+    price: 150000,
+    discountPrice: 120000,
+    stock: 10,
+    images: JSON.stringify(["/images/2dmodel/1.png", "/images/2dmodel/2.png"]),
+    sellerId: 1,
+    categoryId: 2,
+    category: 'VTuber',
+    status: 'active',
+    rating: 4.8,
+    reviewCount: 24,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 2,
+    title: '사쿠라 - 일본풍 VTuber',
+    description: '전통적인 일본 스타일의 VTuber 아바타로 우아한 움직임과 다양한 의상을 제공합니다.',
+    price: 130000,
+    discountPrice: null,
+    stock: 15,
+    images: JSON.stringify(["/images/2dmodel/3.png"]),
+    sellerId: 1,
+    categoryId: 2,
+    category: 'VTuber',
+    status: 'active',
+    rating: 4.6,
+    reviewCount: 18,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 3,
+    title: '테크노 - 사이버펑크 VTuber',
+    description: '네온사인과 홀로그램 효과가 있는 사이버펑크 스타일 VTuber 아바타입니다.',
+    price: 180000,
+    discountPrice: 160000,
+    stock: 8,
+    images: JSON.stringify(["/images/2dmodel/4.png"]),
+    sellerId: 1,
+    categoryId: 2,
+    category: 'VTuber',
+    status: 'active',
+    rating: 4.9,
+    reviewCount: 31,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  // 애니메이션 카테고리
+  {
+    id: 4,
+    title: '루나 - 마법소녀 아바타',
+    description: '마법소녀 컨셉의 귀여운 애니메이션 스타일 아바타입니다. 마법 이펙트 포함.',
+    price: 100000,
+    discountPrice: 80000,
+    stock: 20,
+    images: JSON.stringify(["/images/2dmodel/5.gif"]),
+    sellerId: 1,
+    categoryId: 3,
+    category: '애니메이션',
+    status: 'active',
+    rating: 4.7,
+    reviewCount: 42,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 5,
+    title: '카이토 - 학원물 주인공',
+    description: '학원 애니메이션의 남성 주인공 스타일 아바타로 교복과 캐주얼 의상을 제공합니다.',
+    price: 90000,
+    discountPrice: null,
+    stock: 25,
+    images: JSON.stringify(["/images/2dmodel/6.png"]),
+    sellerId: 1,
+    categoryId: 3,
+    category: '애니메이션',
+    status: 'active',
+    rating: 4.5,
+    reviewCount: 33,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  // 리얼리스틱 카테고리
+  {
+    id: 6,
+    title: '아리아 - 리얼 휴먼 아바타',
+    description: '실제 인간과 구별하기 어려운 고품질 리얼리스틱 여성 아바타입니다.',
+    price: 250000,
+    discountPrice: 220000,
+    stock: 5,
+    images: JSON.stringify(["/images/2dmodel/7.png"]),
+    sellerId: 1,
+    categoryId: 4,
+    category: '리얼리스틱',
+    status: 'active',
+    rating: 4.9,
+    reviewCount: 15,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 7,
+    title: '맥스 - 비즈니스 아바타',
+    description: '비즈니스 미팅과 프레젠테이션에 적합한 전문적인 남성 아바타입니다.',
+    price: 200000,
+    discountPrice: null,
+    stock: 12,
+    images: JSON.stringify(["/images/2dmodel/1.png"]),
+    sellerId: 1,
+    categoryId: 4,
+    category: '리얼리스틱',
+    status: 'active',
+    rating: 4.6,
+    reviewCount: 21,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  // 판타지 카테고리
+  {
+    id: 8,
+    title: '엘프 프린세스 - 아리엘',
+    description: '우아한 엘프 공주 아바타로 마법 능력과 아름다운 의상을 제공합니다.',
+    price: 140000,
+    discountPrice: 120000,
+    stock: 18,
+    images: JSON.stringify(["/images/2dmodel/2.png"]),
+    sellerId: 1,
+    categoryId: 5,
+    category: '판타지',
+    status: 'active',
+    rating: 4.8,
+    reviewCount: 27,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 9,
+    title: '드래곤 나이트 - 드레이크',
+    description: '용의 힘을 가진 강력한 기사 아바타입니다. 용 변신 기능 포함.',
+    price: 170000,
+    discountPrice: null,
+    stock: 10,
+    images: JSON.stringify(["/images/2dmodel/3.png"]),
+    sellerId: 1,
+    categoryId: 5,
+    category: '판타지',
+    status: 'active',
+    rating: 4.7,
+    reviewCount: 19,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  // SF/미래 카테고리
+  {
+    id: 10,
+    title: '사이보그 - 제로',
+    description: '미래형 사이보그 아바타로 다양한 사이버네틱 강화 기능을 제공합니다.',
+    price: 190000,
+    discountPrice: 170000,
+    stock: 7,
+    images: JSON.stringify(["/images/2dmodel/4.png"]),
+    sellerId: 1,
+    categoryId: 6,
+    category: 'SF/미래',
+    status: 'active',
+    rating: 4.8,
+    reviewCount: 22,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  // 동물/펫 카테고리
+  {
+    id: 11,
+    title: '코기 - 귀여운 강아지',
+    description: '사랑스러운 코기 강아지 아바타입니다. 다양한 표정과 동작을 지원합니다.',
+    price: 80000,
+    discountPrice: 70000,
+    stock: 30,
+    images: JSON.stringify(["/images/2dmodel/5.gif"]),
+    sellerId: 1,
+    categoryId: 7,
+    category: '동물/펫',
+    status: 'active',
+    rating: 4.9,
+    reviewCount: 56,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 12,
+    title: '냥이 - 고양이 아바타',
+    description: '우아하고 신비로운 고양이 아바타로 다양한 품종 스킨을 제공합니다.',
+    price: 75000,
+    discountPrice: null,
+    stock: 35,
+    images: JSON.stringify(["/images/2dmodel/6.png"]),
+    sellerId: 1,
+    categoryId: 7,
+    category: '동물/펫',
+    status: 'active',
+    rating: 4.7,
+    reviewCount: 41,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  // 액세서리 카테고리
+  {
+    id: 13,
+    title: '홀로그램 윙즈',
+    description: '아바타용 홀로그램 날개 액세서리입니다. 다양한 색상과 효과를 제공합니다.',
+    price: 25000,
+    discountPrice: 20000,
+    stock: 100,
+    images: JSON.stringify(["/images/2dmodel/7.png"]),
+    sellerId: 1,
+    categoryId: 9,
+    category: '액세서리',
+    status: 'active',
+    rating: 4.6,
+    reviewCount: 73,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 14,
+    title: '마법 지팡이 세트',
+    description: '다양한 마법 지팡이와 마법진 이펙트가 포함된 액세서리 세트입니다.',
+    price: 35000,
+    discountPrice: null,
+    stock: 80,
+    images: JSON.stringify(["/images/2dmodel/1.png"]),
+    sellerId: 1,
+    categoryId: 9,
+    category: '액세서리',
+    status: 'active',
+    rating: 4.8,
+    reviewCount: 65,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  // 이모션팩 카테고리
+  {
+    id: 15,
+    title: '기본 감정 표현 팩',
+    description: '기쁨, 슬픔, 화남, 놀람 등 기본적인 감정 표현이 포함된 팩입니다.',
+    price: 15000,
+    discountPrice: 12000,
+    stock: 200,
+    images: JSON.stringify(["/images/2dmodel/2.png"]),
+    sellerId: 1,
+    categoryId: 10,
+    category: '이모션팩',
+    status: 'active',
+    rating: 4.5,
+    reviewCount: 89,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 16,
+    title: '프리미엄 감정 팩',
+    description: '섬세한 감정 변화와 특수 표정이 포함된 고급 감정 표현 팩입니다.',
+    price: 30000,
+    discountPrice: 25000,
+    stock: 150,
+    images: JSON.stringify(["/images/2dmodel/3.png"]),
+    sellerId: 1,
+    categoryId: 10,
+    category: '이모션팩',
+    status: 'active',
+    rating: 4.9,
+    reviewCount: 112,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
+];
+
 // UserType, UserGrade는 상단 import에서 함께 가져옵니다.
 
 export interface IStorage {
@@ -1366,6 +1665,14 @@ export class DatabaseStorage implements IStorage {
       return product as any;
     } catch (error) {
       console.error("상품 조회 오류:", error);
+      
+      // 메모리 데이터에서 상품 찾기
+      const memoryProduct = memoryProducts.find(p => p.id === id);
+      if (memoryProduct) {
+        console.log("메모리 데이터에서 상품 찾음:", memoryProduct.title);
+        return memoryProduct as unknown as Product;
+      }
+      
       return undefined;
     }
   }
@@ -1442,7 +1749,40 @@ export class DatabaseStorage implements IStorage {
       return result;
     } catch (error) {
       console.error("상품 목록 조회 오류:", error);
-      return [];
+      console.log("메모리 기반 상품 데이터 사용");
+      
+      // 메모리 데이터에 필터링 적용
+      let result = [...memoryProducts];
+      
+      // 카테고리 필터링
+      if (params?.categoryId) {
+        result = result.filter(product => product.categoryId === params.categoryId);
+      }
+      
+      // 카테고리 이름으로 필터링
+      if (params?.category && params.category !== '전체') {
+        result = result.filter(product => product.category === params.category);
+      }
+      
+      // 검색어 필터링
+      if (params?.search) {
+        const searchLower = params.search.toLowerCase();
+        result = result.filter(product => 
+          product.title.toLowerCase().includes(searchLower) || 
+          (product.description && product.description.toLowerCase().includes(searchLower))
+        );
+      }
+      
+      // 정렬 (최신순 기본)
+      result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      
+      // 페이지네이션
+      const limit = params?.limit || 20;
+      const offset = params?.offset || 0;
+      result = result.slice(offset, offset + limit);
+      
+      console.log("[SERVER] 조회된 상품 개수:", result.length);
+      return result as unknown as Product[];
     }
   }
 
@@ -1496,10 +1836,12 @@ export class DatabaseStorage implements IStorage {
 
   async getAllProductCategories(): Promise<ProductCategory[]> {
     try {
-      return await db.select().from(productCategories).orderBy(productCategories.categoryOrder);
+      const result = await db.select().from(productCategories).orderBy(productCategories.categoryOrder);
+      return result;
     } catch (error) {
       console.error("상품 카테고리 목록 조회 오류:", error);
-      return [];
+      console.log("메모리 기반 상품 카테고리 데이터 사용");
+      return memoryProductCategories as ProductCategory[];
     }
   }
 

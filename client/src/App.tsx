@@ -10,6 +10,8 @@ import DiscordHome from "@/pages/discord-home";
 import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 import KakaoCallback from "@/pages/oauth/kakao/callback";
+import ProductDetailPage from "@/pages/product-detail";
+import ShopPage from "@/pages/shop";
 
 function Router() {
   return (
@@ -29,6 +31,17 @@ function Router() {
           </div>
         </Route>
         <Route path="/oauth/kakao/callback" component={KakaoCallback} />
+        <Route path="/discord-home">
+          <div className="h-screen overflow-hidden">
+            <DiscordHome />
+          </div>
+        </Route>
+        <Route path="/shop">
+          <ShopPage />
+        </Route>
+        <Route path="/product/:productId">
+          <ProductDetailPage />
+        </Route>
         <Route>
           <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
             <NotFound />

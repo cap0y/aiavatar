@@ -30,64 +30,76 @@ const stripHtml = (html: string): string => {
 
 // 이미지 URL을 올바르게 처리하는 함수
 const getImageUrl = (image: any): string => {
-  if (!image) return "";
+  if (!image) return "/images/placeholder-product.png";
 
-  // 문자열인 경우 (단순 URL 또는 Base64)
-  if (typeof image === "string") {
-    // Base64 데이터인 경우 그대로 반환
-    if (image.startsWith("data:")) {
+  try {
+    // 이미지가 배열인 경우
+    if (Array.isArray(image)) {
+      if (image.length > 0) {
+        return getImageUrl(image[0]);
+      }
+      return "/images/placeholder-product.png";
+    }
+
+    // 이미지가 JSON 문자열인 경우 파싱
+    if (typeof image === "string" && (image.startsWith('[') || image.startsWith('{'))) {
+      try {
+        const parsed = JSON.parse(image);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed[0];
+        } else if (parsed && typeof parsed === 'object' && 'url' in parsed) {
+          return parsed.url;
+        }
+      } catch (e) {
+        // JSON 파싱 실패 시 원래 문자열 사용
+      }
+    }
+
+    // 문자열인 경우 (단순 URL 또는 Base64)
+    if (typeof image === "string") {
+      // Base64 데이터인 경우 그대로 반환
+      if (image.startsWith("data:")) {
+        return image;
+      }
+
+      // 이미 완전한 URL인 경우 (http:// 또는 https://)
+      if (image.startsWith("http://") || image.startsWith("https://")) {
+        return image;
+      }
+
+      // 상대 경로인 경우 그대로 사용
       return image;
     }
 
-    // 이미 완전한 URL인 경우 (http:// 또는 https://)
-    if (image.startsWith("http://") || image.startsWith("https://")) {
-      return image;
+    // 객체인 경우 (url 속성이 있는 객체)
+    if (image && typeof image === "object") {
+      // url 속성이 있는 경우
+      if ('url' in image) {
+        return getImageUrl(image.url);
+      }
     }
-
-    // 상대 경로인 경우 서버 URL 사용
-    if (
-      image.startsWith("/uploads/") ||
-      image.startsWith("/api/uploads/") ||
-      image.startsWith("/images/") ||
-      image.startsWith("/images/item/")
-    ) {
-      // 경로에서 /api 접두사 제거 (필요한 경우)
-      const cleanPath = image.startsWith("/api/") ? image.substring(4) : image;
-      // 개발 환경에서는 서버가 5000 포트에서 실행되므로 이미지 URL을 서버 URL로 변경
-      return `${cleanPath}`;
-    }
-
-    return image;
+  } catch (e) {
+    console.error("이미지 URL 처리 오류:", e);
   }
 
-  // 객체인 경우 (url 속성이 있는 객체)
-  if (image && typeof image === "object" && "url" in image) {
-    return getImageUrl(image.url);
-  }
-
-  return "";
+  return "/images/placeholder-product.png";
 };
 
-// 상품 카테고리 목록 (API에서 가져올 예정)
+// 상품 카테고리 목록 (AI 아바타 세상)
 const CATEGORIES = [
   "전체",
-  "가공식품",
-  "건강식품",
-  "기타",
-  "농산물",
-  "디지털상품",
-  "생활용품",
-  "수산물",
-  "전자제품",
-  "주류",
-  "축산물",
-  "취미/게임",
-  "카페/베이커리",
-  "패션",
-  "하드웨어",
+  "VTuber",
+  "애니메이션",
+  "리얼리스틱",
+  "판타지",
+  "SF/미래",
+  "동물/펫",
+  "커스텀",
+  "액세서리",
+  "이모션팩"
 ];
 
-// 카테고리 하드코딩 매핑 (fallback용) - 실제 DB 구조에 맞게 수정
+// 카테고리 하드코딩 매핑 (fallback용) - AI 아바타 세상 카테고리
 const getCategoryName = (product: Product): string => {
   // 1. 서버에서 JOIN된 카테고리 이름 우선 사용
   if ((product as any).category && (product as any).category !== null) {
@@ -97,20 +109,15 @@ const getCategoryName = (product: Product): string => {
   // 2. 실제 데이터베이스 구조에 맞는 카테고리 매핑
   const categoryMap: { [key: number]: string } = {
     1: "전체",
-    2: "가공식품",
-    3: "건강식품",
-    4: "기타",
-    5: "농산물",
-    6: "디지털상품",
-    7: "생활용품",
-    8: "수산물",
-    9: "전자제품",
-    10: "주류",
-    11: "축산물",
-    12: "취미/게임",
-    13: "카페/베이커리",
-    14: "패션",
-    15: "하드웨어",
+    2: "VTuber",
+    3: "애니메이션",
+    4: "리얼리스틱",
+    5: "판타지",
+    6: "SF/미래",
+    7: "동물/펫",
+    8: "커스텀",
+    9: "액세서리",
+    10: "이모션팩"
   };
 
   // 3. categoryId로 매핑
@@ -126,12 +133,13 @@ const getCategoryName = (product: Product): string => {
 
 interface ShopPageProps {
   onProductClick?: (productId: string) => void;
+  initialCategory?: string;
 }
 
-export default function ShopPage({ onProductClick }: ShopPageProps) {
+export default function ShopPage({ onProductClick, initialCategory }: ShopPageProps) {
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("전체");
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory || "전체");
   const [sortBy, setSortBy] = useState<
     "latest" | "price_asc" | "price_desc" | "popular"
   >("latest");
@@ -272,11 +280,14 @@ export default function ShopPage({ onProductClick }: ShopPageProps) {
 
   // 상품 클릭 핸들러
   const handleProductClick = (product: Product) => {
+    console.log("상품 클릭:", product.id, product.title);
+    
     if (onProductClick) {
+      // Discord 레이아웃에서 호출된 경우
       onProductClick(product.id);
     } else {
-      // 상품 상세 페이지로 이동
-      setLocation(`/product/${product.id}`);
+      // 일반 상점 페이지에서 호출된 경우
+      window.location.href = `/product/${product.id}`;
     }
   };
 
@@ -286,214 +297,197 @@ export default function ShopPage({ onProductClick }: ShopPageProps) {
   }, [selectedCategory, sortBy, searchTerm, refetch]);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* 쇼핑몰 헤더 */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <ShoppingBag className="h-8 w-8 text-blue-600" />
-          <span>케어링크 쇼핑몰</span>
-        </h1>
-        <p className="text-gray-600 mt-2">
-          생산자와 소비자를 직접 연결하는 신선한 농수산물 직거래 플랫폼입니다.
-        </p>
-      </div>
-
-      {/* 검색 및 필터 */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="상품명, 태그 검색..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+    <div className="h-full bg-gray-800 text-white overflow-y-auto">
+      <div className="container mx-auto px-4 py-6">
+        {/* 카테고리 탭 목록 - 상단에 표시 */}
+        <div className="mb-6 overflow-x-auto">
+          <div className="flex space-x-2 pb-2">
+            {getUniqueCategories().map((category: string) => (
+              <Button
+                key={category}
+                variant={selectedCategory === category ? "default" : "outline"}
+                className={`whitespace-nowrap ${
+                  selectedCategory === category
+                    ? "bg-blue-600 hover:bg-blue-700 text-white"
+                    : "bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600"
+                }`}
+                onClick={() => handleCategoryChange(category)}
+              >
+                {category}
+              </Button>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-2">
-          <div className="relative">
+
+        {/* 검색 및 필터 */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="상품명, 태그 검색..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+            />
+          </div>
+          <div className="flex gap-2">
             <Button
               variant="outline"
-              className="flex items-center gap-1"
-              onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+              className="flex items-center gap-1 bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+              onClick={() =>
+                setSortBy(
+                  sortBy === "latest"
+                    ? "price_asc"
+                    : sortBy === "price_asc"
+                      ? "price_desc"
+                      : "latest",
+                )
+              }
             >
-              <Filter className="h-4 w-4" />
-              <span>{selectedCategory}</span>
-            </Button>
-            <div
-              className={`absolute top-full right-0 mt-1 bg-white shadow-lg rounded-md border border-gray-200 z-10 ${showCategoryDropdown ? "block" : "hidden"}`}
-            >
-              {getUniqueCategories().map((category: string) => (
-                <button
-                  key={category}
-                  className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
-                  onClick={() => handleCategoryChange(category)}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            className="flex items-center gap-1"
-            onClick={() => {
-              setSortBy(sortBy === "price_asc" ? "price_desc" : "price_asc");
-            }}
-          >
-            <ArrowUpDown className="h-4 w-4" />
-            <span>
+              <ArrowUpDown className="h-4 w-4" />
               {sortBy === "latest"
                 ? "최신순"
                 : sortBy === "price_asc"
-                  ? "낮은가격순"
-                  : sortBy === "price_desc"
-                    ? "높은가격순"
-                    : "인기순"}
-            </span>
-          </Button>
+                  ? "가격낮은순"
+                  : "가격높은순"}
+            </Button>
+          </div>
         </div>
-      </div>
 
-      {/* 카테고리 필터 */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {getUniqueCategories().map((category: string) => (
-          <Badge
-            key={category}
-            variant={selectedCategory === category ? "default" : "outline"}
-            className="cursor-pointer"
-            onClick={() => handleCategoryChange(category)}
-          >
-            {category}
-          </Badge>
-        ))}
-      </div>
-
-      {/* 상품 목록 */}
-      {isLoading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <span className="ml-2 text-gray-600">상품을 불러오는 중...</span>
-        </div>
-      ) : error ? (
-        <div className="text-center py-12 text-red-500">
-          상품을 불러오는 데 문제가 발생했습니다. 다시 시도해주세요.
-        </div>
-      ) : data && data.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-          {data.map((product: Product) => (
-            <div
-              key={product.id}
-              className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow border border-gray-200 cursor-pointer"
-              onClick={() => handleProductClick(product)}
+        {/* 상품 목록 */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(8)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-gray-700 rounded-lg p-4 animate-pulse"
+              >
+                <div className="bg-gray-600 h-48 rounded mb-4"></div>
+                <div className="bg-gray-600 h-4 rounded mb-2"></div>
+                <div className="bg-gray-600 h-4 rounded w-3/4"></div>
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-red-400">상품을 불러오는 중 오류가 발생했습니다.</p>
+            <Button
+              onClick={() => refetch()}
+              className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
             >
-              <div className="h-36 sm:h-44 md:h-48 bg-gray-200 relative">
-                {product.images && product.images.length > 0 ? (
+              다시 시도
+            </Button>
+          </div>
+        ) : !data || data.length === 0 ? (
+          <div className="text-center py-12">
+            <ShoppingBag className="h-16 w-16 text-gray-500 mx-auto mb-4" />
+            <p className="text-gray-400 text-lg">해당 카테고리에 상품이 없습니다.</p>
+            <p className="text-gray-500 mt-2">다른 카테고리를 선택해보세요.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {data.map((product: Product) => (
+              <div
+                key={product.id}
+                className="bg-gray-700 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-600 hover:border-gray-500"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log("상품 카드 클릭:", product.id);
+                  handleProductClick(product);
+                }}
+              >
+                {/* 상품 이미지 */}
+                <div className="relative">
                   <img
-                    src={getImageUrl(product.images[0])}
+                    src={getImageUrl(product.images)}
                     alt={product.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-48 object-cover rounded-t-lg"
+                    onError={(e) => {
+                      console.log("이미지 로드 실패:", product.title, product.images);
+                      const target = e.target as HTMLImageElement;
+                      target.src = "/images/placeholder-product.png";
+                    }}
                   />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
-                    이미지 없음
-                  </div>
-                )}
-                {product.discountPrice && (
-                  <Badge className="absolute top-2 left-2 bg-red-500">
-                    {Math.round(
-                      ((product.price - product.discountPrice) /
-                        product.price) *
-                        100,
-                    )}
-                    % 할인
-                  </Badge>
-                )}
-                {/* 인증 마크 추가 */}
-                {product.isCertified && (
-                  <div className="absolute top-2 right-2">
-                    <div className="w-16 h-16 rounded-lg bg-white shadow-md border-2 border-sky-300 flex items-center justify-center p-0">
-                      <img
-                        src="/images/certify.png"
-                        alt="인증 마크"
-                        className="w-16 h-16"
-                        title="인증된 판매자 상품"
-                      />
+                  {product.isCertified && (
+                    <div className="absolute top-2 left-2">
+                      <Badge variant="secondary" className="bg-green-600 text-white">
+                        <img
+                          src="/images/certify.png"
+                          alt="인증"
+                          className="w-3 h-3 mr-1"
+                        />
+                        인증
+                      </Badge>
                     </div>
-                  </div>
-                )}
-              </div>
-              <div className="p-3 sm:p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <Badge variant="outline" className="text-xs">
-                    {getCategoryName(product)}
-                  </Badge>
-                  {product.rating !== undefined && (
-                    <div className="flex items-center text-yellow-500 text-xs">
-                      ★{" "}
-                      {typeof product.rating === "number"
-                        ? product.rating.toFixed(1)
-                        : product.rating}{" "}
-                      ({product.reviewCount || 0})
+                  )}
+                  {product.discountPrice && (
+                    <div className="absolute top-2 right-2">
+                      <Badge variant="destructive" className="bg-red-600 text-white">
+                        {Math.round(
+                          ((product.price - product.discountPrice) /
+                            product.price) *
+                            100,
+                        )}
+                        % 할인
+                      </Badge>
                     </div>
                   )}
                 </div>
-                <h3 className="font-medium text-gray-900 mb-0.5 truncate">
-                  {product.title}
-                </h3>
-                <p className="hidden sm:block text-gray-600 text-sm mb-1 sm:mb-2 line-clamp-2">
-                  {product.description ? stripHtml(product.description) : ""}
-                </p>
-                {/* 옵션 정보 표시 */}
-                {(product as any).options &&
-                  (product as any).options.length > 0 && (
-                    <div className="hidden sm:block text-xs text-gray-500 mb-1 sm:mb-2">
-                      <span className="font-medium">옵션:</span>{" "}
-                      {(product as any).options
-                        .map((opt: any) => opt.name)
-                        .join(", ")}
-                    </div>
-                  )}
-                <div className="flex items-end justify-between">
-                  <div>
-                    {product.discountPrice ? (
-                      <>
-                        <span className="text-gray-400 line-through text-sm">
-                          {Math.floor(product.price).toLocaleString()}원
+
+                {/* 상품 정보 */}
+                <div className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-semibold text-white line-clamp-2 flex-1 mr-2">
+                      {product.title}
+                    </h3>
+                    <Badge
+                      variant="outline"
+                      className="text-xs shrink-0 border-gray-500 text-gray-300"
+                    >
+                      {getCategoryName(product)}
+                    </Badge>
+                  </div>
+
+                  <p className="text-gray-400 text-sm mb-3 line-clamp-2">
+                    {stripHtml(product.description || "")}
+                  </p>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col">
+                      {product.discountPrice ? (
+                        <>
+                          <span className="text-gray-500 line-through text-sm">
+                            {product.price.toLocaleString()}원
+                          </span>
+                          <span className="text-white font-bold">
+                            {product.discountPrice.toLocaleString()}원
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-white font-bold">
+                          {product.price.toLocaleString()}원
                         </span>
-                        <p className="font-bold text-red-600">
-                          {Math.floor(product.discountPrice).toLocaleString()}원
-                        </p>
-                      </>
-                    ) : (
-                      <p className="font-bold text-gray-900">
-                        {Math.floor(product.price).toLocaleString()}원
-                      </p>
-                    )}
+                      )}
+                    </div>
+
+                    <div className="flex items-center text-sm text-gray-400">
+                      {product.rating && (
+                        <>
+                          <span className="text-yellow-400">★</span>
+                          <span className="ml-1">
+                            {product.rating} ({product.reviewCount || 0})
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-12 text-gray-500">
-          <pre className="text-left bg-gray-100 p-4 rounded-md mx-auto max-w-lg overflow-auto text-xs">
-            {JSON.stringify(data, null, 2)}
-          </pre>
-          <p className="mt-4">검색 결과가 없습니다.</p>
-          <Button
-            className="mt-4"
-            onClick={() => {
-              setSelectedCategory("전체");
-              setSearchTerm("");
-              setSortBy("latest");
-              refetch();
-            }}
-          >
-            모든 상품 보기
-          </Button>
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

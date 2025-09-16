@@ -40,38 +40,56 @@ const stripHtml = (html: string): string => {
 
 // 이미지 URL을 올바르게 처리하는 함수
 const getImageUrl = (image: string | ProductImage | undefined): string => {
-  if (!image) return "";
+  if (!image) return "/images/placeholder-product.png";
 
-  // 문자열인 경우
-  if (typeof image === "string") {
-    // Base64 데이터인 경우 그대로 반환
-    if (image.startsWith("data:")) {
+  try {
+    // 이미지가 배열인 경우
+    if (Array.isArray(image)) {
+      if (image.length > 0) {
+        return getImageUrl(image[0]);
+      }
+      return "/images/placeholder-product.png";
+    }
+
+    // 문자열인 경우
+    if (typeof image === "string") {
+      // JSON 문자열인 경우 파싱
+      if (image.startsWith('[') || image.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(image);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed[0];
+          } else if (parsed && typeof parsed === 'object' && 'url' in parsed) {
+            return parsed.url;
+          }
+        } catch (e) {
+          // 파싱 실패 시 원래 문자열 사용
+        }
+      }
+
+      // Base64 데이터인 경우 그대로 반환
+      if (image.startsWith("data:")) {
+        return image;
+      }
+
+      // 이미 완전한 URL인 경우 (http:// 또는 https://)
+      if (image.startsWith("http://") || image.startsWith("https://")) {
+        return image;
+      }
+
+      // 상대 경로인 경우 그대로 사용
       return image;
     }
 
-    // 이미 완전한 URL인 경우 (http:// 또는 https://)
-    if (image.startsWith("http://") || image.startsWith("https://")) {
-      return image;
+    // ProductImage 객체인 경우
+    if (image && typeof image === "object" && "url" in image) {
+      return getImageUrl(image.url);
     }
-
-    // 상대 경로인 경우 서버 URL 사용
-    if (image.startsWith("/uploads/") || image.startsWith("/api/uploads/") || 
-        image.startsWith("/images/") || image.startsWith("/images/item/")) {
-      // 경로에서 /api 접두사 제거 (필요한 경우)
-      const cleanPath = image.startsWith("/api/") ? image.substring(4) : image;
-      // 개발 환경에서는 서버가 5000 포트에서 실행되므로 이미지 URL을 서버 URL로 변경
-      return `${cleanPath}`;
-    }
-
-    return image;
+  } catch (e) {
+    console.error("이미지 URL 처리 오류:", e);
   }
 
-  // ProductImage 객체인 경우
-  if (image && typeof image === "object" && "url" in image) {
-    return getImageUrl(image.url);
-  }
-
-  return "";
+  return "/images/placeholder-product.png";
 };
 
 // 선택된 옵션 타입 정의
@@ -91,6 +109,21 @@ interface ProductOption {
   id: string;
   name: string;
   values: ProductOptionValue[];
+}
+
+// 상품 타입에 인증 여부 필드 추가
+interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  discountPrice?: number;
+  images?: string[];
+  category?: string;
+  rating?: number;
+  reviewCount?: number;
+  stock?: number;
+  isCertified?: boolean; // 판매자 인증 여부
 }
 
 export default function ProductDetailPage() {
@@ -175,8 +208,14 @@ export default function ProductDetailPage() {
       // 디버깅을 위해 상품 데이터 출력
       console.log('상품 데이터:', data);
       
-      // 할인 가격 필드 확인 (다양한 필드명 대응)
+      // 필드명 호환성 처리 (title -> name)
       if (data) {
+        // title을 name으로 변환
+        if (data.title && !data.name) {
+          data.name = data.title;
+        }
+        
+        // 할인 가격 필드 확인 (다양한 필드명 대응)
         if (!data.discount_price && data.discountPrice) {
           data.discount_price = data.discountPrice;
         }
@@ -517,7 +556,7 @@ export default function ProductDetailPage() {
     onSuccess: (data) => {
       toast({
         title: "장바구니에 추가되었습니다",
-        description: `${product?.title}이(가) 장바구니에 추가되었습니다.`,
+        description: `${product?.name}이(가) 장바구니에 추가되었습니다.`,
         variant: "default",
       });
     },
@@ -736,7 +775,7 @@ export default function ProductDetailPage() {
       product: {
         ...product,
         id: productId,
-        title: product.title,
+        name: product.name,
         price: product.price,
         discount_price: product.discountPrice || product.discount_price, // 필드명 호환성 처리
         images: product.images
@@ -778,7 +817,7 @@ export default function ProductDetailPage() {
   // 다나와 최저가 검색 함수
   const handlePriceCompare = () => {
     // 제품명을 URL 인코딩
-    const searchQuery = encodeURIComponent(product.title);
+    const searchQuery = encodeURIComponent(product.name); // 상품 제목을 name으로 변경
     // 다나와 검색 URL 생성
     const danawaSearchUrl = `https://search.danawa.com/dsearch.php?k1=${searchQuery}&module=goods&act=dispMain`;
     // 새 창에서 URL 열기
@@ -944,7 +983,7 @@ export default function ProductDetailPage() {
           </Button>
 
           <div className="text-xs sm:text-sm text-gray-500 mb-2">
-            홈 &gt; 쇼핑몰 &gt; {getCategoryName(product)} &gt; {product.title}
+            홈 &gt; 쇼핑몰 &gt; {getCategoryName(product)} &gt; {product.name}
           </div>
         </div>
 
@@ -976,7 +1015,7 @@ export default function ProductDetailPage() {
                 <div className="w-full h-full">
                   <img
                     src={getImageUrl(product.images[selectedImageIndex])}
-                    alt={product.title}
+                    alt={product.name}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -1003,7 +1042,7 @@ export default function ProductDetailPage() {
                     >
                       <img
                         src={getImageUrl(image)}
-                        alt={`${product.title} 이미지 ${index + 1}`}
+                        alt={`${product.name} 이미지 ${index + 1}`}
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -1036,7 +1075,7 @@ export default function ProductDetailPage() {
               </div>
 
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 break-words">
-                {product.title}
+                {product.name}
               </h1>
 
               <div className="mb-3 sm:mb-4">

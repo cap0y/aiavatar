@@ -73,3 +73,7 @@ export const mockChatMessages = [
     timestamp: "14:27"
   }
 ];
+
+// 기존 목업 데이터 유지 (아바타 관련 데이터 제거)
+
+// 다른 목업 데이터가 있다면 유지

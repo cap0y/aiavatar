@@ -19,15 +19,17 @@ const Navigation = () => {
     }
     
     setActiveTab(tabId);
-    const path = tabId === 'home' ? '/' : `/${tabId}`;
+    const path = tabId === 'home' ? '/' : 
+                 tabId === 'discord' ? '/discord-home' : 
+                 `/${tabId}`;
     setLocation(path);
   };
 
   const tabs = [
     { id: 'home', icon: 'fas fa-home', label: '홈', path: '/' },
+    { id: 'discord', icon: 'fas fa-comments', label: '디스코드', path: '/discord-home' },
     { id: 'shop', icon: 'fas fa-shopping-bag', label: '쇼핑몰', path: '/shop' },
     { id: 'bookings', icon: 'fas fa-calendar', label: '예약현황', path: '/bookings' },
-    { id: 'chat', icon: 'fas fa-comment', label: '채팅', path: '/chat' },
     { id: 'profile', icon: 'fas fa-user', label: '마이페이지', path: '/profile' }
   ];
 

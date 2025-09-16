@@ -4,10 +4,18 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { avatarSamples } from '@/data/avatarSamples';
 import { useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
+import { productAPI } from '@/lib/api';
 
 interface ChannelSidebarProps {
   activeChannelId: string;
-  onChannelChange: (channel: { id: string; name: string; type: 'text' | 'voice' | 'video' }) => void;
+  onChannelChange: (channel: { id: string; name: string; type: 'text' | 'voice' | 'video' | 'shop' }) => void;
+}
+
+interface ShopCategory {
+  id: string | number;
+  name: string;
+  icon: string;
 }
 
 const ChannelSidebar: React.FC<ChannelSidebarProps> = ({ 
@@ -47,6 +55,14 @@ const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
         name: '도움말',
         icon: 'fas fa-hashtag',
         type: 'text',
+        unread: 0,
+      },
+      // 상점 채널을 텍스트 채널 밑으로 이동
+      {
+        id: 'shop-all',
+        name: '상점',
+        icon: 'fas fa-store',
+        type: 'shop',
         unread: 0,
       },
     ],
@@ -98,6 +114,27 @@ const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
       activity: '방해금지',
     },
   ];
+
+  // 상품 카테고리 데이터 가져오기 - 사이드바에서는 사용하지 않음
+  const { data: productCategories = [] } = useQuery<ShopCategory[]>({
+    queryKey: ["product-categories"],
+    queryFn: async () => {
+      try {
+        const response = await productAPI.getCategories();
+        if (response && response.categories && Array.isArray(response.categories)) {
+          return response.categories.map((cat: any): ShopCategory => ({
+            id: cat.id || cat.name,
+            name: typeof cat === 'object' && cat !== null ? cat.name || '기타' : cat,
+            icon: 'fas fa-store'
+          }));
+        }
+        return [];
+      } catch (error) {
+        console.error("상품 카테고리 로드 오류:", error);
+        return [];
+      }
+    },
+  });
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev =>
@@ -163,7 +200,7 @@ const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   onClick={() => onChannelChange({
                     id: channel.id,
                     name: channel.name,
-                    type: 'text'
+                    type: channel.type as 'text' | 'voice' | 'video' | 'shop'
                   })}
                 >
                   <i className={`${channel.icon} text-sm text-gray-400 mr-3 w-4`}></i>
@@ -311,6 +348,8 @@ const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
             </div>
           )}
         </div>
+
+        {/* 상점 카테고리 섹션 제거 */}
       </div>
 
       {/* 사용자 정보 */}
