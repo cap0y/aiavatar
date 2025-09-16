@@ -31,6 +31,13 @@ import type { ProductImage } from "@/types";
 import "./product-detail.css"; // CSS 파일 임포트
 import { normalizeHtmlImageSrc } from "@/lib/url";
 
+// ProductImage 타입 확장
+interface ExtendedProductImage extends ProductImage {
+  src?: string;
+  path?: string;
+  image?: string;
+}
+
 // HTML 태그를 제거하는 함수
 const stripHtml = (html: string): string => {
   if (!html) return "";
@@ -39,7 +46,9 @@ const stripHtml = (html: string): string => {
 };
 
 // 이미지 URL을 올바르게 처리하는 함수
-const getImageUrl = (image: string | ProductImage | undefined): string => {
+const getImageUrl = (
+  image: string | ExtendedProductImage | any[] | undefined,
+): string => {
   if (!image) return "/images/placeholder-product.png";
 
   try {
@@ -54,16 +63,20 @@ const getImageUrl = (image: string | ProductImage | undefined): string => {
     // 문자열인 경우
     if (typeof image === "string") {
       // JSON 문자열인 경우 파싱
-      if (image.startsWith('[') || image.startsWith('{')) {
+      if (image.startsWith("[") || image.startsWith("{")) {
         try {
           const parsed = JSON.parse(image);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed[0];
-          } else if (parsed && typeof parsed === 'object' && 'url' in parsed) {
-            return parsed.url;
+            return getImageUrl(parsed[0]);
+          } else if (parsed && typeof parsed === "object") {
+            if ("url" in parsed) return parsed.url;
+            if ("src" in parsed) return parsed.src;
+            if ("path" in parsed) return parsed.path;
+            if ("image" in parsed) return parsed.image;
           }
         } catch (e) {
           // 파싱 실패 시 원래 문자열 사용
+          console.warn("이미지 JSON 파싱 실패:", e);
         }
       }
 
@@ -77,13 +90,34 @@ const getImageUrl = (image: string | ProductImage | undefined): string => {
         return image;
       }
 
-      // 상대 경로인 경우 그대로 사용
+      // 상대 경로인 경우 처리
+      // 이미지 경로에 /images/ 또는 /api/uploads/ 등이 포함된 경우
+      if (
+        image.includes("/images/") ||
+        image.includes("/uploads/") ||
+        image.includes("/api/uploads/") ||
+        image.includes("/assets/")
+      ) {
+        return image;
+      }
+
+      // 단순 파일명인 경우 이미지 경로 추가
+      if (!image.startsWith("/")) {
+        return `/images/2dmodel/${image}`;
+      }
+
+      // 그 외의 경우 그대로 반환
       return image;
     }
 
     // ProductImage 객체인 경우
-    if (image && typeof image === "object" && "url" in image) {
-      return getImageUrl(image.url);
+    if (image && typeof image === "object") {
+      if ("url" in image && image.url) return getImageUrl(image.url);
+      if ("src" in image && image.src) return getImageUrl(image.src as string);
+      if ("path" in image && image.path)
+        return getImageUrl(image.path as string);
+      if ("image" in image && image.image)
+        return getImageUrl(image.image as string);
     }
   } catch (e) {
     console.error("이미지 URL 처리 오류:", e);
@@ -145,40 +179,43 @@ export default function ProductDetailPage() {
   // 선택된 옵션 상태 추가
   const [selectedOptions, setSelectedOptions] = useState<SelectedOption[]>([]);
   const [totalPriceWithOptions, setTotalPriceWithOptions] = useState<number>(0);
-  
+
   // 사용자 구매 이력 확인 상태 추가
   const [hasPurchased, setHasPurchased] = useState(false);
-  
+
   // 로그인한 사용자의 구매 이력을 확인하는 쿼리 추가 (서버 API 연동)
-  const { data: purchaseHistory, isLoading: isLoadingPurchaseHistory } = useQuery({
-    queryKey: ["purchase-history", productId, user?.uid],
-    queryFn: async () => {
-      if (!productId || !user?.uid) return null;
-      
-      try {
-        // 사용자의 구매 이력 조회 API 호출
-        const response = await fetch(`/api/users/${user.uid}/purchases`);
-        
-        if (!response.ok) {
-          throw new Error("구매 이력 조회 실패");
+  const { data: purchaseHistory, isLoading: isLoadingPurchaseHistory } =
+    useQuery({
+      queryKey: ["purchase-history", productId, user?.uid],
+      queryFn: async () => {
+        if (!productId || !user?.uid) return null;
+
+        try {
+          // 사용자의 구매 이력 조회 API 호출
+          const response = await fetch(`/api/users/${user.uid}/purchases`);
+
+          if (!response.ok) {
+            throw new Error("구매 이력 조회 실패");
+          }
+
+          const purchases = await response.json();
+
+          // 현재 상품의 구매 이력이 있는지 확인
+          const hasPurchased = purchases.some(
+            (purchase: any) =>
+              purchase.productId === productId ||
+              purchase.product_id === productId,
+          );
+
+          return { hasPurchased };
+        } catch (error) {
+          console.error("구매 이력 조회 실패:", error);
+          return { hasPurchased: false };
         }
-        
-        const purchases = await response.json();
-        
-        // 현재 상품의 구매 이력이 있는지 확인
-        const hasPurchased = purchases.some(
-          (purchase: any) => purchase.productId === productId || purchase.product_id === productId
-        );
-        
-        return { hasPurchased };
-      } catch (error) {
-        console.error("구매 이력 조회 실패:", error);
-        return { hasPurchased: false };
-      }
-    },
-    enabled: !!productId && !!user?.uid,
-  });
-  
+      },
+      enabled: !!productId && !!user?.uid,
+    });
+
   // 구매 이력이 조회되면 상태 업데이트
   useEffect(() => {
     if (purchaseHistory) {
@@ -203,44 +240,93 @@ export default function ProductDetailPage() {
     queryKey: ["product", productId],
     queryFn: async () => {
       if (!productId) return null;
-      const data = await productAPI.getProduct(productId);
-      
-      // 디버깅을 위해 상품 데이터 출력
-      console.log('상품 데이터:', data);
-      
-      // 필드명 호환성 처리 (title -> name)
-      if (data) {
-        // title을 name으로 변환
+      try {
+        const data = await productAPI.getProduct(productId);
+
+        // 디버깅을 위해 상품 데이터 출력
+        console.log("상품 데이터:", data);
+
+        // 데이터가 없는 경우 기본 객체 반환
+        if (!data) {
+          console.error("상품 데이터를 불러오지 못했습니다.");
+          return {
+            id: productId,
+            name: "상품 정보 없음",
+            description: "상품 정보를 불러오지 못했습니다.",
+            price: 0,
+            images: ["/images/placeholder-product.png"],
+          };
+        }
+
+        // 필드명 호환성 처리 (title -> name)
         if (data.title && !data.name) {
           data.name = data.title;
         }
-        
+
+        // 이름이 없는 경우 기본값 설정
+        if (!data.name && !data.title) {
+          data.name = "아바타 상품";
+        }
+
         // 할인 가격 필드 확인 (다양한 필드명 대응)
         if (!data.discount_price && data.discountPrice) {
           data.discount_price = data.discountPrice;
         }
-        
+
         // 할인 가격이 문자열로 들어온 경우 숫자로 변환
-        if (typeof data.discount_price === 'string') {
+        if (typeof data.discount_price === "string") {
           data.discount_price = parseFloat(data.discount_price);
         }
-        if (typeof data.price === 'string') {
+        if (typeof data.price === "string") {
           data.price = parseFloat(data.price);
         }
-        
+
+        // 가격이 없는 경우 기본값 설정
+        if (!data.price || isNaN(data.price)) {
+          data.price = 50000;
+        }
+
+        // 이미지 필드 확인 및 정규화
+        if (!data.images) {
+          data.images = ["/images/placeholder-product.png"];
+        } else if (typeof data.images === "string") {
+          try {
+            // JSON 문자열인 경우 파싱 시도
+            const parsedImages = JSON.parse(data.images);
+            data.images = Array.isArray(parsedImages)
+              ? parsedImages
+              : [parsedImages];
+          } catch (e) {
+            // 파싱 실패 시 문자열을 배열로 변환
+            data.images = [data.images];
+          }
+        }
+
         // 디버깅 출력
         if (data.discount_price && data.price) {
-          console.log('할인율 계산:', {
+          console.log("할인율 계산:", {
             price: data.price,
             discount_price: data.discount_price,
-            discountPercent: Math.round(((data.price - data.discount_price) / data.price) * 100)
+            discountPercent: Math.round(
+              ((data.price - data.discount_price) / data.price) * 100,
+            ),
           });
         } else {
-          console.log('할인 정보 없음');
+          console.log("할인 정보 없음");
         }
+
+        return data;
+      } catch (error) {
+        console.error("상품 정보 가져오기 오류:", error);
+        // 오류 발생 시 기본 객체 반환
+        return {
+          id: productId,
+          name: "상품 정보 로드 오류",
+          description: "상품 정보를 불러오는 중 오류가 발생했습니다.",
+          price: 0,
+          images: ["/images/placeholder-product.png"],
+        };
       }
-      
-      return data;
     },
     enabled: !!productId,
   });
@@ -251,7 +337,11 @@ export default function ProductDetailPage() {
     queryFn: async () => {
       try {
         const response = await productAPI.getCategories();
-        if (response && response.categories && Array.isArray(response.categories)) {
+        if (
+          response &&
+          response.categories &&
+          Array.isArray(response.categories)
+        ) {
           return response.categories;
         }
         return [];
@@ -264,52 +354,51 @@ export default function ProductDetailPage() {
 
   // 카테고리 이름 찾기 함수
   const getCategoryName = (product: any) => {
-    
     // 1. 서버에서 JOIN된 카테고리 이름이 있는 경우
-    if (product.category && product.category !== null && product.category !== undefined) {
+    if (
+      product.category &&
+      product.category !== null &&
+      product.category !== undefined
+    ) {
       return product.category;
     }
-    
+
     // 2. 카테고리 ID로 카테고리 목록에서 찾기
     const categoryId = product.categoryId || product.category_id;
-    
+
     if (categoryId && categories && Array.isArray(categories)) {
-      
       const category = categories.find((cat: any) => {
         // 다양한 ID 형태 비교
-        return cat.id === categoryId || 
-               cat.id === Number(categoryId) || 
-               String(cat.id) === String(categoryId);
+        return (
+          cat.id === categoryId ||
+          cat.id === Number(categoryId) ||
+          String(cat.id) === String(categoryId)
+        );
       });
-      
+
       if (category) {
         return category.name;
       }
     }
-    
+
     // 3. 하드코딩된 카테고리 매핑 (마지막 fallback)
     const categoryMap: { [key: number]: string } = {
-      1: "가공식품",
-      2: "건강식품", 
-      3: "농산물",
-      4: "수산물",
-      5: "생활용품",
-      6: "디지털상품",
-      7: "전자제품",
-      8: "주류",
-      9: "축산물",
-      10: "취미/게임",
-      11: "카페/베이커리",
-      12: "패션",
-      13: "하드웨어",
-      14: "기타"
+      1: "애니메이션 스타일",
+      2: "사실적 스타일",
+      3: "카툰 스타일",
+      4: "픽셀 스타일",
+      5: "동물 캐릭터",
+      6: "판타지 캐릭터",
+      7: "게임 캐릭터",
+      8: "커스텀 캐릭터",
+      9: "기타",
     };
-    
+
     if (categoryId && categoryMap[Number(categoryId)]) {
       return categoryMap[Number(categoryId)];
     }
-    
-    return categoryId ? `카테고리 ${categoryId}` : "상품";
+
+    return categoryId ? `아바타 ${categoryId}` : "아바타";
   };
 
   // 상품 리뷰 가져오기 (서버 API 연동)
@@ -317,15 +406,15 @@ export default function ProductDetailPage() {
     queryKey: ["product-reviews", productId],
     queryFn: async () => {
       if (!productId) return [];
-      
+
       try {
         // 리뷰 목록 API 호출
         const response = await fetch(`/api/products/${productId}/reviews`);
-        
+
         if (!response.ok) {
           throw new Error("리뷰 로드 실패");
         }
-        
+
         return await response.json();
       } catch (error) {
         console.error("리뷰 로드 실패:", error);
@@ -340,15 +429,15 @@ export default function ProductDetailPage() {
     queryKey: ["product-comments", productId],
     queryFn: async () => {
       if (!productId) return [];
-      
+
       try {
         // 문의 목록 API 호출
         const response = await fetch(`/api/products/${productId}/comments`);
-        
+
         if (!response.ok) {
           throw new Error("문의 로드 실패");
         }
-        
+
         return await response.json();
       } catch (error) {
         console.error("문의 로드 실패:", error);
@@ -361,32 +450,33 @@ export default function ProductDetailPage() {
   // 문의 작성 뮤테이션 (서버 API 연동)
   const addCommentMutation = useMutation({
     mutationFn: async (text: string) => {
-      if (!productId || !user?.uid) throw new Error("상품 ID가 없거나 로그인이 필요합니다.");
-      
+      if (!productId || !user?.uid)
+        throw new Error("상품 ID가 없거나 로그인이 필요합니다.");
+
       const response = await fetch(`/api/products/${productId}/comments`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           userId: user.uid,
-          content: text
-        })
+          content: text,
+        }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "문의 등록에 실패했습니다.");
       }
-      
+
       return await response.json();
     },
     onSuccess: (newComment) => {
       queryClient.setQueryData(
         ["product-comments", productId],
-        (oldData: any[] = []) => [newComment, ...oldData]
+        (oldData: any[] = []) => [newComment, ...oldData],
       );
-      
+
       setCommentText("");
       toast({
         title: "문의가 등록되었습니다",
@@ -411,51 +501,56 @@ export default function ProductDetailPage() {
       rating: number;
       comment: string;
     }) => {
-      if (!productId || !user?.uid) throw new Error("상품 ID가 없거나 로그인이 필요합니다.");
-      
+      if (!productId || !user?.uid)
+        throw new Error("상품 ID가 없거나 로그인이 필요합니다.");
+
       // 구매 여부 재검증 API 호출
-      const purchaseResponse = await fetch(`/api/users/${user.uid}/purchases/verify/${productId}`);
-      
+      const purchaseResponse = await fetch(
+        `/api/users/${user.uid}/purchases/verify/${productId}`,
+      );
+
       if (!purchaseResponse.ok) {
         const errorData = await purchaseResponse.json();
         throw new Error(errorData.error || "구매 이력 확인에 실패했습니다.");
       }
-      
+
       const purchaseData = await purchaseResponse.json();
-      
+
       if (!purchaseData.verified) {
-        throw new Error("구매 이력이 확인되지 않습니다. 구매 후 리뷰를 작성할 수 있습니다.");
+        throw new Error(
+          "구매 이력이 확인되지 않습니다. 구매 후 리뷰를 작성할 수 있습니다.",
+        );
       }
-      
+
       // 리뷰 작성 API 호출
       const response = await fetch(`/api/products/${productId}/reviews`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           userId: user.uid,
           rating,
-          comment
-        })
+          comment,
+        }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "리뷰 등록에 실패했습니다.");
       }
-      
+
       return await response.json();
     },
     onSuccess: (newReview) => {
       queryClient.setQueryData(
         ["product-reviews", productId],
-        (oldData: any[] = []) => [newReview, ...oldData]
+        (oldData: any[] = []) => [newReview, ...oldData],
       );
-      
+
       // 제품 정보 업데이트 (평점, 리뷰 수 변경됨)
       queryClient.invalidateQueries({ queryKey: ["product", productId] });
-      
+
       setReviewText("");
       setRating(5);
       toast({
@@ -481,7 +576,6 @@ export default function ProductDetailPage() {
     optionName: string,
     optionValue: ProductOptionValue,
   ) => {
-
     // 이미 같은 이름의 옵션이 선택되어 있는지 확인
     const existingOptionIndex = selectedOptions.findIndex(
       (opt) => opt.name === optionName,
@@ -524,16 +618,16 @@ export default function ProductDetailPage() {
 
       // 총 가격 계산 (할인된 기본가 + 옵션) × 수량
       const totalPrice = (discountedPrice + optionsPrice) * quantity;
-      
+
       setTotalPriceWithOptions(totalPrice);
-      
-      console.log('가격 계산 (강제 할인 적용):', { 
-        originalPrice, 
+
+      console.log("가격 계산 (강제 할인 적용):", {
+        originalPrice,
         discountRate,
         discountedPrice,
-        optionsPrice, 
+        optionsPrice,
         quantity,
-        totalPrice 
+        totalPrice,
       });
     }
   }, [product, selectedOptions, quantity]);
@@ -544,7 +638,8 @@ export default function ProductDetailPage() {
       if (!productId) throw new Error("상품 ID가 없습니다.");
       if (!user?.uid) throw new Error("로그인이 필요합니다.");
 
-      const optionsData = selectedOptions.length > 0 ? selectedOptions : undefined;
+      const optionsData =
+        selectedOptions.length > 0 ? selectedOptions : undefined;
 
       const result = await cartAPI.addItem(user.uid, {
         productId: productId,
@@ -689,31 +784,35 @@ export default function ProductDetailPage() {
       commentId: string;
       content: string;
     }) => {
-      if (!productId || !user?.uid) throw new Error("상품 ID가 없거나 로그인이 필요합니다.");
-      
-      const response = await fetch(`/api/products/${productId}/comments/${commentId}/replies`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
+      if (!productId || !user?.uid)
+        throw new Error("상품 ID가 없거나 로그인이 필요합니다.");
+
+      const response = await fetch(
+        `/api/products/${productId}/comments/${commentId}/replies`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: user.uid,
+            content,
+          }),
         },
-        body: JSON.stringify({
-          userId: user.uid,
-          content
-        })
-      });
-      
+      );
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "답글 등록에 실패했습니다.");
       }
-      
+
       return await response.json();
     },
     onSuccess: (newReply) => {
       queryClient.invalidateQueries({
         queryKey: ["product-comments", productId],
       });
-      
+
       setReplyText("");
       setReplyingTo(null);
       toast({
@@ -755,7 +854,7 @@ export default function ProductDetailPage() {
     console.log("바로 구매하기 버튼 클릭됨");
     console.log("인증 상태:", isAuthenticated);
     console.log("사용자 정보:", user);
-    
+
     if (!isAuthenticated || !user) {
       console.log("미인증 사용자, 로그인 요청");
       toast({
@@ -778,7 +877,7 @@ export default function ProductDetailPage() {
         name: product.name,
         price: product.price,
         discount_price: product.discountPrice || product.discount_price, // 필드명 호환성 처리
-        images: product.images
+        images: product.images,
       },
       quantity: quantity,
       selected_options: selectedOptions,
@@ -794,18 +893,18 @@ export default function ProductDetailPage() {
       userInfo: {
         uid: user.uid,
         email: user.email,
-        displayName: user.displayName
-      }
+        displayName: user.displayName,
+      },
     };
 
     console.log("localStorage에 저장할 데이터:", checkoutData);
-    localStorage.setItem('checkoutData', JSON.stringify(checkoutData));
+    localStorage.setItem("checkoutData", JSON.stringify(checkoutData));
 
     console.log("체크아웃 페이지로 이동합니다");
-    
+
     // 체크아웃 페이지로 이동 (navigate 함수 사용)
     navigate("/checkout");
-    
+
     // toast 메시지는 페이지 이동 전에 표시
     toast({
       title: "결제 페이지로 이동합니다",
@@ -821,7 +920,7 @@ export default function ProductDetailPage() {
     // 다나와 검색 URL 생성
     const danawaSearchUrl = `https://search.danawa.com/dsearch.php?k1=${searchQuery}&module=goods&act=dispMain`;
     // 새 창에서 URL 열기
-    window.open(danawaSearchUrl, '_blank');
+    window.open(danawaSearchUrl, "_blank");
   };
 
   // HTML 내부의 iframe과 미디어 요소를 반응형으로 만드는 함수
@@ -885,18 +984,20 @@ export default function ProductDetailPage() {
         </div>
       );
     }
-    
+
     if (isLoadingPurchaseHistory) {
       return (
         <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border">
           <div className="flex items-center justify-center">
             <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2"></div>
-            <span className="text-xs sm:text-sm text-gray-500">구매 정보를 확인 중입니다...</span>
+            <span className="text-xs sm:text-sm text-gray-500">
+              구매 정보를 확인 중입니다...
+            </span>
           </div>
         </div>
       );
     }
-    
+
     if (!hasPurchased) {
       return (
         <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border">
@@ -910,12 +1011,10 @@ export default function ProductDetailPage() {
         </div>
       );
     }
-    
+
     return (
       <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border">
-        <h4 className="text-xs sm:text-sm font-medium mb-2">
-          리뷰 작성
-        </h4>
+        <h4 className="text-xs sm:text-sm font-medium mb-2">리뷰 작성</h4>
         <div className="flex items-center mb-2">
           <span className="text-xs sm:text-sm mr-2">평점:</span>
           <div className="flex items-center">{renderStars(rating)}</div>
@@ -996,21 +1095,21 @@ export default function ProductDetailPage() {
               <div className="absolute left-4 top-8 bg-red-500 text-white px-2 py-1 font-bold rounded-r-md shadow-md z-10">
                 20% 할인
               </div>
-              
+
               {/* 인증 마크 추가 - 조건부 표시 */}
               {product.isCertified && (
                 <div className="absolute right-4 top-8">
                   <div className="w-20 h-20 rounded-lg bg-white shadow-md border-2 border-sky-300 flex items-center justify-center p-0">
-                    <img 
+                    <img
                       src="/images/certify.png"
-                      alt="인증 마크" 
+                      alt="인증 마크"
                       className="w-20 h-20"
                       title="인증된 판매자 상품"
                     />
                   </div>
                 </div>
               )}
-            
+
               {product.images && product.images.length > 0 ? (
                 <div className="w-full h-full">
                   <img
@@ -1084,21 +1183,21 @@ export default function ProductDetailPage() {
                   <span className="text-gray-400 line-through text-sm sm:text-lg mr-2">
                     {Math.floor(product.price || 50000).toLocaleString()}원
                   </span>
-                  <Badge className="bg-red-500 text-xs">
-                    20% 할인
-                  </Badge>
+                  <Badge className="bg-red-500 text-xs">20% 할인</Badge>
                 </div>
                 <p className="text-xl sm:text-2xl font-bold text-red-600">
-                  {Math.floor((product.price || 50000) * 0.8).toLocaleString()}원
+                  {Math.floor((product.price || 50000) * 0.8).toLocaleString()}
+                  원
                 </p>
               </div>
 
               <div className="space-y-2 sm:space-y-4 mb-4 sm:mb-6">
                 <div className="flex items-center text-xs sm:text-sm">
                   <Truck className="h-3 w-3 sm:h-4 sm:w-4 mr-2 text-blue-500" />
-                  <span>{totalPriceWithOptions < 30000 ? 
-                    '3,000원 배송비 (3만원 이상 구매시 무료배송)' : 
-                    '무료배송 (3만원 이상 구매시)'}
+                  <span>
+                    {totalPriceWithOptions < 30000
+                      ? "3,000원 배송비 (3만원 이상 구매시 무료배송)"
+                      : "무료배송 (3만원 이상 구매시)"}
                   </span>
                 </div>
                 <div className="flex items-center text-xs sm:text-sm">
@@ -1121,80 +1220,88 @@ export default function ProductDetailPage() {
                   <h3 className="font-medium text-sm sm:text-base text-gray-700">
                     옵션 선택
                   </h3>
-                  {product.options.map((option: ProductOption, index: number) => {
-                    // 옵션 값이 문자열인 경우 안전하게 JSON으로 파싱
-                    let optionValues = option.values;
+                  {product.options.map(
+                    (option: ProductOption, index: number) => {
+                      // 옵션 값이 문자열인 경우 안전하게 JSON으로 파싱
+                      let optionValues = option.values;
 
-                    if (typeof option.values === "string") {
-                      try {
-                        optionValues = JSON.parse(option.values);
-                      } catch (e) {
-                        // 파싱 실패 시 빈 배열 대신 기본값으로 설정
-                        optionValues = [{ value: "옵션 없음", price_adjust: 0 }];
+                      if (typeof option.values === "string") {
+                        try {
+                          optionValues = JSON.parse(option.values);
+                        } catch (e) {
+                          // 파싱 실패 시 빈 배열 대신 기본값으로 설정
+                          optionValues = [
+                            { value: "옵션 없음", price_adjust: 0 },
+                          ];
+                        }
                       }
-                    }
 
-                    // 값이 없거나 배열이 아닌 경우 기본값 설정
-                    if (
-                      !optionValues ||
-                      !Array.isArray(optionValues) ||
-                      optionValues.length === 0
-                    ) {
-                      optionValues = [{ value: "옵션 없음", price_adjust: 0 }];
-                    }
+                      // 값이 없거나 배열이 아닌 경우 기본값 설정
+                      if (
+                        !optionValues ||
+                        !Array.isArray(optionValues) ||
+                        optionValues.length === 0
+                      ) {
+                        optionValues = [
+                          { value: "옵션 없음", price_adjust: 0 },
+                        ];
+                      }
 
-                    return (
-                      <div key={index} className="space-y-2">
-                        <label className="block text-sm text-gray-600">
-                          {option.name}
-                        </label>
-                        <select
-                          className="w-full border rounded-md p-2 text-sm"
-                          onChange={(e) => {
-                            // 선택된 옵션 값 찾기
-                            let values = optionValues;
+                      return (
+                        <div key={index} className="space-y-2">
+                          <label className="block text-sm text-gray-600">
+                            {option.name}
+                          </label>
+                          <select
+                            className="w-full border rounded-md p-2 text-sm"
+                            onChange={(e) => {
+                              // 선택된 옵션 값 찾기
+                              let values = optionValues;
 
-                            if (!Array.isArray(values)) {
-                              values = [{ value: "옵션 없음", price_adjust: 0 }];
-                            }
+                              if (!Array.isArray(values)) {
+                                values = [
+                                  { value: "옵션 없음", price_adjust: 0 },
+                                ];
+                              }
 
-                            const selectedValue = values.find(
-                              (v: ProductOptionValue) =>
-                                v.value === e.target.value,
-                            );
+                              const selectedValue = values.find(
+                                (v: ProductOptionValue) =>
+                                  v.value === e.target.value,
+                              );
 
-                            if (selectedValue) {
-                              handleOptionChange(option.name, selectedValue);
-                            }
-                          }}
-                          defaultValue=""
-                        >
-                          <option value="" disabled>
-                            옵션을 선택하세요
-                          </option>
-                          {Array.isArray(optionValues) &&
-                            optionValues.map(
-                              (val: ProductOptionValue, i: number) => {
-                                // price_adjust 값을 확실하게 숫자로 처리
-                                const priceAdjust = Number(val.price_adjust);
-                                const adjustAmount = isNaN(priceAdjust)
-                                  ? 0
-                                  : priceAdjust;
+                              if (selectedValue) {
+                                handleOptionChange(option.name, selectedValue);
+                              }
+                            }}
+                            defaultValue=""
+                          >
+                            <option value="" disabled>
+                              옵션을 선택하세요
+                            </option>
+                            {Array.isArray(optionValues) &&
+                              optionValues.map(
+                                (val: ProductOptionValue, i: number) => {
+                                  // price_adjust 값을 확실하게 숫자로 처리
+                                  const priceAdjust = Number(val.price_adjust);
+                                  const adjustAmount = isNaN(priceAdjust)
+                                    ? 0
+                                    : priceAdjust;
 
-                                return (
-                                  <option key={i} value={val.value}>
-                                    {val.value}{" "}
-                                    {adjustAmount > 0
-                                      ? `(+${Math.floor(adjustAmount).toLocaleString()}원)`
-                                      : ""}
-                                  </option>
-                                );
-                              },
-                            )}
-                        </select>
-                      </div>
-                    );
-                  })}
+                                  return (
+                                    <option key={i} value={val.value}>
+                                      {val.value}{" "}
+                                      {adjustAmount > 0
+                                        ? `(+${Math.floor(adjustAmount).toLocaleString()}원)`
+                                        : ""}
+                                    </option>
+                                  );
+                                },
+                              )}
+                          </select>
+                        </div>
+                      );
+                    },
+                  )}
                 </div>
               )}
 
@@ -1260,41 +1367,51 @@ export default function ProductDetailPage() {
                     {Math.floor(totalPriceWithOptions).toLocaleString()}원
                   </span>
                 </p>
-                
+
                 {/* 배송비 정보 추가 */}
                 <p className="text-xs sm:text-sm text-gray-700 flex justify-between items-center mt-1">
                   <span>배송비:</span>
                   <span>
-                    {totalPriceWithOptions < 30000 ? 
-                      '3,000원 (3만원 이상 구매 시 무료)' : 
-                      '무료 배송'}
+                    {totalPriceWithOptions < 30000
+                      ? "3,000원 (3만원 이상 구매 시 무료)"
+                      : "무료 배송"}
                   </span>
                 </p>
-                
+
                 {/* 총 결제 금액 */}
                 <p className="text-base sm:text-lg font-bold flex justify-between items-center mt-2 pt-2 border-t border-gray-200">
                   <span>총 결제 금액:</span>
                   <span className="text-red-600">
-                    {Math.floor(totalPriceWithOptions < 30000 ? 
-                      totalPriceWithOptions + 3000 : 
-                      totalPriceWithOptions).toLocaleString()}원
+                    {Math.floor(
+                      totalPriceWithOptions < 30000
+                        ? totalPriceWithOptions + 3000
+                        : totalPriceWithOptions,
+                    ).toLocaleString()}
+                    원
                   </span>
                 </p>
-                
+
                 {/* 강제로 할인 정보 표시 (테스트용) */}
                 <p className="text-xs sm:text-sm text-red-500 flex justify-between items-center mt-1">
                   <span>할인 적용:</span>
                   <span>20% 할인</span>
                 </p>
-                
+
                 {selectedOptions.length > 0 && (
                   <p className="text-xs sm:text-sm text-gray-500 mt-1 flex justify-between items-center">
                     <span>상세 내역:</span>
                     <span>
-                      기본가 {Math.floor((product.price || 50000) * 0.8).toLocaleString()}원
-                      {selectedOptions.reduce((sum, opt) => sum + opt.price_adjust, 0) > 0 && 
-                        ` + 옵션가 ${selectedOptions.reduce((sum, opt) => sum + opt.price_adjust, 0).toLocaleString()}원`
-                      } × {quantity}개
+                      기본가{" "}
+                      {Math.floor(
+                        (product.price || 50000) * 0.8,
+                      ).toLocaleString()}
+                      원
+                      {selectedOptions.reduce(
+                        (sum, opt) => sum + opt.price_adjust,
+                        0,
+                      ) > 0 &&
+                        ` + 옵션가 ${selectedOptions.reduce((sum, opt) => sum + opt.price_adjust, 0).toLocaleString()}원`}{" "}
+                      × {quantity}개
                     </span>
                   </p>
                 )}
@@ -1307,7 +1424,18 @@ export default function ProductDetailPage() {
                   className="flex-1 text-xs sm:text-sm py-1 sm:py-2"
                   onClick={handlePriceCompare}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
                   인터넷 최저가
                 </Button>
                 <Button
@@ -1353,13 +1481,18 @@ export default function ProductDetailPage() {
             </TabsList>
             <TabsContent value="details" className="py-4 sm:py-6 px-4 sm:px-20">
               <div className="prose max-w-none prose-sm sm:prose-base">
-                <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4" style={{ color: '#000000' }}>
+                <h3
+                  className="text-lg sm:text-xl font-bold mb-3 sm:mb-4"
+                  style={{ color: "#000000" }}
+                >
                   상품 상세 정보
                 </h3>
                 <div
                   className="product-description text-sm sm:text-base overflow-hidden w-full"
                   dangerouslySetInnerHTML={{
-                    __html: normalizeHtmlImageSrc(product.description || "상세 정보가 없습니다."),
+                    __html: normalizeHtmlImageSrc(
+                      product.description || "상세 정보가 없습니다.",
+                    ),
                   }}
                 />
               </div>
@@ -1418,7 +1551,10 @@ export default function ProductDetailPage() {
                         </p>
                         {/* 구매 확인 배지 추가 */}
                         <div className="mt-2">
-                          <Badge variant="outline" className="text-xs bg-green-50 text-green-800 border-green-200">
+                          <Badge
+                            variant="outline"
+                            className="text-xs bg-green-50 text-green-800 border-green-200"
+                          >
                             <ShoppingBag className="h-2 w-2 mr-1" />
                             구매 확인
                           </Badge>
@@ -1433,7 +1569,10 @@ export default function ProductDetailPage() {
                 </div>
               </div>
             </TabsContent>
-            <TabsContent value="inquiries" className="py-4 sm:py-6 px-4 sm:px-6">
+            <TabsContent
+              value="inquiries"
+              className="py-4 sm:py-6 px-4 sm:px-6"
+            >
               <div className="space-y-4 sm:space-y-6">
                 <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">
                   상품 문의
@@ -1500,9 +1639,11 @@ export default function ProductDetailPage() {
                               )}
                             </p>
                             <p className="text-xs text-gray-500">
-                              {comment.createdAt || comment.created_at ? 
-                                new Date(comment.createdAt || comment.created_at).toLocaleDateString() : 
-                                ""}
+                              {comment.createdAt || comment.created_at
+                                ? new Date(
+                                    comment.createdAt || comment.created_at,
+                                  ).toLocaleDateString()
+                                : ""}
                             </p>
                           </div>
                           <Button
@@ -1589,9 +1730,11 @@ export default function ProductDetailPage() {
                                         )}
                                     </p>
                                     <p className="text-xs text-gray-500">
-                                      {reply.createdAt || reply.created_at ? 
-                                        new Date(reply.createdAt || reply.created_at).toLocaleDateString() : 
-                                        ""}
+                                      {reply.createdAt || reply.created_at
+                                        ? new Date(
+                                            reply.createdAt || reply.created_at,
+                                          ).toLocaleDateString()
+                                        : ""}
                                     </p>
                                   </div>
                                   <Button
@@ -1639,16 +1782,20 @@ export default function ProductDetailPage() {
                     </h4>
                     <div className="text-xs sm:text-sm space-y-1 sm:space-y-2">
                       <p>
-                        1. 상품 주문은 온라인으로 24시간 가능하며, 결제완료 기준으로 주문이 확정됩니다.
+                        1. 상품 주문은 온라인으로 24시간 가능하며, 결제완료
+                        기준으로 주문이 확정됩니다.
                       </p>
                       <p>
-                        2. 결제 방법: 신용카드, 체크카드, 무통장입금, 휴대폰 결제, 간편결제 서비스 등을 지원합니다.
+                        2. 결제 방법: 신용카드, 체크카드, 무통장입금, 휴대폰
+                        결제, 간편결제 서비스 등을 지원합니다.
                       </p>
                       <p>
-                        3. 무통장입금의 경우 주문일로부터 3일 이내에 입금이 확인되지 않으면 자동으로 주문이 취소될 수 있습니다.
+                        3. 무통장입금의 경우 주문일로부터 3일 이내에 입금이
+                        확인되지 않으면 자동으로 주문이 취소될 수 있습니다.
                       </p>
                       <p>
-                        4. 주문 확인 후 재고 부족 등의 사유로 배송이 어려운 경우, 고객에게 별도 연락드립니다.
+                        4. 주문 확인 후 재고 부족 등의 사유로 배송이 어려운
+                        경우, 고객에게 별도 연락드립니다.
                       </p>
                     </div>
                   </div>
@@ -1660,19 +1807,24 @@ export default function ProductDetailPage() {
                     </h4>
                     <div className="text-xs sm:text-sm space-y-1 sm:space-y-2">
                       <p>
-                        1. 배송비: 3만원 이상 구매시 무료배송이며, 미만인 경우 2,500원의 배송비가 부과됩니다.
+                        1. 배송비: 3만원 이상 구매시 무료배송이며, 미만인 경우
+                        2,500원의 배송비가 부과됩니다.
                       </p>
                       <p>
-                        2. 배송 기간: 결제 확인 후 1-3일 이내 출고되며, 택배사 사정에 따라 1-2일 내에 배송 완료됩니다.
+                        2. 배송 기간: 결제 확인 후 1-3일 이내 출고되며, 택배사
+                        사정에 따라 1-2일 내에 배송 완료됩니다.
                       </p>
                       <p>
-                        3. 일부 도서산간 지역은 배송이 지연되거나 추가 배송비가 발생할 수 있습니다.
+                        3. 일부 도서산간 지역은 배송이 지연되거나 추가 배송비가
+                        발생할 수 있습니다.
                       </p>
                       <p>
-                        4. 배송 조회는 마이페이지 &gt; 주문/배송조회 메뉴에서 확인 가능합니다.
+                        4. 배송 조회는 마이페이지 &gt; 주문/배송조회 메뉴에서
+                        확인 가능합니다.
                       </p>
                       <p>
-                        5. 주문량 급증, 천재지변, 물류 파업 등의 사유 발생 시 배송이 지연될 수 있습니다.
+                        5. 주문량 급증, 천재지변, 물류 파업 등의 사유 발생 시
+                        배송이 지연될 수 있습니다.
                       </p>
                     </div>
                   </div>
@@ -1684,27 +1836,28 @@ export default function ProductDetailPage() {
                     </h4>
                     <div className="text-xs sm:text-sm space-y-1 sm:space-y-2">
                       <p>
-                        1. 단순 변심에 의한 교환/반품은 상품 수령일로부터 7일 이내에 신청 가능합니다.
+                        1. 단순 변심에 의한 교환/반품은 상품 수령일로부터 7일
+                        이내에 신청 가능합니다.
                       </p>
                       <p>
-                        2. 상품 불량, 오배송의 경우 수령일로부터 30일 이내 교환/반품 신청이 가능합니다.
+                        2. 상품 불량, 오배송의 경우 수령일로부터 30일 이내
+                        교환/반품 신청이 가능합니다.
                       </p>
                       <p>
-                        3. 단순 변심으로 인한 반품 시 왕복 배송비는 고객 부담입니다.
+                        3. 단순 변심으로 인한 반품 시 왕복 배송비는 고객
+                        부담입니다.
                       </p>
-                      <p>
-                        4. 다음의 경우 교환/반품이 제한될 수 있습니다:
-                      </p>
+                      <p>4. 다음의 경우 교환/반품이 제한될 수 있습니다:</p>
                       <ul className="list-disc pl-4 sm:pl-5 space-y-1">
                         <li>포장을 개봉하여 사용하거나 훼손한 경우</li>
                         <li>고객의 책임으로 상품이 훼손된 경우</li>
                         <li>시간 경과로 인해 재판매가 어려운 경우</li>
-                        <li>정품 구성품이 누락된 경우 (박스, 사은품, 매뉴얼 등)</li>
+                        <li>
+                          정품 구성품이 누락된 경우 (박스, 사은품, 매뉴얼 등)
+                        </li>
                         <li>맞춤제작 상품 등 특별 주문 상품인 경우</li>
                       </ul>
-                      <p>
-                        5. 환불은 결제 수단에 따라 3-7일 이내에 처리됩니다.
-                      </p>
+                      <p>5. 환불은 결제 수단에 따라 3-7일 이내에 처리됩니다.</p>
                     </div>
                   </div>
 
@@ -1715,16 +1868,20 @@ export default function ProductDetailPage() {
                     </h4>
                     <div className="text-xs sm:text-sm space-y-1 sm:space-y-2">
                       <p>
-                        1. 제조사의 A/S 정책을 따르며, 구체적인 보증 기간은 상품별로 상이합니다.
+                        1. 제조사의 A/S 정책을 따르며, 구체적인 보증 기간은
+                        상품별로 상이합니다.
                       </p>
                       <p>
-                        2. 정품 구매 영수증, 보증서는 A/S를 위해 잘 보관해주시기 바랍니다.
+                        2. 정품 구매 영수증, 보증서는 A/S를 위해 잘 보관해주시기
+                        바랍니다.
                       </p>
                       <p>
-                        3. 소비자 과실로 인한 상품 훼손 시 유상 수리가 진행됩니다.
+                        3. 소비자 과실로 인한 상품 훼손 시 유상 수리가
+                        진행됩니다.
                       </p>
                       <p>
-                        4. A/S 문의는 고객센터(1234-5678) 또는 홈페이지 고객센터를 통해 접수 가능합니다.
+                        4. A/S 문의는 고객센터(1234-5678) 또는 홈페이지
+                        고객센터를 통해 접수 가능합니다.
                       </p>
                     </div>
                   </div>
@@ -1736,16 +1893,20 @@ export default function ProductDetailPage() {
                     </h4>
                     <div className="text-xs sm:text-sm space-y-1 sm:space-y-2">
                       <p>
-                        1. 주문 및 배송 과정에서 수집된 개인정보는 상품 배송 및 고객 지원 목적으로만 사용됩니다.
+                        1. 주문 및 배송 과정에서 수집된 개인정보는 상품 배송 및
+                        고객 지원 목적으로만 사용됩니다.
                       </p>
                       <p>
-                        2. 개인정보는 관계 법령에 의해 요구되는 기간 동안만 보관되며, 그 이후는 안전하게 폐기됩니다.
+                        2. 개인정보는 관계 법령에 의해 요구되는 기간 동안만
+                        보관되며, 그 이후는 안전하게 폐기됩니다.
                       </p>
                       <p>
-                        3. 당사는 고객 동의 없이 개인정보를 제3자에게 제공하지 않습니다.
+                        3. 당사는 고객 동의 없이 개인정보를 제3자에게 제공하지
+                        않습니다.
                       </p>
                       <p>
-                        4. 개인정보 관련 자세한 내용은 '개인정보 처리방침'을 참조하시기 바랍니다.
+                        4. 개인정보 관련 자세한 내용은 '개인정보 처리방침'을
+                        참조하시기 바랍니다.
                       </p>
                     </div>
                   </div>
@@ -1753,8 +1914,10 @@ export default function ProductDetailPage() {
 
                 <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border mt-4 sm:mt-6">
                   <p className="text-xs sm:text-sm text-gray-600">
-                    위 판매 규정은 일반적인 상품에 적용되는 기본 규정이며, 상품 유형에 따라 추가 규정이 적용될 수 있습니다.
-                    각 상품별 상세한 배송 및 AS 정책은 상품 상세페이지를 참고하시거나 고객센터로 문의해주시기 바랍니다.
+                    위 판매 규정은 일반적인 상품에 적용되는 기본 규정이며, 상품
+                    유형에 따라 추가 규정이 적용될 수 있습니다. 각 상품별 상세한
+                    배송 및 AS 정책은 상품 상세페이지를 참고하시거나 고객센터로
+                    문의해주시기 바랍니다.
                   </p>
                 </div>
               </div>
@@ -1764,4 +1927,4 @@ export default function ProductDetailPage() {
       </div>
     </div>
   );
-} 
+}

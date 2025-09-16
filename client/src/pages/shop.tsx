@@ -42,16 +42,23 @@ const getImageUrl = (image: any): string => {
     }
 
     // 이미지가 JSON 문자열인 경우 파싱
-    if (typeof image === "string" && (image.startsWith('[') || image.startsWith('{'))) {
+    if (
+      typeof image === "string" &&
+      (image.startsWith("[") || image.startsWith("{"))
+    ) {
       try {
         const parsed = JSON.parse(image);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed[0];
-        } else if (parsed && typeof parsed === 'object' && 'url' in parsed) {
-          return parsed.url;
+          return getImageUrl(parsed[0]);
+        } else if (parsed && typeof parsed === "object") {
+          if ("url" in parsed) return parsed.url;
+          if ("src" in parsed) return parsed.src;
+          if ("path" in parsed) return parsed.path;
+          if ("image" in parsed) return parsed.image;
         }
       } catch (e) {
         // JSON 파싱 실패 시 원래 문자열 사용
+        console.warn("이미지 JSON 파싱 실패:", e);
       }
     }
 
@@ -67,16 +74,33 @@ const getImageUrl = (image: any): string => {
         return image;
       }
 
-      // 상대 경로인 경우 그대로 사용
+      // 상대 경로인 경우 처리
+      // 이미지 경로에 /images/ 또는 /api/uploads/ 등이 포함된 경우
+      if (
+        image.includes("/images/") ||
+        image.includes("/uploads/") ||
+        image.includes("/api/uploads/") ||
+        image.includes("/assets/")
+      ) {
+        return image;
+      }
+
+      // 단순 파일명인 경우 이미지 경로 추가
+      if (!image.startsWith("/")) {
+        return `/images/2dmodel/${image}`;
+      }
+
+      // 그 외의 경우 그대로 반환
       return image;
     }
 
-    // 객체인 경우 (url 속성이 있는 객체)
+    // 객체인 경우
     if (image && typeof image === "object") {
       // url 속성이 있는 경우
-      if ('url' in image) {
-        return getImageUrl(image.url);
-      }
+      if ("url" in image && image.url) return getImageUrl(image.url);
+      if ("src" in image && image.src) return getImageUrl(image.src);
+      if ("path" in image && image.path) return getImageUrl(image.path);
+      if ("image" in image && image.image) return getImageUrl(image.image);
     }
   } catch (e) {
     console.error("이미지 URL 처리 오류:", e);
@@ -88,15 +112,15 @@ const getImageUrl = (image: any): string => {
 // 상품 카테고리 목록 (AI 아바타 세상)
 const CATEGORIES = [
   "전체",
-  "VTuber",
-  "애니메이션",
-  "리얼리스틱",
-  "판타지",
-  "SF/미래",
-  "동물/펫",
-  "커스텀",
-  "액세서리",
-  "이모션팩"
+  "애니메이션 스타일",
+  "사실적 스타일",
+  "카툰 스타일",
+  "픽셀 스타일",
+  "동물 캐릭터",
+  "판타지 캐릭터",
+  "게임 캐릭터",
+  "커스텀 캐릭터",
+  "기타",
 ];
 
 // 카테고리 하드코딩 매핑 (fallback용) - AI 아바타 세상 카테고리
@@ -108,16 +132,15 @@ const getCategoryName = (product: Product): string => {
 
   // 2. 실제 데이터베이스 구조에 맞는 카테고리 매핑
   const categoryMap: { [key: number]: string } = {
-    1: "전체",
-    2: "VTuber",
-    3: "애니메이션",
-    4: "리얼리스틱",
-    5: "판타지",
-    6: "SF/미래",
-    7: "동물/펫",
-    8: "커스텀",
-    9: "액세서리",
-    10: "이모션팩"
+    1: "애니메이션 스타일",
+    2: "사실적 스타일",
+    3: "카툰 스타일",
+    4: "픽셀 스타일",
+    5: "동물 캐릭터",
+    6: "판타지 캐릭터",
+    7: "게임 캐릭터",
+    8: "커스텀 캐릭터",
+    9: "기타",
   };
 
   // 3. categoryId로 매핑
@@ -128,7 +151,7 @@ const getCategoryName = (product: Product): string => {
   }
 
   // 4. 기본값
-  return categoryId ? `카테고리 ${categoryId}` : "기타";
+  return categoryId ? `아바타 ${categoryId}` : "기타";
 };
 
 interface ShopPageProps {
@@ -136,10 +159,15 @@ interface ShopPageProps {
   initialCategory?: string;
 }
 
-export default function ShopPage({ onProductClick, initialCategory }: ShopPageProps) {
+export default function ShopPage({
+  onProductClick,
+  initialCategory,
+}: ShopPageProps) {
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState(initialCategory || "전체");
+  const [selectedCategory, setSelectedCategory] = useState(
+    initialCategory || "전체",
+  );
   const [sortBy, setSortBy] = useState<
     "latest" | "price_asc" | "price_desc" | "popular"
   >("latest");
@@ -280,15 +308,16 @@ export default function ShopPage({ onProductClick, initialCategory }: ShopPagePr
 
   // 상품 클릭 핸들러
   const handleProductClick = (product: Product) => {
-    console.log("상품 클릭:", product.id, product.title);
-    
+    console.log("상품 클릭:", product.id);
+
+    // 1. 부모 컴포넌트에서 전달받은 핸들러가 있으면 사용 (Discord 레이아웃 내에서)
     if (onProductClick) {
-      // Discord 레이아웃에서 호출된 경우
       onProductClick(product.id);
-    } else {
-      // 일반 상점 페이지에서 호출된 경우
-      window.location.href = `/product/${product.id}`;
+      return;
     }
+
+    // 2. 직접 페이지 이동 (독립 페이지에서)
+    window.location.href = `/product/${product.id}`;
   };
 
   // 검색이나 필터 변경 시 상품 목록 갱신
@@ -358,10 +387,7 @@ export default function ShopPage({ onProductClick, initialCategory }: ShopPagePr
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[...Array(8)].map((_, i) => (
-              <div
-                key={i}
-                className="bg-gray-700 rounded-lg p-4 animate-pulse"
-              >
+              <div key={i} className="bg-gray-700 rounded-lg p-4 animate-pulse">
                 <div className="bg-gray-600 h-48 rounded mb-4"></div>
                 <div className="bg-gray-600 h-4 rounded mb-2"></div>
                 <div className="bg-gray-600 h-4 rounded w-3/4"></div>
@@ -370,7 +396,9 @@ export default function ShopPage({ onProductClick, initialCategory }: ShopPagePr
           </div>
         ) : error ? (
           <div className="text-center py-12">
-            <p className="text-red-400">상품을 불러오는 중 오류가 발생했습니다.</p>
+            <p className="text-red-400">
+              상품을 불러오는 중 오류가 발생했습니다.
+            </p>
             <Button
               onClick={() => refetch()}
               className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
@@ -381,7 +409,9 @@ export default function ShopPage({ onProductClick, initialCategory }: ShopPagePr
         ) : !data || data.length === 0 ? (
           <div className="text-center py-12">
             <ShoppingBag className="h-16 w-16 text-gray-500 mx-auto mb-4" />
-            <p className="text-gray-400 text-lg">해당 카테고리에 상품이 없습니다.</p>
+            <p className="text-gray-400 text-lg">
+              해당 카테고리에 상품이 없습니다.
+            </p>
             <p className="text-gray-500 mt-2">다른 카테고리를 선택해보세요.</p>
           </div>
         ) : (
@@ -404,14 +434,21 @@ export default function ShopPage({ onProductClick, initialCategory }: ShopPagePr
                     alt={product.title}
                     className="w-full h-48 object-cover rounded-t-lg"
                     onError={(e) => {
-                      console.log("이미지 로드 실패:", product.title, product.images);
+                      console.log(
+                        "이미지 로드 실패:",
+                        product.title,
+                        product.images,
+                      );
                       const target = e.target as HTMLImageElement;
                       target.src = "/images/placeholder-product.png";
                     }}
                   />
                   {product.isCertified && (
                     <div className="absolute top-2 left-2">
-                      <Badge variant="secondary" className="bg-green-600 text-white">
+                      <Badge
+                        variant="secondary"
+                        className="bg-green-600 text-white"
+                      >
                         <img
                           src="/images/certify.png"
                           alt="인증"
@@ -423,7 +460,10 @@ export default function ShopPage({ onProductClick, initialCategory }: ShopPagePr
                   )}
                   {product.discountPrice && (
                     <div className="absolute top-2 right-2">
-                      <Badge variant="destructive" className="bg-red-600 text-white">
+                      <Badge
+                        variant="destructive"
+                        className="bg-red-600 text-white"
+                      >
                         {Math.round(
                           ((product.price - product.discountPrice) /
                             product.price) *
