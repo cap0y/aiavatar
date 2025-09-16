@@ -3,17 +3,21 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 // @ts-ignore – local Firebase wrapper
 import { auth, googleProvider } from "@/firebase";
 // @ts-ignore
-import {
+import * as firebaseAuth from "firebase/auth";
+
+// Extract Firebase auth functions
+const {
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signOut,
   onAuthStateChanged,
-  User as FirebaseUser,
   setPersistence,
   browserLocalPersistence,
   updateProfile,
-} from "firebase/auth";
+} = firebaseAuth;
+
+type FirebaseUser = firebaseAuth.User;
 
 // 사용자 타입 정의
 export type UserType = 'customer' | 'careManager' | 'admin';
