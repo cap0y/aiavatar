@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import { drizzle } from "drizzle-orm/neon-http";
 import { neon, NeonQueryFunction } from "@neondatabase/serverless";
+import { Pool } from 'pg';
+import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -16,10 +18,15 @@ const runtimeDirname = isPkg
     );
 
 // PostgreSQL 연결 문자열 - Replit 환경 변수 우선 사용
-const connectionString = process.env.DATABASE_URL || 
+let connectionString = process.env.DATABASE_URL || 
   process.env.REPLIT_DB_URL || 
   process.env.NEON_DATABASE_URL ||
   "postgres://postgres:postgres@localhost:5432/postgres";
+
+// SSL 설정 추가 (Neon DB는 SSL이 필요함)
+if (connectionString.includes('neon.tech') && !connectionString.includes('sslmode=')) {
+  connectionString += connectionString.includes('?') ? '&sslmode=require' : '?sslmode=require';
+}
 
 console.log("데이터베이스 URL:", connectionString.replace(/\/\/([^:]+):[^@]+@/, '//***:***@'));
 
@@ -27,34 +34,88 @@ console.log("데이터베이스 URL:", connectionString.replace(/\/\/([^:]+):[^@
 let sql: NeonQueryFunction<any, any> | null = null;
 let db: any;
 
-try {
-  // Neon 연결 설정
-  sql = neon(connectionString);
-  
-  // Drizzle 인스턴스 생성
-  db = drizzle(sql, { schema });
-  console.log("데이터베이스 연결 성공");
-} catch (error) {
-  console.error("데이터베이스 연결 실패, 메모리 저장소 사용:", error);
-  
-  // 연결 실패 시 대체 로직
+// 데이터베이스 연결 시도 함수
+async function connectToDatabase() {
   try {
-    // 로컬 SQLite 또는 다른 대체 방법을 시도할 수 있음
-    console.error("대체 데이터베이스 연결 시도 중...");
+    // Neon 연결 설정
+    sql = neon(connectionString);
     
-    // 임시 메모리 객체
-    db = {
-      query: async () => [],
-      select: () => ({ from: () => ({ where: () => [] }) }),
-      insert: () => ({ values: () => [] }),
-      update: () => ({ set: () => ({ where: () => [] }) }),
-      delete: () => ({ where: () => [] })
-    };
-    console.log("임시 메모리 객체로 대체됨");
-  } catch (fallbackError) {
-    console.error("대체 연결도 실패:", fallbackError);
-    db = {};
+    // 연결 테스트
+    await sql`SELECT 1`;
+    
+    // Drizzle 인스턴스 생성
+    db = drizzle(sql, { schema });
+    console.log("데이터베이스 연결 성공 (Neon)");
+    return true;
+  } catch (error) {
+    console.error("Neon 데이터베이스 연결 실패:", error);
+    
+    // 로컬 PostgreSQL 연결 시도 (pg 모듈 사용)
+    try {
+      console.log("로컬 PostgreSQL 연결 시도 (pg 모듈)...");
+      const pool = new Pool({
+        connectionString: "postgres://postgres:postgres@localhost:5432/postgres"
+      });
+      
+      // 연결 테스트
+      await pool.query('SELECT 1');
+      
+      // Drizzle 인스턴스 생성 (pg 용)
+      db = drizzlePg(pool, { schema });
+      console.log("로컬 데이터베이스 연결 성공 (pg)");
+      return true;
+    } catch (pgError) {
+      console.error("로컬 데이터베이스 연결 실패 (pg):", pgError);
+      
+      // 두 번째 방법으로 다시 시도 (neon 라이브러리로 로컬 연결)
+      try {
+        console.log("로컬 PostgreSQL 연결 시도 (neon)...");
+        const localConnectionString = "postgres://postgres:postgres@localhost:5432/postgres";
+        sql = neon(localConnectionString);
+        await sql`SELECT 1`;
+        db = drizzle(sql, { schema });
+        console.log("로컬 데이터베이스 연결 성공 (neon)");
+        return true;
+      } catch (localError) {
+        console.error("로컬 데이터베이스 연결 실패, 메모리 저장소 사용:", localError);
+        return false;
+      }
+    }
   }
+}
+
+// 초기 연결 시도
+try {
+  // 비동기 함수를 동기적으로 실행하기 위한 즉시 실행 함수
+  (async () => {
+    const connected = await connectToDatabase();
+    if (!connected) {
+      // 연결 실패 시 대체 로직
+      console.error("대체 데이터베이스 연결 시도 중...");
+      
+      // 임시 메모리 객체
+      db = {
+        query: async () => [],
+        select: () => ({ from: () => ({ where: () => [] }) }),
+        insert: () => ({ values: () => [] }),
+        update: () => ({ set: () => ({ where: () => [] }) }),
+        delete: () => ({ where: () => [] })
+      };
+      console.log("임시 메모리 객체로 대체됨");
+    }
+  })();
+} catch (error) {
+  console.error("초기 데이터베이스 연결 설정 오류:", error);
+  
+  // 임시 메모리 객체
+  db = {
+    query: async () => [],
+    select: () => ({ from: () => ({ where: () => [] }) }),
+    insert: () => ({ values: () => [] }),
+    update: () => ({ set: () => ({ where: () => [] }) }),
+    delete: () => ({ where: () => [] })
+  };
+  console.log("임시 메모리 객체로 대체됨 (오류 발생)");
 }
 
 export { db };
@@ -65,8 +126,12 @@ export async function runMigrations() {
     console.log("마이그레이션 함수 호출됨");
     
     if (!sql) {
-      console.error("SQL 클라이언트가 없어 마이그레이션을 실행할 수 없습니다.");
-      return;
+      // 연결이 없으면 다시 시도
+      const connected = await connectToDatabase();
+      if (!connected) {
+        console.error("SQL 클라이언트가 없어 마이그레이션을 실행할 수 없습니다.");
+        return;
+      }
     }
     
     // 여기에 마이그레이션 로직 추가
@@ -88,8 +153,10 @@ export async function runMigrations() {
         
         console.log(`마이그레이션 실행 중: ${file}`);
         try {
-          await sql(sqlContent);
-          console.log(`마이그레이션 성공: ${file}`);
+          if (sql) {
+            await sql(sqlContent);
+            console.log(`마이그레이션 성공: ${file}`);
+          }
         } catch (error) {
           console.error(`마이그레이션 실패 (${file}):`, error);
           // 계속 진행

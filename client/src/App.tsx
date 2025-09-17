@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useParams } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -12,6 +12,13 @@ import NotFound from "@/pages/not-found";
 import KakaoCallback from "@/pages/oauth/kakao/callback";
 import ProductDetailPage from "@/pages/product-detail";
 import ShopPage from "@/pages/shop";
+import ProductDetailLayout from "@/components/discord/ProductDetailLayout";
+
+// 상품 상세 페이지 래퍼 컴포넌트
+function ProductDetailWrapper() {
+  const { productId } = useParams();
+  return <ProductDetailLayout productId={productId || ""} />;
+}
 
 function Router() {
   return (
@@ -40,7 +47,7 @@ function Router() {
           <ShopPage />
         </Route>
         <Route path="/product/:productId">
-          <ProductDetailPage />
+          <ProductDetailWrapper />
         </Route>
         <Route>
           <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">

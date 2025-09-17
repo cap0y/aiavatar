@@ -1679,110 +1679,88 @@ export class DatabaseStorage implements IStorage {
 
   async getAllProducts(params?: { sellerId?: number; categoryId?: number; category?: string; search?: string; limit?: number; offset?: number }): Promise<Product[]> {
     try {
-      let query = db
-        .select({
-          id: products.id,
-          title: products.title,
-          description: products.description,
-          price: products.price,
-          discountPrice: products.discountPrice,
-          stock: products.stock,
-          images: products.images,
-          tags: products.tags,
-          sellerId: products.sellerId,
-          categoryId: products.categoryId,
-          status: products.status,
-          rating: products.rating,
-          reviewCount: products.reviewCount,
-          createdAt: products.createdAt,
-          updatedAt: products.updatedAt,
-          // 카테고리 정보 추가
-          category: productCategories.name,
-        })
-        .from(products)
-        .leftJoin(productCategories, eq(products.categoryId, productCategories.id));
+      console.log("DB에서 상품 목록 조회 시도");
+      let query = db.select().from(products);
 
-      // 필터링 조건들
-      const conditions = [];
-      
+      // 판매자 ID로 필터링
       if (params?.sellerId) {
-        conditions.push(eq(products.sellerId, params.sellerId));
+        query = query.where(eq(products.sellerId, params.sellerId));
       }
 
+      // 카테고리 ID로 필터링
       if (params?.categoryId) {
-        conditions.push(eq(products.categoryId, params.categoryId));
+        query = query.where(eq(products.categoryId, params.categoryId));
       }
 
-      // 카테고리 이름으로 필터링 추가
-      if (params?.category) {
-        console.log("[SERVER] 카테고리 이름으로 필터링:", params.category);
-        conditions.push(eq(productCategories.name, params.category));
-      }
-
-      // 카테고리 이름으로 필터링 추가
+      // 검색어로 필터링
       if (params?.search) {
-        conditions.push(
+        query = query.where(
           or(
-            ilike(products.title, `%${params.search}%`),
-            ilike(products.description, `%${params.search}%`)
+            like(products.name, `%${params.search}%`),
+            like(products.description || '', `%${params.search}%`)
           )
         );
       }
 
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions)) as any;
-      }
-
-      // 정렬
-      query = query.orderBy(desc(products.createdAt)) as any;
+      // 최신순 정렬
+      query = query.orderBy(desc(products.createdAt));
 
       // 페이지네이션
-      if (params?.offset) {
-        query = query.offset(params.offset) as any;
+      if (params?.limit !== undefined) {
+        query = query.limit(params.limit);
       }
-      if (params?.limit) {
-        query = query.limit(params.limit) as any;
+      if (params?.offset !== undefined) {
+        query = query.offset(params.offset);
       }
 
       const result = await query;
-      console.log("상품 목록 조회 결과 (카테고리 포함):", result.slice(0, 2)); // 처음 2개만 로그
+      console.log(`DB에서 ${result.length}개 상품 조회 성공`);
       return result;
     } catch (error) {
       console.error("상품 목록 조회 오류:", error);
       console.log("메모리 기반 상품 데이터 사용");
       
-      // 메모리 데이터에 필터링 적용
+      // 메모리 기반 데이터 필터링
       let result = [...memoryProducts];
-      
-      // 카테고리 필터링
+
+      if (params?.sellerId) {
+        result = result.filter(product => product.sellerId === params.sellerId);
+      }
+
       if (params?.categoryId) {
         result = result.filter(product => product.categoryId === params.categoryId);
       }
-      
+
       // 카테고리 이름으로 필터링
       if (params?.category && params.category !== '전체') {
         result = result.filter(product => product.category === params.category);
       }
-      
+
       // 검색어 필터링
       if (params?.search) {
         const searchLower = params.search.toLowerCase();
         result = result.filter(product => 
-          product.title.toLowerCase().includes(searchLower) || 
-          (product.description && product.description.toLowerCase().includes(searchLower))
+          (product.title?.toLowerCase().includes(searchLower) || false) ||
+          (product.description?.toLowerCase().includes(searchLower) || false)
         );
       }
-      
-      // 정렬 (최신순 기본)
-      result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-      
+
+      // 최신순 정렬
+      result.sort((a, b) => {
+        const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+        const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+        return dateB - dateA;
+      });
+
       // 페이지네이션
-      const limit = params?.limit || 20;
-      const offset = params?.offset || 0;
-      result = result.slice(offset, offset + limit);
-      
-      console.log("[SERVER] 조회된 상품 개수:", result.length);
-      return result as unknown as Product[];
+      if (params?.offset !== undefined) {
+        result = result.slice(params.offset);
+      }
+      if (params?.limit !== undefined) {
+        result = result.slice(0, params.limit);
+      }
+
+      return result;
     }
   }
 

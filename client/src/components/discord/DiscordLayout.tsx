@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import ServerSidebar from './ServerSidebar';
 import ChannelSidebar from './ChannelSidebar';
@@ -20,15 +20,45 @@ const DiscordLayout: React.FC = () => {
     type: 'text'
   });
 
+  // 컴포넌트 마운트 시 localStorage에서 이전 채널 정보 가져오기
+  useEffect(() => {
+    const previousChannelJson = localStorage.getItem('previousChannel');
+    if (previousChannelJson) {
+      try {
+        const previousChannel = JSON.parse(previousChannelJson);
+        if (previousChannel && previousChannel.id) {
+          setActiveChannel(previousChannel);
+        }
+      } catch (e) {
+        console.error('이전 채널 정보 파싱 오류:', e);
+      }
+    }
+  }, []);
+
   const handleChannelChange = (channel: Channel) => {
     console.log('채널 변경:', channel);
     setActiveChannel(channel);
+    
+    // 현재 활성화된 채널 정보를 localStorage에 저장
+    localStorage.setItem('previousChannel', JSON.stringify({
+      id: channel.id,
+      name: channel.name,
+      type: channel.type
+    }));
   };
 
   const handleProductClick = (productId: string) => {
     console.log('상품 클릭:', productId);
-    // 상품 상세 페이지로 이동
-    window.location.href = `/product/${productId}`;
+    
+    // 현재 활성화된 채널 정보를 localStorage에 저장 (뒤로가기 용)
+    localStorage.setItem('previousChannel', JSON.stringify({
+      id: activeChannel.id,
+      name: activeChannel.name,
+      type: activeChannel.type
+    }));
+    
+    // 상품 상세 페이지로 이동 (Discord 레이아웃 내에서)
+    setLocation(`/product/${productId}`);
   };
 
   const renderMainContent = () => {

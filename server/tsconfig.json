@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "outDir": "../dist/server",
-    "rootDir": ".",
+    "rootDir": "..",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "target": "ES2022",
@@ -19,6 +19,6 @@
       "@shared/*": ["shared/*"]
     }
   },
-  "include": ["**/*.ts"],
+  "include": ["**/*.ts", "../shared/**/*.ts"],
   "exclude": ["../node_modules", "../dist", "vite.ts"]
 } 
