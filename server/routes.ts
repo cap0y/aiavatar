@@ -2051,6 +2051,9 @@ export async function registerRoutes(app: Express): Promise<void> {
     try {
       const userId = parseInt(req.params.userId);
       if (isNaN(userId)) return res.status(400).json({ error: '유효하지 않은 사용자 ID입니다.' });
+      
+      console.log(`[SERVER] 사용자 ${userId}의 장바구니 조회 요청`);
+      
       const items = await storage.getCartItems(userId);
 
       // 각 아이템에 상품 정보 합쳐서 반환
@@ -2059,7 +2062,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return { ...item, product };
       }));
 
-      res.json(enriched);
+      res.json({ cartItems: enriched });
     } catch (error) {
       console.error('장바구니 조회 오류:', error);
       res.status(500).json({ error: '장바구니를 불러오는데 실패했습니다.' });
@@ -2073,6 +2076,8 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (isNaN(userId) || !productId) return res.status(400).json({ error: '필수 입력값이 누락되었습니다.' });
       const pid = parseInt(productId as any);
       const qty = Math.max(1, Number(quantity || 1));
+      
+      console.log(`[SERVER] 사용자 ${userId}의 장바구니에 상품 ${pid} 추가 요청`);
 
       // 동일 옵션 상품 존재 시 수량만 증가
       const existing = await storage.findCartItem(userId, pid, selected_options ?? null);
@@ -2098,6 +2103,8 @@ export async function registerRoutes(app: Express): Promise<void> {
       const { quantity } = req.body as { quantity?: number };
       if (isNaN(userId) || isNaN(itemId)) return res.status(400).json({ error: '유효하지 않은 요청입니다.' });
       if (quantity == null || Number(quantity) < 1) return res.status(400).json({ error: '수량은 1 이상이어야 합니다.' });
+      
+      console.log(`[SERVER] 사용자 ${userId}의 장바구니 상품 ${itemId} 수정 요청`);
 
       const updated = await storage.updateCartItem(itemId, { quantity: Number(quantity) });
       if (!updated) return res.status(404).json({ error: '장바구니 항목을 찾을 수 없습니다.' });
@@ -2113,6 +2120,9 @@ export async function registerRoutes(app: Express): Promise<void> {
       const userId = parseInt(req.params.userId);
       const itemId = parseInt(req.params.itemId);
       if (isNaN(userId) || isNaN(itemId)) return res.status(400).json({ error: '유효하지 않은 요청입니다.' });
+      
+      console.log(`[SERVER] 사용자 ${userId}의 장바구니에서 상품 ${itemId} 삭제 요청`);
+      
       const ok = await storage.removeCartItem(itemId);
       if (!ok) return res.status(404).json({ error: '장바구니 항목을 찾을 수 없습니다.' });
       res.json({ success: true });
@@ -2126,6 +2136,9 @@ export async function registerRoutes(app: Express): Promise<void> {
     try {
       const userId = parseInt(req.params.userId);
       if (isNaN(userId)) return res.status(400).json({ error: '유효하지 않은 사용자 ID입니다.' });
+      
+      console.log(`[SERVER] 사용자 ${userId}의 장바구니 비우기 요청`);
+      
       await storage.clearCart(userId);
       res.json({ success: true });
     } catch (error) {

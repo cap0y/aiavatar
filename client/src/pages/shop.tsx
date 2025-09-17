@@ -28,80 +28,63 @@ const stripHtml = (html: string): string => {
   return doc.body.textContent || "";
 };
 
-// 이미지 URL을 올바르게 처리하는 함수
+// 이미지 URL 처리 함수
 const getImageUrl = (image: any): string => {
-  if (!image) return "/images/placeholder-product.png";
-
   try {
-    // 이미지가 배열인 경우
-    if (Array.isArray(image)) {
-      if (image.length > 0) {
-        return getImageUrl(image[0]);
-      }
-      return "/images/placeholder-product.png";
-    }
-
-    // 이미지가 JSON 문자열인 경우 파싱
-    if (typeof image === "string" && (image.startsWith('[') || image.startsWith('{'))) {
-      try {
-        const parsed = JSON.parse(image);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return getImageUrl(parsed[0]);
-        } else if (parsed && typeof parsed === 'object') {
-          if ('url' in parsed) return parsed.url;
-          if ('src' in parsed) return parsed.src;
-          if ('path' in parsed) return parsed.path;
-          if ('image' in parsed) return parsed.image;
+    // 이미지가 없는 경우 기본 이미지 반환
+    if (!image) return "/images/placeholder-product.png";
+    
+    // 이미지가 문자열인 경우
+    if (typeof image === 'string') {
+      // JSON 문자열인지 확인하고 파싱 시도
+      if (image.startsWith('[') || image.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(image);
+          
+          // 배열인 경우 첫 번째 이미지 사용
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return getImageUrl(parsed[0]);
+          }
+          
+          // 객체인 경우 url, src, path 속성 확인
+          if (parsed && typeof parsed === 'object') {
+            if (parsed.url) return parsed.url;
+            if (parsed.src) return parsed.src;
+            if (parsed.path) return parsed.path;
+            if (parsed.image) return parsed.image;
+          }
+        } catch (e) {
+          // JSON 파싱 실패 시 원래 문자열 사용
         }
-      } catch (e) {
-        // JSON 파싱 실패 시 원래 문자열 사용
-        console.warn('이미지 JSON 파싱 실패:', e);
       }
-    }
-
-    // 문자열인 경우 (단순 URL 또는 Base64)
-    if (typeof image === "string") {
-      // Base64 데이터인 경우 그대로 반환
-      if (image.startsWith("data:")) {
-        return image;
-      }
-
-      // 이미 완전한 URL인 경우 (http:// 또는 https://)
-      if (image.startsWith("http://") || image.startsWith("https://")) {
-        return image;
-      }
-
-      // 상대 경로인 경우 처리
-      // 이미지 경로에 /images/ 또는 /api/uploads/ 등이 포함된 경우
-      if (image.includes('/images/') || 
-          image.includes('/uploads/') || 
-          image.includes('/api/uploads/') ||
-          image.includes('/assets/')) {
-        return image;
-      }
-
-      // 단순 파일명인 경우 이미지 경로 추가
-      if (!image.startsWith('/')) {
+      
+      // 단순 파일명인 경우 경로 추가
+      if (!image.includes('/') && !image.startsWith('http')) {
         return `/images/2dmodel/${image}`;
       }
-
-      // 그 외의 경우 그대로 반환
+      
       return image;
     }
-
-    // 객체인 경우
-    if (image && typeof image === "object") {
-      // url 속성이 있는 경우
-      if ('url' in image && image.url) return getImageUrl(image.url);
-      if ('src' in image && image.src) return getImageUrl(image.src);
-      if ('path' in image && image.path) return getImageUrl(image.path);
-      if ('image' in image && image.image) return getImageUrl(image.image);
+    
+    // 이미지가 배열인 경우 첫 번째 이미지 사용
+    if (Array.isArray(image) && image.length > 0) {
+      return getImageUrl(image[0]);
     }
-  } catch (e) {
-    console.error("이미지 URL 처리 오류:", e);
+    
+    // 이미지가 객체인 경우
+    if (image && typeof image === 'object') {
+      if (image.url) return image.url;
+      if (image.src) return image.src;
+      if (image.path) return image.path;
+      if (image.image) return image.image;
+    }
+    
+    // 기본 이미지
+    return "/images/placeholder-product.png";
+  } catch (error) {
+    console.error("이미지 URL 처리 오류:", error);
+    return "/images/placeholder-product.png";
   }
-
-  return "/images/placeholder-product.png";
 };
 
 // 상품 카테고리 목록 (AI 아바타 세상)
