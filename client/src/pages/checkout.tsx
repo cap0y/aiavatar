@@ -614,9 +614,9 @@ export default function CheckoutPage() {
         hasCheckoutData: !!localStorage.getItem('checkoutData')
       });
 
-      // 체크아웃 데이터가 있으면 인증 체크를 지연
+      // 체크아웃 데이터가 있으면 인증 체크를 지연 (홈 페이지가 아닌 경우에만)
       const checkoutData = localStorage.getItem('checkoutData');
-      if (checkoutData && !user) {
+      if (checkoutData && !user && window.location.pathname === "/checkout") {
         console.log("체크아웃 데이터 있음, 로그인 모달 표시");
         toast({
           title: "로그인이 필요합니다",

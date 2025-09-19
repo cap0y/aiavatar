@@ -244,9 +244,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setShowAuthModal(false);
 
         // 로그인 성공 시 체크아웃 페이지 리다이렉트 처리
-        // 체크아웃 데이터가 있고 현재 페이지가 체크아웃이 아닌 경우에만 리다이렉션
+        // 체크아웃 데이터가 있고 현재 페이지가 홈이 아니고 체크아웃이 아닌 경우에만 리다이렉션
         const checkoutData = localStorage.getItem('checkoutData');
-        if (checkoutData && window.location.pathname !== "/checkout") {
+        if (checkoutData && window.location.pathname !== "/checkout" && window.location.pathname !== "/") {
           console.log("체크아웃 데이터 발견, 체크아웃 페이지로 리다이렉션");
           // 인증 상태가 완전히 설정된 후 리다이렉션할 수 있도록 충분한 시간 지연
           setTimeout(() => {

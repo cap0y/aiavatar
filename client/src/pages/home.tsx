@@ -52,6 +52,18 @@ const Home = () => {
   const { user, setShowAuthModal } = useAuth();
   const [, setLocation] = useLocation();
 
+  // 홈 페이지 진입 시 체크아웃 데이터 정리 (필요한 경우에만)
+  useEffect(() => {
+    // URL에 특별한 파라미터가 없고, 직접 홈에 접근한 경우 체크아웃 데이터 정리
+    if (window.location.pathname === "/" && !window.location.search) {
+      const checkoutData = localStorage.getItem('checkoutData');
+      if (checkoutData) {
+        console.log("홈 페이지에서 기존 체크아웃 데이터 정리");
+        localStorage.removeItem('checkoutData');
+      }
+    }
+  }, []);
+
   // Carousel API states
   const [avatarApi, setAvatarApi] = useState<any>();
   const [featuresApi, setFeaturesApi] = useState<any>();
