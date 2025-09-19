@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { registerRoutes } from "./routes.js";
 import { runMigrations } from "./db.js"; // 마이그레이션 활성화
-import { storage } from "./storage.js";
+import { storage, initializeStorage } from "./storage.js";
 import fs from "fs";
 import http from 'http';
 import { setupSocketServer } from './socket-server.js';
@@ -52,6 +52,16 @@ const startServer = async () => {
     } catch (migrationError) {
       console.error("마이그레이션 실패:", migrationError);
       // 마이그레이션 실패해도 서버는 계속 실행
+    }
+    
+    // 스토리지 초기화 (데이터베이스 연결 상태에 따라 MemStorage 또는 DatabaseStorage 선택)
+    console.log("스토리지 초기화 중...");
+    try {
+      await initializeStorage();
+      console.log("스토리지 초기화 완료");
+    } catch (storageError) {
+      console.error("스토리지 초기화 실패:", storageError);
+      console.log("기본 메모리 스토리지로 계속 진행");
     }
     
     // HTTP 서버 생성

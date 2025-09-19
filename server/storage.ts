@@ -2429,4 +2429,33 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+// 데이터베이스 연결 여부에 따라 스토리지 선택
+export let storage: IStorage;
+
+// 데이터베이스 연결 확인 함수
+async function checkDatabaseConnection(): Promise<boolean> {
+  try {
+    // 간단한 쿼리로 연결 확인
+    await db.select().from(users).limit(1);
+    return true;
+  } catch (error) {
+    console.log("데이터베이스 연결 실패, 메모리 스토리지 사용:", error.message);
+    return false;
+  }
+}
+
+// 초기화 함수
+export async function initializeStorage(): Promise<void> {
+  const isConnected = await checkDatabaseConnection();
+  
+  if (isConnected) {
+    console.log("✅ 데이터베이스 연결 성공 - DatabaseStorage 사용");
+    storage = new DatabaseStorage();
+  } else {
+    console.log("⚠️  데이터베이스 연결 실패 - MemStorage 사용");
+    storage = new MemStorage();
+  }
+}
+
+// 기본값으로 MemStorage 설정 (initializeStorage 호출 전까지)
+storage = new MemStorage();
