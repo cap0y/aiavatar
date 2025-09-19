@@ -263,7 +263,7 @@ export default function CheckoutPage() {
   };
 
   // 상품 목록 (표준화된 아이템 사용)
-  const displayItems = standardItems;
+  const displayItems: StandardItem[] = standardItems;
 
   // 주문 처리
   const handlePlaceOrder = async () => {
@@ -602,40 +602,33 @@ export default function CheckoutPage() {
     }
   };
 
-  // 미인증 사용자 및 상품 없음 처리를 useEffect로 이동
+  // 인증 상태와 체크아웃 데이터 확인
   useEffect(() => {
-    // 로딩 상태일 때는 아직 체크하지 않음
-    if (isLoadingAddresses) {
-      console.log("인증 상태 로딩 중, 체크 연기");
-      return;
-    }
-    
-    console.log("인증 및 상품 체크 useEffect 실행:", {
-      user: !!user,
-      isLoadingAddresses,
-      isDirectCheckout,
-      displayItemsLength: displayItems.length
-    });
-    
-    if (!user) {
-      console.log("인증되지 않은 사용자, 로그인 요청");
-      
-      // localStorage의 체크아웃 데이터는 유지 (삭제하지 않음)
-      // 로그인 모달 표시
-      toast({
-        title: "로그인이 필요합니다",
-        description: "주문을 계속하려면 로그인이 필요합니다.",
-        variant: "destructive",
+    // 컴포넌트 마운트 후 충분한 시간 대기
+    const checkAuthAndData = setTimeout(() => {
+      console.log("인증 및 데이터 체크:", {
+        user: !!user,
+        isLoadingAddresses,
+        isDirectCheckout,
+        displayItemsLength: displayItems.length,
+        hasCheckoutData: !!localStorage.getItem('checkoutData')
       });
-      
-      // 로그인 모달 표시 이벤트 발생
-      window.dispatchEvent(new CustomEvent("showLogin"));
-      return;
-    }
-    
-    // 이 조건을 체크아웃 데이터 로드 후로 지연
-    setTimeout(() => {
-      if (displayItems.length === 0 && !isProcessing) {
+
+      // 체크아웃 데이터가 있으면 인증 체크를 지연
+      const checkoutData = localStorage.getItem('checkoutData');
+      if (checkoutData && !user) {
+        console.log("체크아웃 데이터 있음, 로그인 모달 표시");
+        toast({
+          title: "로그인이 필요합니다",
+          description: "주문을 계속하려면 로그인이 필요합니다.",
+          variant: "destructive",
+        });
+        window.dispatchEvent(new CustomEvent("showLogin"));
+        return;
+      }
+
+      // 사용자는 있지만 상품이 없는 경우만 리다이렉션
+      if (user && displayItems.length === 0 && !isProcessing && !isLoadingAddresses && !isLoadingCart) {
         console.log("주문할 상품이 없어서 리다이렉션");
         toast({
           title: "주문할 상품이 없습니다",
@@ -644,8 +637,10 @@ export default function CheckoutPage() {
         });
         navigate("/shop");
       }
-    }, 1000); // 1초 지연
-  }, [user, isLoadingAddresses, displayItems.length, isProcessing]);
+    }, 2000); // 2초 지연으로 증가
+
+    return () => clearTimeout(checkAuthAndData);
+  }, [user, isLoadingAddresses, isLoadingCart, displayItems.length, isProcessing]);
 
   // 상품 목록이 비어있고 로딩 중이 아닐 때 처리
   if (!isDirectCheckout && !isProcessing && !isLoadingCart && displayItems.length === 0) {
@@ -1081,4 +1076,4 @@ export default function CheckoutPage() {
       </Dialog>
     </div>
   );
-} 
+}

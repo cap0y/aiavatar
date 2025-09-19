@@ -12,6 +12,7 @@ import NotFound from "@/pages/not-found";
 import KakaoCallback from "@/pages/oauth/kakao/callback";
 import ProductDetailPage from "@/pages/product-detail";
 import ShopPage from "@/pages/shop";
+import CheckoutPage from "@/pages/checkout";
 import ProductDetailLayout from "@/components/discord/ProductDetailLayout";
 
 // 상품 상세 페이지 래퍼 컴포넌트
@@ -48,6 +49,9 @@ function Router() {
         </Route>
         <Route path="/product/:productId">
           <ProductDetailWrapper />
+        </Route>
+        <Route path="/checkout">
+          <CheckoutPage />
         </Route>
         <Route>
           <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
