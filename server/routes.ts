@@ -2049,12 +2049,16 @@ export async function registerRoutes(app: Express): Promise<void> {
   // ==================== 장바구니 API ====================
   app.get('/api/users/:userId/cart', async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId);
-      if (isNaN(userId)) return res.status(400).json({ error: '유효하지 않은 사용자 ID입니다.' });
+      const { userId } = req.params;
       
-      console.log(`[SERVER] 사용자 ${userId}의 장바구니 조회 요청`);
+      if (!userId) {
+        return res.status(400).json({ error: "사용자 ID가 필요합니다." });
+      }
       
-      const items = await storage.getCartItems(userId);
+      console.log(`[SERVER] Firebase UID ${userId}의 장바구니 조회 요청`);
+      
+      // Firebase UID를 그대로 사용하여 장바구니 조회
+      const items = await storage.getCartItemsByFirebaseId(userId);
 
       // 각 아이템에 상품 정보 합쳐서 반환
       const enriched = await Promise.all(items.map(async (item: any) => {
@@ -2062,32 +2066,37 @@ export async function registerRoutes(app: Express): Promise<void> {
         return { ...item, product };
       }));
 
-      res.json({ cartItems: enriched });
+      return res.status(200).json({ cartItems: enriched });
     } catch (error) {
-      console.error('장바구니 조회 오류:', error);
-      res.status(500).json({ error: '장바구니를 불러오는데 실패했습니다.' });
+      console.error("장바구니 조회 오류:", error);
+      return res.status(500).json({ error: "장바구니 조회 중 오류가 발생했습니다." });
     }
   });
 
   app.post('/api/users/:userId/cart', async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId);
+      const { userId } = req.params;
       const { productId, quantity, selected_options } = req.body as { productId?: number | string; quantity?: number; selected_options?: any };
-      if (isNaN(userId) || !productId) return res.status(400).json({ error: '필수 입력값이 누락되었습니다.' });
+      
+      if (!userId || !productId) {
+        return res.status(400).json({ error: '필수 입력값이 누락되었습니다.' });
+      }
+      
       const pid = parseInt(productId as any);
       const qty = Math.max(1, Number(quantity || 1));
       
-      console.log(`[SERVER] 사용자 ${userId}의 장바구니에 상품 ${pid} 추가 요청`);
+      console.log(`[SERVER] Firebase UID ${userId}의 장바구니에 상품 ${pid} 추가 요청`);
 
       // 동일 옵션 상품 존재 시 수량만 증가
-      const existing = await storage.findCartItem(userId, pid, selected_options ?? null);
+      const existing = await storage.findCartItemByFirebaseId(userId, pid, selected_options ?? null);
       if (existing) {
         const updated = await storage.updateCartItem(existing.id as any, { quantity: (existing.quantity || 1) + qty });
         const product = await storage.getProduct(pid);
         return res.status(200).json({ ...updated, product });
       }
 
-      const inserted = await storage.addCartItem({ userId, productId: pid, quantity: qty, selectedOptions: selected_options ?? null } as any);
+      // Firebase UID를 사용하여 새 아이템 추가
+      const inserted = await storage.addCartItemByFirebaseId(userId, pid, qty, selected_options ?? null);
       const product = await storage.getProduct(pid);
       res.status(201).json({ ...inserted, product });
     } catch (error) {
@@ -2134,69 +2143,28 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   app.delete('/api/users/:userId/cart', async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId);
-      if (isNaN(userId)) return res.status(400).json({ error: '유효하지 않은 사용자 ID입니다.' });
+      const { userId } = req.params;
       
-      console.log(`[SERVER] 사용자 ${userId}의 장바구니 비우기 요청`);
+      if (!userId) {
+        return res.status(400).json({ error: '사용자 ID가 필요합니다.' });
+      }
       
-      await storage.clearCart(userId);
-      res.json({ success: true });
+      console.log(`[SERVER] Firebase UID ${userId}의 장바구니 비우기 요청`);
+      
+      // Firebase UID를 사용하여 장바구니 비우기
+      const success = await storage.clearCartByFirebaseId(userId);
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(500).json({ error: '장바구니 비우기에 실패했습니다.' });
+      }
     } catch (error) {
       console.error('장바구니 비우기 오류:', error);
       res.status(500).json({ error: '장바구니 비우기에 실패했습니다.' });
     }
   });
 
-  // 장바구니 API 엔드포인트 추가
-  // 사용자의 장바구니 조회
-  app.get("/api/users/:userId/cart", async (req, res) => {
-    try {
-      const { userId } = req.params;
-      
-      if (!userId) {
-        return res.status(400).json({ error: "사용자 ID가 필요합니다." });
-      }
-      
-      console.log(`[SERVER] 사용자 ${userId}의 장바구니 조회 요청`);
-      
-      // 메모리 기반 장바구니 데이터 (실제로는 DB에서 가져와야 함)
-      const cartItems = [];
-      
-      return res.status(200).json({ cartItems });
-    } catch (error) {
-      console.error("장바구니 조회 오류:", error);
-      return res.status(500).json({ error: "장바구니 조회 중 오류가 발생했습니다." });
-    }
-  });
 
-  // 장바구니에 상품 추가
-  app.post("/api/users/:userId/cart", async (req, res) => {
-    try {
-      const { userId } = req.params;
-      const { productId, quantity, selected_options } = req.body;
-      
-      if (!userId || !productId) {
-        return res.status(400).json({ error: "사용자 ID와 상품 ID가 필요합니다." });
-      }
-      
-      console.log(`[SERVER] 사용자 ${userId}의 장바구니에 상품 ${productId} 추가 요청`);
-      
-      // 메모리 기반 장바구니 데이터 (실제로는 DB에 저장해야 함)
-      const cartItem = {
-        id: Date.now().toString(),
-        userId,
-        productId,
-        quantity: quantity || 1,
-        selected_options: selected_options || null,
-        createdAt: new Date()
-      };
-      
-      return res.status(201).json(cartItem);
-    } catch (error) {
-      console.error("장바구니 상품 추가 오류:", error);
-      return res.status(500).json({ error: "장바구니에 상품을 추가하는 중 오류가 발생했습니다." });
-    }
-  });
 
   // 장바구니 상품 수정
   app.put("/api/users/:userId/cart/:itemId", async (req, res) => {

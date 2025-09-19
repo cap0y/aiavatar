@@ -89,8 +89,8 @@ CREATE TABLE bookings (
 -- ============================================
 CREATE TABLE messages (
     id SERIAL PRIMARY KEY,
-    sender_id INTEGER,
-    receiver_id INTEGER,
+    sender_id VARCHAR REFERENCES users(id),
+    receiver_id VARCHAR REFERENCES users(id),
     content TEXT NOT NULL,
     message_type TEXT DEFAULT 'text',
     is_read BOOLEAN DEFAULT false,
@@ -194,7 +194,7 @@ CREATE TABLE user_privacy_settings (
 -- ============================================
 CREATE TABLE product_reviews (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER,
+    user_id VARCHAR REFERENCES users(id),
     product_id INTEGER REFERENCES products(id),
     rating INTEGER,
     content TEXT,
@@ -207,7 +207,7 @@ CREATE TABLE product_reviews (
 -- ============================================
 CREATE TABLE product_comments (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER,
+    user_id VARCHAR REFERENCES users(id),
     product_id INTEGER REFERENCES products(id),
     parent_id INTEGER,
     content TEXT NOT NULL,
@@ -220,7 +220,7 @@ CREATE TABLE product_comments (
 -- ============================================
 CREATE TABLE cart_items (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER,
+    user_id VARCHAR REFERENCES users(id),
     product_id INTEGER REFERENCES products(id),
     quantity INTEGER DEFAULT 1,
     selected_options JSONB,

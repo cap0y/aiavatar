@@ -411,11 +411,15 @@ export interface IStorage {
 
   // Cart operations
   getCartItems(userId: number): Promise<CartItem[]>;
+  getCartItemsByFirebaseId(firebaseUid: string): Promise<CartItem[]>;
   findCartItem(userId: number, productId: number, selectedOptions: any | null): Promise<CartItem | undefined>;
+  findCartItemByFirebaseId(firebaseUid: string, productId: number, selectedOptions: any | null): Promise<CartItem | undefined>;
   addCartItem(cart: InsertCartItem): Promise<CartItem>;
+  addCartItemByFirebaseId(firebaseUid: string, productId: number, quantity: number, selectedOptions: any | null): Promise<CartItem>;
   updateCartItem(id: number, payload: Partial<CartItem>): Promise<CartItem | undefined>;
   removeCartItem(id: number): Promise<boolean>;
   clearCart(userId: number): Promise<boolean>;
+  clearCartByFirebaseId(firebaseUid: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -1238,8 +1242,42 @@ export class MemStorage implements IStorage {
     return Array.from(this.cartItemsStore.values()).filter(ci => ci.userId === userId);
   }
 
+  async getCartItemsByFirebaseId(firebaseUid: string): Promise<CartItem[]> {
+    // 메모리 스토리지에서는 빈 배열 반환 (실제로는 Firebase UID로 매핑 필요)
+    console.log(`[MemStorage] Firebase UID ${firebaseUid}의 장바구니 조회 - 임시 빈 배열 반환`);
+    return [];
+  }
+
   async findCartItem(userId: number, productId: number, selectedOptions: any | null): Promise<CartItem | undefined> {
     return Array.from(this.cartItemsStore.values()).find(ci => ci.userId === userId && ci.productId === productId && JSON.stringify(ci.selectedOptions ?? null) === JSON.stringify(selectedOptions ?? null));
+  }
+
+  async findCartItemByFirebaseId(firebaseUid: string, productId: number, selectedOptions: any | null): Promise<CartItem | undefined> {
+    // 메모리 스토리지에서는 undefined 반환 (실제로는 Firebase UID로 매핑 필요)
+    console.log(`[MemStorage] Firebase UID ${firebaseUid}로 장바구니 아이템 검색 - 임시 undefined 반환`);
+    return undefined;
+  }
+
+  async addCartItemByFirebaseId(firebaseUid: string, productId: number, quantity: number, selectedOptions: any | null): Promise<CartItem> {
+    // 메모리 스토리지에서는 임시 아이템 생성 (실제로는 Firebase UID로 매핑 필요)
+    console.log(`[MemStorage] Firebase UID ${firebaseUid}로 장바구니 아이템 추가 - 임시 구현`);
+    const newItem: CartItem = {
+      id: this.currentCartItemId++,
+      userId: 0, // 임시값
+      productId,
+      quantity,
+      selectedOptions,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any;
+    this.cartItemsStore.set(newItem.id as any, newItem);
+    return newItem;
+  }
+
+  async clearCartByFirebaseId(firebaseUid: string): Promise<boolean> {
+    // 메모리 스토리지에서는 임시로 true 반환 (실제로는 Firebase UID로 매핑 필요)
+    console.log(`[MemStorage] Firebase UID ${firebaseUid}의 장바구니 비우기 - 임시 true 반환`);
+    return true;
   }
 
   async addCartItem(cart: InsertCartItem): Promise<CartItem> {
@@ -2268,6 +2306,21 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getCartItemsByFirebaseId(firebaseUid: string): Promise<CartItem[]> {
+    try {
+      console.log(`[DatabaseStorage] Firebase UID ${firebaseUid}로 장바구니 조회 시도`);
+      
+      // Firebase UID로 직접 장바구니 조회
+      const items = await db.select().from(cartItems).where(eq(cartItems.userId, firebaseUid));
+      
+      console.log(`[DatabaseStorage] Firebase UID ${firebaseUid}의 장바구니 조회 완료: ${items.length}개 아이템`);
+      return items as any;
+    } catch (error) {
+      console.error("Firebase UID로 장바구니 조회 오류:", error);
+      return [];
+    }
+  }
+
   async findCartItem(userId: number, productId: number, selectedOptions: any | null): Promise<CartItem | undefined> {
     try {
       // jsonb 비교는 DB에서 동등비교 가능
@@ -2286,6 +2339,62 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("장바구니 항목 검색 오류:", error);
       return undefined;
+    }
+  }
+
+  async findCartItemByFirebaseId(firebaseUid: string, productId: number, selectedOptions: any | null): Promise<CartItem | undefined> {
+    try {
+      console.log(`[DatabaseStorage] Firebase UID ${firebaseUid}로 장바구니 아이템 검색`);
+      
+      const results = await db
+        .select()
+        .from(cartItems)
+        .where(
+          and(
+            eq(cartItems.userId, firebaseUid),
+            eq(cartItems.productId, productId),
+            // selectedOptions가 null이면 IS NULL로 비교, 아니면 값 비교
+            selectedOptions == null ? (sql`(${cartItems.selectedOptions} IS NULL)`) : (eq(cartItems.selectedOptions, selectedOptions as any))
+          )
+        );
+      return results[0] as any;
+    } catch (error) {
+      console.error("Firebase UID로 장바구니 항목 검색 오류:", error);
+      return undefined;
+    }
+  }
+
+  async addCartItemByFirebaseId(firebaseUid: string, productId: number, quantity: number, selectedOptions: any | null): Promise<CartItem> {
+    try {
+      console.log(`[DatabaseStorage] Firebase UID ${firebaseUid}에게 장바구니 아이템 추가`);
+      
+      const newCartItem = {
+        userId: firebaseUid,
+        productId,
+        quantity,
+        selectedOptions,
+        createdAt: new Date(),
+      };
+      
+      const [inserted] = await db.insert(cartItems).values(newCartItem as any).returning();
+      console.log(`[DatabaseStorage] 장바구니 아이템 추가 완료: ${inserted.id}`);
+      return inserted as any;
+    } catch (error) {
+      console.error("Firebase UID로 장바구니 아이템 추가 오류:", error);
+      throw error;
+    }
+  }
+
+  async clearCartByFirebaseId(firebaseUid: string): Promise<boolean> {
+    try {
+      console.log(`[DatabaseStorage] Firebase UID ${firebaseUid}의 장바구니 비우기`);
+      
+      await db.delete(cartItems).where(eq(cartItems.userId, firebaseUid));
+      console.log(`[DatabaseStorage] Firebase UID ${firebaseUid}의 장바구니 비우기 완료`);
+      return true;
+    } catch (error) {
+      console.error("Firebase UID로 장바구니 비우기 오류:", error);
+      return false;
     }
   }
 
