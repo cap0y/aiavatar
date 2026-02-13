@@ -12,7 +12,7 @@
     "dev:server": "tsx server/index.ts",
     "build": "npm run clean && vite build && npm run build:server",
     "start": "node dist/server/index.js",
-    "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --sourcemap --outfile=dist/server/index.js --packages=external --banner:js=\"import { createRequire } from 'module'; import { fileURLToPath } from 'url'; import { dirname as __pathDirname } from 'path'; const require = createRequire(import.meta.url); const __filename = fileURLToPath(import.meta.url); const __dirname = __pathDirname(__filename);\"",
+    "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --sourcemap --outfile=dist/server/index.js --packages=external --banner:js=\"import { createRequire as _cr } from 'module'; import { fileURLToPath as _fu } from 'url'; import { dirname as _dn } from 'path'; const require = _cr(import.meta.url); const __filename = _fu(import.meta.url); const __dirname = _dn(__filename);\"",
     "preview": "vite preview",
     "start:server": "node dist/server/index.js",
     "check": "tsc",
