@@ -113,41 +113,42 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="min-h-screen bg-gray-900">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
       {/* 헤더 */}
       <div className="mb-6">
         <Button
           variant="ghost"
           onClick={() => setLocation('/profile')}
-          className="mb-4"
+          className="mb-4 text-white hover:text-gray-300"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           마이페이지로 돌아가기
         </Button>
 
         <div className="flex items-center gap-3 mb-2">
-          <Bell className="h-6 w-6 text-blue-600" />
-          <h1 className="text-2xl font-bold text-gray-800">알림 설정</h1>
+          <Bell className="h-6 w-6 text-purple-600" />
+          <h1 className="text-2xl font-bold text-white">알림 설정</h1>
         </div>
-        <p className="text-gray-600">원하는 알림 방식과 내용을 설정할 수 있습니다.</p>
+        <p className="text-gray-400">작품 제작 완성 알림 및 플랫폼 소식 설정을 관리할 수 있습니다.</p>
       </div>
 
       <div className="space-y-6">
         {/* 알림 방식 설정 */}
-        <Card>
+        <Card className="bg-gray-800/70 border-gray-600/50">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BellRing className="h-5 w-5 text-blue-600" />
+            <CardTitle className="flex items-center gap-2 text-white">
+              <BellRing className="h-5 w-5 text-blue-400" />
               알림 방식
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="push" className="text-sm font-medium">
+                <Label htmlFor="push" className="text-sm font-medium text-white">
                   푸시 알림
                 </Label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-400">
                   앱을 통한 실시간 푸시 알림을 받습니다
                 </p>
               </div>
@@ -160,10 +161,10 @@ export default function NotificationsPage() {
 
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="email" className="text-sm font-medium">
+                <Label htmlFor="email" className="text-sm font-medium text-white">
                   이메일 알림
                 </Label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-400">
                   등록된 이메일로 알림을 받습니다
                 </p>
               </div>
@@ -176,10 +177,10 @@ export default function NotificationsPage() {
 
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="sms" className="text-sm font-medium">
+                <Label htmlFor="sms" className="text-sm font-medium text-white">
                   SMS 알림
                 </Label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-400">
                   등록된 전화번호로 문자 알림을 받습니다
                 </p>
               </div>
@@ -193,21 +194,21 @@ export default function NotificationsPage() {
         </Card>
 
         {/* 서비스 알림 설정 */}
-        <Card>
+        <Card className="bg-gray-800/70 border-gray-600/50">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-green-600" />
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Calendar className="h-5 w-5 text-green-400" />
               서비스 알림
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="bookingReminders" className="text-sm font-medium">
-                  예약 알림
+                <Label htmlFor="bookingReminders" className="text-sm font-medium text-white">
+                  작품 완성 알림
                 </Label>
-                <p className="text-xs text-gray-500">
-                  예약 시간 전 미리 알림을 받습니다
+                <p className="text-xs text-gray-400">
+                  의뢰한 아바타 작품 완성 시 알림을 받습니다
                 </p>
               </div>
               <Switch
@@ -219,11 +220,11 @@ export default function NotificationsPage() {
 
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="serviceUpdates" className="text-sm font-medium">
-                  서비스 업데이트
+                <Label htmlFor="serviceUpdates" className="text-sm font-medium text-white">
+                  플랫폼 업데이트
                 </Label>
-                <p className="text-xs text-gray-500">
-                  새로운 서비스나 기능 업데이트 소식을 받습니다
+                <p className="text-xs text-gray-400">
+                  새로운 AI 아바타나 기능 업데이트 소식을 받습니다
                 </p>
               </div>
               <Switch
@@ -235,11 +236,11 @@ export default function NotificationsPage() {
 
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="newMessages" className="text-sm font-medium">
+                <Label htmlFor="newMessages" className="text-sm font-medium text-white">
                   새 메시지
                 </Label>
-                <p className="text-xs text-gray-500">
-                  케어 매니저로부터 새 메시지가 도착했을 때 알림을 받습니다
+                <p className="text-xs text-gray-400">
+                  AI 크리에이터로부터 새 메시지가 도착했을 때 알림을 받습니다
                 </p>
               </div>
               <Switch
@@ -252,20 +253,20 @@ export default function NotificationsPage() {
         </Card>
 
         {/* 시스템 알림 설정 */}
-        <Card>
+        <Card className="bg-gray-800/70 border-gray-600/50">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-red-600" />
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Shield className="h-5 w-5 text-red-400" />
               시스템 알림
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="systemAlerts" className="text-sm font-medium">
+                <Label htmlFor="systemAlerts" className="text-sm font-medium text-white">
                   시스템 알림
                 </Label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-400">
                   보안, 결제, 중요 시스템 관련 알림을 받습니다
                 </p>
               </div>
@@ -276,27 +277,27 @@ export default function NotificationsPage() {
                 disabled
               />
             </div>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-500">
               * 시스템 알림은 보안상 필수 알림으로 비활성화할 수 없습니다.
             </p>
           </CardContent>
         </Card>
 
         {/* 마케팅 알림 설정 */}
-        <Card>
+        <Card className="bg-gray-800/70 border-gray-600/50">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-purple-600" />
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Mail className="h-5 w-5 text-purple-400" />
               마케팅 알림
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="promotions" className="text-sm font-medium">
+                <Label htmlFor="promotions" className="text-sm font-medium text-white">
                   프로모션 및 할인
                 </Label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-400">
                   특별 할인이나 프로모션 정보를 받습니다
                 </p>
               </div>
@@ -309,11 +310,11 @@ export default function NotificationsPage() {
 
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="weeklyReport" className="text-sm font-medium">
+                <Label htmlFor="weeklyReport" className="text-sm font-medium text-white">
                   주간 리포트
                 </Label>
-                <p className="text-xs text-gray-500">
-                  일주일간의 서비스 이용 현황을 요약해서 받습니다
+                <p className="text-xs text-gray-400">
+                  일주일간의 AI 아바타 이용 현황을 요약해서 받습니다
                 </p>
               </div>
               <Switch
@@ -325,11 +326,11 @@ export default function NotificationsPage() {
 
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="marketingEmails" className="text-sm font-medium">
+                <Label htmlFor="marketingEmails" className="text-sm font-medium text-white">
                   마케팅 이메일
                 </Label>
-                <p className="text-xs text-gray-500">
-                  새로운 서비스나 이벤트 소식을 이메일로 받습니다
+                <p className="text-xs text-gray-400">
+                  새 아바타 출시나 이벤트 소식을 이메일로 받습니다
                 </p>
               </div>
               <Switch
@@ -362,7 +363,7 @@ export default function NotificationsPage() {
           </Button>
           
           <Button 
-            variant="outline"
+            variant="default"
             onClick={handleResetSettings}
             disabled={isSaving || saveSettingsMutation.isPending}
           >
@@ -379,7 +380,7 @@ export default function NotificationsPage() {
                 <h4 className="font-medium text-blue-900 mb-1">알림 설정 안내</h4>
                 <ul className="text-sm text-blue-800 space-y-1">
                   <li>• 시스템 알림은 보안과 안전을 위해 필수적으로 받게 됩니다.</li>
-                  <li>• 예약 알림을 끄면 중요한 일정을 놓칠 수 있습니다.</li>
+                  <li>• 작품 완성 알림을 끄면 중요한 완성 소식을 놓칠 수 있습니다.</li>
                   <li>• 마케팅 알림은 언제든지 수신 거부할 수 있습니다.</li>
                   <li>• 설정 변경 후 반드시 '설정 저장' 버튼을 눌러주세요.</li>
                 </ul>
@@ -389,5 +390,6 @@ export default function NotificationsPage() {
         </Card>
       </div>
     </div>
+     </div>
   );
 } 

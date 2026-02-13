@@ -147,41 +147,42 @@ export default function PrivacyPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="min-h-screen bg-gray-900">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
       {/* 헤더 */}
       <div className="mb-6">
         <Button
           variant="ghost"
           onClick={() => setLocation('/profile')}
-          className="mb-4"
+          className="mb-4 text-white hover:text-gray-300"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           마이페이지로 돌아가기
         </Button>
 
         <div className="flex items-center gap-3 mb-2">
-          <Shield className="h-6 w-6 text-green-600" />
-          <h1 className="text-2xl font-bold text-gray-800">개인정보 보호</h1>
+          <Shield className="h-6 w-6 text-teal-600" />
+          <h1 className="text-2xl font-bold text-white">개인정보 보호</h1>
         </div>
-        <p className="text-gray-600">개인정보 보호 설정과 데이터 관리를 할 수 있습니다.</p>
+        <p className="text-gray-400">계정 보안 및 개인정보 관리 설정을 할 수 있습니다.</p>
       </div>
 
       <div className="space-y-6">
         {/* 프로필 공개 설정 */}
-        <Card>
+        <Card className="bg-gray-800/70 border-gray-600/50">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Eye className="h-5 w-5 text-blue-600" />
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Eye className="h-5 w-5 text-blue-400" />
               프로필 공개 설정
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="profileVisible" className="text-sm font-medium">
+                <Label htmlFor="profileVisible" className="text-sm font-medium text-white">
                   프로필 공개
                 </Label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-400">
                   다른 사용자가 내 프로필을 볼 수 있습니다
                 </p>
               </div>
@@ -194,11 +195,11 @@ export default function PrivacyPage() {
 
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="showLocation" className="text-sm font-medium">
-                  위치 정보 공개
+                <Label htmlFor="showLocation" className="text-sm font-medium text-white">
+                  활동 상태 공개
                 </Label>
-                <p className="text-xs text-gray-500">
-                  케어 매니저가 내 위치를 확인할 수 있습니다
+                <p className="text-xs text-gray-400">
+                  다른 사용자가 내 온라인 상태를 확인할 수 있습니다
                 </p>
               </div>
               <Switch
@@ -211,10 +212,10 @@ export default function PrivacyPage() {
         </Card>
 
         {/* 데이터 수집 설정 */}
-        <Card>
+        <Card className="bg-gray-800/70 border-gray-600/50">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5 text-purple-600" />
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Database className="h-5 w-5 text-purple-400" />
               데이터 수집 설정
             </CardTitle>
           </CardHeader>
@@ -222,10 +223,10 @@ export default function PrivacyPage() {
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <Label htmlFor="allowDataCollection" className="text-sm font-medium">
-                  서비스 개선을 위한 데이터 수집
+                  플랫폼 개선을 위한 데이터 수집
                 </Label>
                 <p className="text-xs text-gray-500">
-                  익명화된 이용 패턴 데이터를 서비스 개선에 활용합니다
+                  익명화된 아바타 이용 패턴을 플랫폼 개선에 활용합니다
                 </p>
               </div>
               <Switch
@@ -238,10 +239,10 @@ export default function PrivacyPage() {
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <Label htmlFor="allowMarketingData" className="text-sm font-medium">
-                  마케팅 데이터 활용
+                  개인화 추천 데이터 활용
                 </Label>
                 <p className="text-xs text-gray-500">
-                  개인화된 서비스 추천을 위해 데이터를 활용합니다
+                  맞춤형 AI 아바타 추천을 위해 데이터를 활용합니다
                 </p>
               </div>
               <Switch
@@ -264,7 +265,7 @@ export default function PrivacyPage() {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="twoFactorAuth" className="text-sm font-medium">
+                <Label htmlFor="twoFactorAuth" className="text-sm font-medium text-white">
                   2단계 인증
                 </Label>
                 <p className="text-xs text-gray-500">
@@ -272,7 +273,7 @@ export default function PrivacyPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="default" className="text-xs">
                   권장
                 </Badge>
                 <Switch
@@ -287,7 +288,7 @@ export default function PrivacyPage() {
               <div className="flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
                 <div className="text-sm text-yellow-800">
-                  <p className="font-medium mb-1">보안 권장 사항</p>
+                  <p className="font-medium mb-1 text-white">보안 권장 사항</p>
                   <p>정기적으로 비밀번호를 변경하고, 2단계 인증을 활성화하는 것을 권장합니다.</p>
                 </div>
               </div>
@@ -309,13 +310,13 @@ export default function PrivacyPage() {
               <div className="p-4 border rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <Download className="h-5 w-5 text-blue-600" />
-                  <h4 className="font-medium">데이터 다운로드</h4>
+                  <h4 className="font-medium text-white">데이터 다운로드</h4>
                 </div>
                 <p className="text-sm text-gray-600 mb-3">
                   내가 제공한 모든 개인정보를 다운로드할 수 있습니다.
                 </p>
                 <Button
-                  variant="outline"
+                  variant="default"
                   size="sm"
                   onClick={handleDownloadData}
                   disabled={downloadDataMutation.isPending}
@@ -339,7 +340,7 @@ export default function PrivacyPage() {
               <div className="p-4 border border-red-200 rounded-lg bg-red-50">
                 <div className="flex items-center gap-2 mb-2">
                   <Trash2 className="h-5 w-5 text-red-600" />
-                  <h4 className="font-medium text-red-800">계정 삭제</h4>
+                  <h4 className="font-medium text-red-400">계정 삭제</h4>
                 </div>
                 <p className="text-sm text-red-700 mb-3">
                   계정과 모든 데이터가 영구적으로 삭제됩니다.
@@ -364,19 +365,20 @@ export default function PrivacyPage() {
                     </DialogHeader>
                     <div className="space-y-4">
                       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <h4 className="font-medium text-red-800 mb-2">
+                        <h4 className="font-medium text-red-400 mb-2">
                           계정 삭제 시 다음 사항을 확인해주세요:
                         </h4>
                         <ul className="text-sm text-red-700 space-y-1">
-                          <li>• 모든 개인정보와 서비스 이용 기록이 삭제됩니다</li>
-                          <li>• 예약 중인 서비스가 모두 취소됩니다</li>
+                          <li>• 모든 개인정보와 아바타 이용 기록이 삭제됩니다</li>
+                          <li>• 진행 중인 작품 의뢰가 모두 취소됩니다</li>
+                          <li>• 구매한 아바타와 채팅 기록이 모두 삭제됩니다</li>
                           <li>• 삭제된 데이터는 복구할 수 없습니다</li>
                           <li>• 처리까지 최대 7일이 소요됩니다</li>
                         </ul>
                       </div>
                       <div className="flex gap-2">
                         <Button
-                          variant="outline"
+                          variant="default"
                           onClick={() => setShowDeleteDialog(false)}
                           className="flex-1"
                         >
@@ -433,10 +435,11 @@ export default function PrivacyPage() {
             <div className="flex items-start gap-3">
               <Shield className="h-5 w-5 text-gray-600 mt-0.5" />
               <div>
-                <h4 className="font-medium text-gray-900 mb-2">개인정보 처리 안내</h4>
+                <h4 className="font-medium text-white mb-2">개인정보 처리 안내</h4>
                 <div className="text-sm text-gray-700 space-y-2">
-                  <p>• 개인정보는 서비스 제공 목적으로만 사용되며, 제3자에게 제공되지 않습니다.</p>
+                  <p>• 개인정보는 AI 아바타 서비스 제공 목적으로만 사용되며, 제3자에게 제공되지 않습니다.</p>
                   <p>• 법정 보관 기간에 따라 일부 정보는 삭제 후에도 보관될 수 있습니다.</p>
+                  <p>• AI 아바타 상호작용 데이터는 서비스 개선을 위해서만 활용됩니다.</p>
                   <p>• 개인정보 처리에 대한 자세한 내용은 개인정보 처리방침을 확인해주세요.</p>
                 </div>
                 <div className="mt-3">
@@ -449,6 +452,7 @@ export default function PrivacyPage() {
           </CardContent>
         </Card>
       </div>
+    </div>
     </div>
   );
 } 

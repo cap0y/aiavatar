@@ -1,7 +1,6 @@
 import { Server as HTTPServer } from 'http';
 import { Server as IOServer, Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
-import { IncomingMessage, ServerResponse } from 'http';
 
 // 메시지 타입 정의
 interface Message {
@@ -49,6 +48,10 @@ const chatRoomStore: { [roomId: string]: ChatRoom } = {};
 // 활성화된 유저 추적
 const activeUsers = new Map<string, string>(); // userId -> socketId
 
+// 음성/영상 채널 참여자 추적
+const voiceChannelParticipants = new Map<string, Set<string>>(); // channelId -> Set<userId>
+const userSocketMap = new Map<string, Socket>(); // userId -> Socket 객체
+
 // 채팅방 생성 함수 - 소켓과 REST API에서 공통으로 사용
 const createOrGetChatRoom = (userId: string, targetId: string): { roomId: string; isNew: boolean } => {
   // 두 사용자 ID를 정렬하여 일관된 채팅방 ID 생성
@@ -74,68 +77,14 @@ const createOrGetChatRoom = (userId: string, targetId: string): { roomId: string
   return { roomId, isNew };
 };
 
-// HTTP REST API 핸들러
-const handleChatApiRequest = (req: IncomingMessage, res: ServerResponse) => {
-  if (req.url !== '/api/chats/create' || req.method !== 'POST') {
-    return false; // 다른 엔드포인트는 처리하지 않음
-  }
-  
-  console.log('REST API를 통한 채팅방 생성 요청 수신');
-  let body = '';
-  
-  req.on('data', chunk => {
-    body += chunk.toString();
-  });
-  
-  req.on('end', () => {
-    try {
-      console.log(`API 요청 본문: ${body}`);
-      const { userId, targetId } = JSON.parse(body);
-      console.log(`API 채팅방 생성 요청: userId=${userId}, targetId=${targetId}`);
-      
-      // 채팅방 생성 또는 기존 채팅방 가져오기
-      const { roomId, isNew } = createOrGetChatRoom(userId, targetId);
-      
-      if (isNew) {
-        console.log(`API를 통한 채팅방 생성: ${roomId}`);
-      } else {
-        console.log(`API를 통한 기존 채팅방 사용: ${roomId}`);
-      }
-      
-      // 응답이 이미 전송되었는지 확인
-      if (!res.headersSent) {
-        // 성공 응답
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        const responseData = { success: true, roomId };
-        console.log(`API 응답: ${JSON.stringify(responseData)}`);
-        res.end(JSON.stringify(responseData));
-      } else {
-        console.log('응답이 이미 전송되었습니다. 추가 응답을 보내지 않습니다.');
-      }
-    } catch (error) {
-      console.error(`API 채팅방 생성 오류: ${error}`);
-      
-      // 응답이 이미 전송되었는지 확인
-      if (!res.headersSent) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        const errorResponse = { success: false, error: '채팅방 생성 실패' };
-        console.log(`API 오류 응답: ${JSON.stringify(errorResponse)}`);
-        res.end(JSON.stringify(errorResponse));
-      } else {
-        console.log('응답이 이미 전송되었습니다. 추가 오류 응답을 보내지 않습니다.');
-      }
-    }
-  });
-  
-  return true; // 이 요청은 처리됨
-};
-
 export function setupSocketServer(httpServer: HTTPServer) {
   const io = new IOServer(httpServer, {
+    path: '/socket.io',
     cors: {
       origin: '*', // 개발 환경에서만 사용. 프로덕션에서는 제한해야 함
       methods: ['GET', 'POST']
-    }
+    },
+    transports: ['websocket', 'polling']
   });
 
   console.log('소켓 서버 초기화 중...');
@@ -151,6 +100,7 @@ export function setupSocketServer(httpServer: HTTPServer) {
     
     console.log(`사용자 연결: ${userId}, 소켓 ID: ${socket.id}`);
     activeUsers.set(userId, socket.id);
+    userSocketMap.set(userId, socket);
 
     // 채팅방 생성
     socket.on('create_room', (data: CreateRoomData, callback) => {
@@ -256,24 +206,168 @@ export function setupSocketServer(httpServer: HTTPServer) {
       io.to(roomId).emit('receive_message', message);
     });
 
+    // WebRTC 시그널링 이벤트들
+    
+    // 음성/영상 채널 참여
+    socket.on('join_voice_channel', (data: { channelId: string; userName: string; photoURL?: string }) => {
+      const { channelId, userName, photoURL } = data;
+      console.log(`🎤 ${userName} (${userId})가 음성/영상 채널 ${channelId}에 참여`);
+      
+      // 채널에 참여자 추가
+      if (!voiceChannelParticipants.has(channelId)) {
+        voiceChannelParticipants.set(channelId, new Set());
+      }
+      voiceChannelParticipants.get(channelId)!.add(userId);
+      
+      // 소켓을 채널 룸에 추가
+      socket.join(`voice-${channelId}`);
+      
+      // 기존 참여자들에게 새 참여자 알림
+      socket.to(`voice-${channelId}`).emit('user_joined_channel', {
+        userId,
+        userName,
+        photoURL
+      });
+      
+      // 새 참여자에게 현재 참여자 목록 전송
+      const participants = Array.from(voiceChannelParticipants.get(channelId) || []);
+      socket.emit('channel_participants', {
+        channelId,
+        participants: participants.filter(id => id !== userId) // 자신은 제외
+      });
+      
+      // 모든 클라이언트에게 채널별 참여자 수 브로드캐스트
+      const channelCounts: { [channelId: string]: number } = {};
+      voiceChannelParticipants.forEach((participants, chanId) => {
+        channelCounts[chanId] = participants.size;
+      });
+      io.emit('voice_channel_counts', channelCounts);
+      
+      console.log(`📊 채널 ${channelId} 현재 참여자: ${participants.length}명`);
+    });
+    
+    // 음성/영상 채널 나가기
+    socket.on('leave_voice_channel', (data: { channelId: string }) => {
+      const { channelId } = data;
+      console.log(`👋 ${userId}가 음성/영상 채널 ${channelId}에서 나감`);
+      
+      // 채널에서 참여자 제거
+      if (voiceChannelParticipants.has(channelId)) {
+        voiceChannelParticipants.get(channelId)!.delete(userId);
+        
+        // 참여자가 없으면 채널 삭제
+        if (voiceChannelParticipants.get(channelId)!.size === 0) {
+          voiceChannelParticipants.delete(channelId);
+        }
+      }
+      
+      // 소켓을 채널 룸에서 제거
+      socket.leave(`voice-${channelId}`);
+      
+      // 다른 참여자들에게 알림
+      socket.to(`voice-${channelId}`).emit('user_left_channel', {
+        userId
+      });
+      
+      // 모든 클라이언트에게 채널별 참여자 수 브로드캐스트
+      const channelCounts: { [channelId: string]: number } = {};
+      voiceChannelParticipants.forEach((participants, chanId) => {
+        channelCounts[chanId] = participants.size;
+      });
+      io.emit('voice_channel_counts', channelCounts);
+    });
+    
+    // WebRTC Offer 전송
+    socket.on('webrtc_offer', (data: { channelId: string; targetUserId: string; offer: any }) => {
+      const { channelId, targetUserId, offer } = data;
+      console.log(`📤 WebRTC Offer: ${userId} -> ${targetUserId}`);
+      
+      // 대상 사용자의 소켓 찾기
+      const targetSocket = userSocketMap.get(targetUserId);
+      if (targetSocket) {
+        targetSocket.emit('webrtc_offer', {
+          channelId,
+          fromUserId: userId,
+          offer
+        });
+      } else {
+        console.log(`⚠️ 대상 사용자 ${targetUserId}를 찾을 수 없음`);
+      }
+    });
+    
+    // WebRTC Answer 전송
+    socket.on('webrtc_answer', (data: { channelId: string; targetUserId: string; answer: any }) => {
+      const { channelId, targetUserId, answer } = data;
+      console.log(`📥 WebRTC Answer: ${userId} -> ${targetUserId}`);
+      
+      // 대상 사용자의 소켓 찾기
+      const targetSocket = userSocketMap.get(targetUserId);
+      if (targetSocket) {
+        targetSocket.emit('webrtc_answer', {
+          channelId,
+          fromUserId: userId,
+          answer
+        });
+      } else {
+        console.log(`⚠️ 대상 사용자 ${targetUserId}를 찾을 수 없음`);
+      }
+    });
+    
+    // ICE Candidate 전송
+    socket.on('webrtc_ice_candidate', (data: { channelId: string; targetUserId: string; candidate: any }) => {
+      const { channelId, targetUserId, candidate } = data;
+      console.log(`🧊 ICE Candidate: ${userId} -> ${targetUserId}`);
+      
+      // 대상 사용자의 소켓 찾기
+      const targetSocket = userSocketMap.get(targetUserId);
+      if (targetSocket) {
+        targetSocket.emit('webrtc_ice_candidate', {
+          channelId,
+          fromUserId: userId,
+          candidate
+        });
+      }
+    });
+    
     // 연결 해제
     socket.on('disconnect', () => {
       console.log(`사용자 연결 해제: ${userId}`);
       activeUsers.delete(userId);
+      userSocketMap.delete(userId);
+      
+      // 모든 음성/영상 채널에서 제거
+      let channelChanged = false;
+      voiceChannelParticipants.forEach((participants, channelId) => {
+        if (participants.has(userId)) {
+          participants.delete(userId);
+          channelChanged = true;
+          
+          // 다른 참여자들에게 알림
+          io.to(`voice-${channelId}`).emit('user_left_channel', {
+            userId
+          });
+          
+          // 참여자가 없으면 채널 삭제
+          if (participants.size === 0) {
+            voiceChannelParticipants.delete(channelId);
+          }
+        }
+      });
+      
+      // 채널에 변경이 있으면 참여자 수 브로드캐스트
+      if (channelChanged) {
+        const channelCounts: { [channelId: string]: number } = {};
+        voiceChannelParticipants.forEach((participants, chanId) => {
+          channelCounts[chanId] = participants.size;
+        });
+        io.emit('voice_channel_counts', channelCounts);
+      }
     });
     
     // 에러 처리
     socket.on('error', (error) => {
       console.error(`소켓 에러 (${userId}): ${error}`);
     });
-  });
-
-  // HTTP 라우트 핸들러 - 채팅방 생성 API (REST API)
-  httpServer.on('request', (req: IncomingMessage, res: ServerResponse) => {
-    // 채팅 API만 처리하고, 나머지는 Express에 맡김
-    if (req.url === '/api/chats/create' && req.method === 'POST') {
-      handleChatApiRequest(req, res);
-    }
   });
 
   console.log('소켓 서버 초기화 완료');

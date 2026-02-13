@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko">
+<html lang="ko" style="margin: 0; padding: 0; background-color: #111827 !important; min-height: 100vh;">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -24,7 +24,7 @@
     <meta name="theme-color" content="#2563eb" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/images/decomsoft-logo.svg" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
@@ -39,9 +39,74 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
     />
+    
+    <!-- 전역 스타일 오버라이드 - 흰색 테두리 완전 제거 -->
+    <style>
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background-color: #111827 !important;
+        min-height: 100vh !important;
+        overflow-x: hidden;
+      }
+      
+      #root {
+        background-color: #111827 !important;
+        min-height: 100vh !important;
+      }
+      
+      /* Replit dev banner 스타일 오버라이드 */
+      body > div:first-child {
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      
+      /* 모든 최상위 요소들 */
+      body > * {
+        box-sizing: border-box;
+      }
+      
+      /* 전체 viewport 커버 */
+      * {
+        box-sizing: border-box;
+      }
+    </style>
   </head>
-  <body>
+  <body style="margin: 0; padding: 0; background-color: #111827 !important; min-height: 100vh;">
     <div id="root"></div>
+    
+    <!-- Live2D 라이브러리들 (2.1과 Cubism 모두 로드하여 호환성 확인) -->
+    <script src="/libs/pixi.min.js" onload="console.log('PIXI.js 로드 성공:', PIXI.VERSION)" onerror="console.error('PIXI.js 로드 실패')"></script>
+    
+    <!-- Live2D 2.1 SDK -->
+    <script src="/libs/live2d.min.js" onload="console.log('✅ Live2D 2.1 SDK 로드 성공'); console.log('🎯 Live2D 2.1 준비 완료!');" onerror="console.error('❌ Live2D 2.1 SDK 로드 실패')"></script>
+    
+    <!-- Live2D Cubism Core (함께 로드하여 호환성 확인) -->
+    <script src="/libs/live2dcubismcore.min.js" 
+            onload="console.log('✅ Live2DCubismCore 로드 성공'); 
+                    if (typeof Live2DCubismCore !== 'undefined') {
+                      window.Live2DCubismCore = Live2DCubismCore;
+                      console.log('🎭 Cubism Core 버전:', Live2DCubismCore.csmGetVersion?.() || Live2DCubismCore.getVersion?.() || 'API 확인 필요');
+                      console.log('🔍 CubismCore 사용 가능한 API들:', Object.keys(Live2DCubismCore).slice(0, 15));
+                    }" 
+            onerror="console.error('❌ Live2DCubismCore 로드 실패')"></script>
+    
+    <!-- 최종 상태 확인 -->
+    <script>
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          console.log('🔍 Live2D Cubism SDK 4.0 최종 상태:');
+          console.log('PIXI:', typeof window.PIXI !== 'undefined' ? '✅ 로드됨' : '❌ 없음', window.PIXI?.VERSION || '');
+          console.log('Live2DCubismCore:', typeof window.Live2DCubismCore !== 'undefined' ? '✅ 로드됨' : '❌ 없음');
+          
+          if (window.Live2DCubismCore) {
+            console.log('🎭 Cubism Core 버전:', window.Live2DCubismCore.csmGetVersion?.());
+            console.log('🎯 Cubism SDK 4.0 준비 완료!');
+          }
+        }, 1000);
+      });
+    </script>
+    
     <script type="module" src="/src/main.tsx"></script>
     <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
     <script

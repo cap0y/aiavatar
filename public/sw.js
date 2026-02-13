@@ -1,7 +1,7 @@
 // 캐시 버전을 타임스탬프로 동적 생성하여 새 배포 시 자동 갱신
 const CACHE_VERSION = Date.now();
-const CACHE_NAME = `seniorang-app-cache-v${CACHE_VERSION}`;
-const STATIC_CACHE_NAME = `seniorang-static-cache-v${CACHE_VERSION}`;
+const CACHE_NAME = `aiavatar-app-cache-v${CACHE_VERSION}`;
+const STATIC_CACHE_NAME = `aiavatar-static-cache-v${CACHE_VERSION}`;
 
 // 정적 리소스만 사전 캐시
 const urlsToCache = ["/manifest.json", "/images/carelink-logo.svg"];
@@ -164,7 +164,7 @@ self.addEventListener("push", (event) => {
     ],
   };
 
-  event.waitUntil(self.registration.showNotification("케어링크", options));
+  event.waitUntil(self.registration.showNotification("AI아바타", options));
 });
 
 // Notification click event

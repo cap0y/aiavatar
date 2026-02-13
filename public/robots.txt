@@ -1,0 +1,55 @@
+# robots.txt for AI Avatar Platform
+
+# 모든 검색엔진 크롤러 허용
+User-agent: *
+Allow: /
+
+# 크롤링 제외 경로
+Disallow: /api/
+Disallow: /checkout
+Disallow: /checkout/complete
+Disallow: /oauth/
+Disallow: /profile
+Disallow: /cart
+Disallow: /orders
+Disallow: /bookings
+Disallow: /commissions
+Disallow: /payment-history
+Disallow: /my-reviews
+Disallow: /my-inquiries
+Disallow: /favorites
+Disallow: /notifications
+
+# 사이트맵 위치
+Sitemap: https://aiavatar.decomsoft.com/sitemap.xml
+
+# 크롤링 속도 제한 (선택사항)
+# Crawl-delay: 1
+
+# 특정 검색엔진별 설정
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+Disallow: /checkout
+Disallow: /oauth/
+
+User-agent: Googlebot-Image
+Allow: /images/
+Allow: /public/images/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /api/
+Disallow: /checkout
+Disallow: /oauth/
+
+# 악의적인 봇 차단 (선택사항)
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+

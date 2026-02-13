@@ -31,7 +31,7 @@ const NoticesPage = () => {
       if(!res.ok) throw new Error('생성 실패');
       return res.json();
     },
-    onSuccess:()=>{queryClient.invalidateQueries({queryKey:['/api/notices']});toast({title:'저장됨'});}
+    onSuccess:()=>{queryClient.invalidateQueries({queryKey:['/api/notices']});}
   });
 
   const updateNotice = useMutation({
@@ -40,7 +40,7 @@ const NoticesPage = () => {
       if(!res.ok) throw new Error('수정 실패');
       return res.json();
     },
-    onSuccess:()=>{queryClient.invalidateQueries({queryKey:['/api/notices']});toast({title:'수정됨'});}
+    onSuccess:()=>{queryClient.invalidateQueries({queryKey:['/api/notices']});}
   });
 
   const deleteNotice = useMutation({
@@ -51,7 +51,6 @@ const NoticesPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({queryKey:['/api/notices']});
-      toast({title:'삭제됨', description: '공지사항이 삭제되었습니다.'});
       setDeleteDialogOpen(false);
     }
   });
@@ -99,32 +98,38 @@ const NoticesPage = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-xl font-bold">공지사항</h3>
-        <Button onClick={openAdd}>공지 추가</Button>
+        <h3 className="text-xl font-bold text-white">AI 아바타 공지사항</h3>
+        <Button onClick={openAdd} className="bg-blue-600 hover:bg-blue-700">공지 추가</Button>
       </div>
 
       {notices.length === 0 ? (
-        <p className="text-gray-500">등록된 공지가 없습니다.</p>
+        <p className="text-gray-400">등록된 공지가 없습니다.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {notices.map(notice => (
-            <Card key={notice.id} className="cursor-pointer hover:shadow">
-              <CardHeader>
-                <CardTitle className="text-lg">{notice.title}</CardTitle>
+            <Card key={notice.id} className="cursor-pointer hover:shadow bg-gray-800/70 border-gray-600/50 hover:bg-gray-800">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg text-white">{notice.title}</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-500 mb-2">{notice.date}</p>
-                <p className="text-gray-700 line-clamp-3 whitespace-pre-wrap">{notice.content}</p>
+              <CardContent className="pt-0">
+                <p className="text-sm text-gray-400 mb-2">{notice.date}</p>
+                <p className="text-gray-300 line-clamp-3 whitespace-pre-wrap">{notice.content}</p>
                 <div className="flex justify-between mt-3">
-                  <Button size="sm" variant="outline" onClick={()=>openEdit(notice)}>
+                  <Button 
+                    size="sm" 
+                    variant="default" 
+                    onClick={()=>openEdit(notice)}
+                    className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
+                  >
                     수정
                   </Button>
                   <Button 
                     size="sm" 
-                    variant="destructive" 
+                    variant="default" 
                     onClick={() => confirmDelete(notice)}
+                    className="border-red-600 text-red-400 hover:bg-red-900/20 hover:text-red-300"
                   >
                     <Trash2 className="h-4 w-4 mr-1" /> 삭제
                   </Button>
@@ -136,16 +141,38 @@ const NoticesPage = () => {
       )}
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg bg-gray-800 border-gray-600">
           <DialogHeader>
-            <DialogTitle>{editing ? "공지 수정" : "새 공지 추가"}</DialogTitle>
+            <DialogTitle className="text-white">{editing ? "공지 수정" : "새 공지 추가"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <Input placeholder="제목" value={title} onChange={e=>setTitle(e.target.value)} />
-            <Textarea placeholder="내용" value={content} onChange={e=>setContent(e.target.value)} rows={6}/>
+            <Input 
+              placeholder="제목" 
+              value={title} 
+              onChange={e=>setTitle(e.target.value)} 
+              className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+            />
+            <Textarea 
+              placeholder="내용" 
+              value={content} 
+              onChange={e=>setContent(e.target.value)} 
+              rows={6}
+              className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+            />
             <div className="text-right space-x-2">
-              <Button variant="outline" onClick={()=>setIsModalOpen(false)}>취소</Button>
-              <Button onClick={saveNotice}>{editing ? "저장" : "추가"}</Button>
+              <Button 
+                variant="default" 
+                onClick={()=>setIsModalOpen(false)}
+                className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
+              >
+                취소
+              </Button>
+              <Button 
+                onClick={saveNotice}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {editing ? "저장" : "추가"}
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -153,16 +180,16 @@ const NoticesPage = () => {
 
       {/* 삭제 확인 대화상자 */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-gray-800 border-gray-600">
           <AlertDialogHeader>
-            <AlertDialogTitle>공지사항 삭제</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-white">공지사항 삭제</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-300">
               정말로 이 공지사항을 삭제하시겠습니까?<br />
               이 작업은 되돌릴 수 없습니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogCancel className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white">취소</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDelete}
               className="bg-red-600 hover:bg-red-700"

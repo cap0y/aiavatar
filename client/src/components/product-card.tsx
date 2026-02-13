@@ -141,7 +141,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
         <div className="flex-1">
           {/* 카테고리 */}
           {product.category && (
-            <Badge variant="outline" className="text-xs mb-2">
+            <Badge variant="default" className="text-xs mb-2">
               {product.category}
             </Badge>
           )}

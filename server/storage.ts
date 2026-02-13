@@ -1,305 +1,9 @@
 // @ts-nocheck
-import { db } from "./db.js";
-import { users, careManagers, services, bookings, messages, type User, type InsertUser, type CareManager, type InsertCareManager, type Service, type InsertService, type Booking, type InsertBooking, type Message, type InsertMessage, notices, type InsertNotice, products, productCategories, type Product, type InsertProduct, type ProductCategory, type InsertProductCategory, favorites, inquiries, userNotificationSettings, userPrivacySettings, type Favorite, type InsertFavorite, type Inquiry, type InsertInquiry, type UserNotificationSettings, type InsertUserNotificationSettings, type UserPrivacySettings, type InsertUserPrivacySettings, productReviews, type InsertProductReview, type ProductReview, productComments, type InsertProductComment, type ProductComment, UserType, UserGrade, cartItems, type CartItem, type InsertCartItem } from "../shared/schema.ts";
+import { db, initializeDatabase } from "./db.js";
+import { users, careManagers, services, bookings, messages, type User, type InsertUser, type CareManager, type InsertCareManager, type Service, type InsertService, type Booking, type InsertBooking, type Message, type InsertMessage, notices, type InsertNotice, products, productCategories, type Product, type InsertProduct, type ProductCategory, type InsertProductCategory, orders, orderItems, favorites, inquiries, userNotificationSettings, userPrivacySettings, type Favorite, type InsertFavorite, type Inquiry, type InsertInquiry, type UserNotificationSettings, type InsertUserNotificationSettings, type UserPrivacySettings, type InsertUserPrivacySettings, productReviews, type InsertProductReview, type ProductReview, productComments, type InsertProductComment, type ProductComment, UserType, UserGrade, cartItems, type CartItem, type InsertCartItem } from "../shared/schema.ts";
 import { and, asc, desc, eq, like, or, sql, ilike, gte, lte } from "drizzle-orm";
 
-// 메모리 기반 아바타 카테고리 데이터 (1.sql 파일 기준)
-const memoryProductCategories = [
-  { id: 1, name: '전체', description: '모든 아바타 캐릭터', categoryOrder: 0 },
-  { id: 2, name: 'VTuber', description: 'VTuber 스타일 아바타 캐릭터', categoryOrder: 1 },
-  { id: 3, name: '애니메이션', description: '애니메이션 스타일 아바타', categoryOrder: 2 },
-  { id: 4, name: '리얼리스틱', description: '사실적인 스타일 아바타', categoryOrder: 3 },
-  { id: 5, name: '판타지', description: '판타지 테마 아바타 캐릭터', categoryOrder: 4 },
-  { id: 6, name: 'SF/미래', description: 'SF 및 미래형 아바타', categoryOrder: 5 },
-  { id: 7, name: '동물/펫', description: '동물 및 펫 형태 아바타', categoryOrder: 6 },
-  { id: 8, name: '커스텀', description: '맞춤 제작 아바타', categoryOrder: 7 },
-  { id: 9, name: '액세서리', description: '아바타용 의상 및 액세서리', categoryOrder: 8 },
-  { id: 10, name: '이모션팩', description: '아바타 감정 표현 팩', categoryOrder: 9 }
-];
-
-// 메모리 기반 아바타 상품 데이터 (1.sql 파일 기준)
-const memoryProducts = [
-  // VTuber 카테고리
-  {
-    id: 1,
-    title: '미라이 - VTuber 아바타',
-    description: 'AI 기반 상호작용이 가능한 미래형 VTuber 아바타입니다. 실시간 채팅과 감정 표현이 뛰어납니다.',
-    price: 150000,
-    discountPrice: 120000,
-    stock: 10,
-    images: JSON.stringify(["/images/2dmodel/1.png", "/images/2dmodel/2.png"]),
-    sellerId: 1,
-    categoryId: 2,
-    category: 'VTuber',
-    status: 'active',
-    rating: 4.8,
-    reviewCount: 24,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: 2,
-    title: '사쿠라 - 일본풍 VTuber',
-    description: '전통적인 일본 스타일의 VTuber 아바타로 우아한 움직임과 다양한 의상을 제공합니다.',
-    price: 130000,
-    discountPrice: null,
-    stock: 15,
-    images: JSON.stringify(["/images/2dmodel/3.png"]),
-    sellerId: 1,
-    categoryId: 2,
-    category: 'VTuber',
-    status: 'active',
-    rating: 4.6,
-    reviewCount: 18,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: 3,
-    title: '테크노 - 사이버펑크 VTuber',
-    description: '네온사인과 홀로그램 효과가 있는 사이버펑크 스타일 VTuber 아바타입니다.',
-    price: 180000,
-    discountPrice: 160000,
-    stock: 8,
-    images: JSON.stringify(["/images/2dmodel/4.png"]),
-    sellerId: 1,
-    categoryId: 2,
-    category: 'VTuber',
-    status: 'active',
-    rating: 4.9,
-    reviewCount: 31,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  // 애니메이션 카테고리
-  {
-    id: 4,
-    title: '루나 - 마법소녀 아바타',
-    description: '마법소녀 컨셉의 귀여운 애니메이션 스타일 아바타입니다. 마법 이펙트 포함.',
-    price: 100000,
-    discountPrice: 80000,
-    stock: 20,
-    images: JSON.stringify(["/images/2dmodel/5.gif"]),
-    sellerId: 1,
-    categoryId: 3,
-    category: '애니메이션',
-    status: 'active',
-    rating: 4.7,
-    reviewCount: 42,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: 5,
-    title: '카이토 - 학원물 주인공',
-    description: '학원 애니메이션의 남성 주인공 스타일 아바타로 교복과 캐주얼 의상을 제공합니다.',
-    price: 90000,
-    discountPrice: null,
-    stock: 25,
-    images: JSON.stringify(["/images/2dmodel/6.png"]),
-    sellerId: 1,
-    categoryId: 3,
-    category: '애니메이션',
-    status: 'active',
-    rating: 4.5,
-    reviewCount: 33,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  // 리얼리스틱 카테고리
-  {
-    id: 6,
-    title: '아리아 - 리얼 휴먼 아바타',
-    description: '실제 인간과 구별하기 어려운 고품질 리얼리스틱 여성 아바타입니다.',
-    price: 250000,
-    discountPrice: 220000,
-    stock: 5,
-    images: JSON.stringify(["/images/2dmodel/7.png"]),
-    sellerId: 1,
-    categoryId: 4,
-    category: '리얼리스틱',
-    status: 'active',
-    rating: 4.9,
-    reviewCount: 15,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: 7,
-    title: '맥스 - 비즈니스 아바타',
-    description: '비즈니스 미팅과 프레젠테이션에 적합한 전문적인 남성 아바타입니다.',
-    price: 200000,
-    discountPrice: null,
-    stock: 12,
-    images: JSON.stringify(["/images/2dmodel/1.png"]),
-    sellerId: 1,
-    categoryId: 4,
-    category: '리얼리스틱',
-    status: 'active',
-    rating: 4.6,
-    reviewCount: 21,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  // 판타지 카테고리
-  {
-    id: 8,
-    title: '엘프 프린세스 - 아리엘',
-    description: '우아한 엘프 공주 아바타로 마법 능력과 아름다운 의상을 제공합니다.',
-    price: 140000,
-    discountPrice: 120000,
-    stock: 18,
-    images: JSON.stringify(["/images/2dmodel/2.png"]),
-    sellerId: 1,
-    categoryId: 5,
-    category: '판타지',
-    status: 'active',
-    rating: 4.8,
-    reviewCount: 27,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: 9,
-    title: '드래곤 나이트 - 드레이크',
-    description: '용의 힘을 가진 강력한 기사 아바타입니다. 용 변신 기능 포함.',
-    price: 170000,
-    discountPrice: null,
-    stock: 10,
-    images: JSON.stringify(["/images/2dmodel/3.png"]),
-    sellerId: 1,
-    categoryId: 5,
-    category: '판타지',
-    status: 'active',
-    rating: 4.7,
-    reviewCount: 19,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  // SF/미래 카테고리
-  {
-    id: 10,
-    title: '사이보그 - 제로',
-    description: '미래형 사이보그 아바타로 다양한 사이버네틱 강화 기능을 제공합니다.',
-    price: 190000,
-    discountPrice: 170000,
-    stock: 7,
-    images: JSON.stringify(["/images/2dmodel/4.png"]),
-    sellerId: 1,
-    categoryId: 6,
-    category: 'SF/미래',
-    status: 'active',
-    rating: 4.8,
-    reviewCount: 22,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  // 동물/펫 카테고리
-  {
-    id: 11,
-    title: '코기 - 귀여운 강아지',
-    description: '사랑스러운 코기 강아지 아바타입니다. 다양한 표정과 동작을 지원합니다.',
-    price: 80000,
-    discountPrice: 70000,
-    stock: 30,
-    images: JSON.stringify(["/images/2dmodel/5.gif"]),
-    sellerId: 1,
-    categoryId: 7,
-    category: '동물/펫',
-    status: 'active',
-    rating: 4.9,
-    reviewCount: 56,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: 12,
-    title: '냥이 - 고양이 아바타',
-    description: '우아하고 신비로운 고양이 아바타로 다양한 품종 스킨을 제공합니다.',
-    price: 75000,
-    discountPrice: null,
-    stock: 35,
-    images: JSON.stringify(["/images/2dmodel/6.png"]),
-    sellerId: 1,
-    categoryId: 7,
-    category: '동물/펫',
-    status: 'active',
-    rating: 4.7,
-    reviewCount: 41,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  // 액세서리 카테고리
-  {
-    id: 13,
-    title: '홀로그램 윙즈',
-    description: '아바타용 홀로그램 날개 액세서리입니다. 다양한 색상과 효과를 제공합니다.',
-    price: 25000,
-    discountPrice: 20000,
-    stock: 100,
-    images: JSON.stringify(["/images/2dmodel/7.png"]),
-    sellerId: 1,
-    categoryId: 9,
-    category: '액세서리',
-    status: 'active',
-    rating: 4.6,
-    reviewCount: 73,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: 14,
-    title: '마법 지팡이 세트',
-    description: '다양한 마법 지팡이와 마법진 이펙트가 포함된 액세서리 세트입니다.',
-    price: 35000,
-    discountPrice: null,
-    stock: 80,
-    images: JSON.stringify(["/images/2dmodel/1.png"]),
-    sellerId: 1,
-    categoryId: 9,
-    category: '액세서리',
-    status: 'active',
-    rating: 4.8,
-    reviewCount: 65,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  // 이모션팩 카테고리
-  {
-    id: 15,
-    title: '기본 감정 표현 팩',
-    description: '기쁨, 슬픔, 화남, 놀람 등 기본적인 감정 표현이 포함된 팩입니다.',
-    price: 15000,
-    discountPrice: 12000,
-    stock: 200,
-    images: JSON.stringify(["/images/2dmodel/2.png"]),
-    sellerId: 1,
-    categoryId: 10,
-    category: '이모션팩',
-    status: 'active',
-    rating: 4.5,
-    reviewCount: 89,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: 16,
-    title: '프리미엄 감정 팩',
-    description: '섬세한 감정 변화와 특수 표정이 포함된 고급 감정 표현 팩입니다.',
-    price: 30000,
-    discountPrice: 25000,
-    stock: 150,
-    images: JSON.stringify(["/images/2dmodel/3.png"]),
-    sellerId: 1,
-    categoryId: 10,
-    category: '이모션팩',
-    status: 'active',
-    rating: 4.9,
-    reviewCount: 112,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
-];
+// 메모리 기반 더미 데이터 제거 - DB에서만 데이터 가져옴
 
 // UserType, UserGrade는 상단 import에서 함께 가져옵니다.
 
@@ -308,9 +12,11 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(userId: number | string, payload: Partial<User>): Promise<User | undefined>;
   
   // Care Manager operations
   getCareManager(id: number): Promise<CareManager | undefined>;
+  getCareManagerByUserId(userId: string): Promise<CareManager | undefined>;
   getAllCareManagers(): Promise<CareManager[]>;
   getCareManagersByService(serviceId: number): Promise<CareManager[]>;
   createCareManager(careManager: InsertCareManager): Promise<CareManager>;
@@ -380,6 +86,8 @@ export interface IStorage {
 
   // Order management operations
   getAllOrders(): Promise<any[]>;
+  getOrdersByCustomer(customerId: string): Promise<any[]>;
+  getOrdersBySeller(sellerId: string): Promise<any[]>;
   createOrder(orderData: any): Promise<any>;
   updateOrderStatus(orderId: string, status: string): Promise<any | undefined>;
   updateOrderShipping(orderId: string, trackingNumber: string, shippingCompany: string): Promise<any | undefined>;
@@ -408,6 +116,10 @@ export interface IStorage {
   // 소개글 콘텐츠 관련
   updateCareManagerIntroContents(careManagerId: number, introContents: any[]): Promise<boolean>;
   getCareManagerIntroContents(careManagerId: number): Promise<any[] | null>;
+
+  // 서비스 패키지 관련
+  updateCareManagerServicePackages(careManagerId: number, packages: any[]): Promise<boolean>;
+  getCareManagerServicePackages(careManagerId: number): Promise<any[] | null>;
 
   // Cart operations
   getCartItems(userId: number): Promise<CartItem[]>;
@@ -501,12 +213,12 @@ export class MemStorage implements IStorage {
   }
 
   private initializeData() {
-    // Initialize services
+    // Initialize avatar services (아바타 관련 서비스)
     const servicesData = [
-      { name: '병원 동행', icon: 'fas fa-hospital', color: 'bg-gradient-to-br from-blue-500 to-cyan-500', description: '의료진과의 소통을 도와드리고 안전한 병원 방문을 지원합니다', averageDuration: '평균 3-4시간 소요' },
-      { name: '장보기', icon: 'fas fa-shopping-cart', color: 'bg-gradient-to-br from-green-500 to-teal-500', description: '신선한 식재료와 생필품을 대신 구매해드립니다', averageDuration: '평균 2-3시간 소요' },
-      { name: '가사 도움', icon: 'fas fa-home', color: 'bg-gradient-to-br from-purple-500 to-pink-500', description: '청소, 세탁, 정리정돈 등 집안일을 도와드립니다', averageDuration: '평균 4-5시간 소요' },
-      { name: '말벗', icon: 'fas fa-comments', color: 'bg-gradient-to-br from-orange-500 to-red-500', description: '따뜻한 대화와 정서적 지원을 제공합니다', averageDuration: '평균 2-3시간 소요' }
+      { name: 'Live2D 모델링', icon: 'fas fa-magic', color: 'bg-gradient-to-br from-purple-500 to-pink-500', description: 'Live2D 기술을 활용한 고품질 아바타 모델링 서비스', averageDuration: '평균 1-2주 소요' },
+      { name: '3D 모델링', icon: 'fas fa-cube', color: 'bg-gradient-to-br from-blue-500 to-cyan-500', description: '3D 기술을 활용한 실감나는 아바타 제작', averageDuration: '평균 2-3주 소요' },
+      { name: '커스텀 의상', icon: 'fas fa-tshirt', color: 'bg-gradient-to-br from-green-500 to-teal-500', description: '개성있는 커스텀 의상 및 액세서리 제작', averageDuration: '평균 3-5일 소요' },
+      { name: '애니메이션', icon: 'fas fa-play-circle', color: 'bg-gradient-to-br from-orange-500 to-red-500', description: '감정 표현 및 동작 애니메이션 제작', averageDuration: '평균 1주 소요' }
     ];
 
     servicesData.forEach(service => {
@@ -517,59 +229,61 @@ export class MemStorage implements IStorage {
       this.services.set(newService.id, newService);
     });
 
-    // Initialize care managers
-    const careManagersData = [
+    // Initialize avatar creators/sellers (아바타 제작자/판매자)
+    const avatarCreatorsData = [
       {
-        name: '김미영',
-        age: 45,
+        name: 'Avatar Studio',
+        age: 0, // 스튜디오이므로 나이 대신 0
         rating: 49, // 4.9
         reviews: 127,
         experience: '5년',
         location: '서울 강남구',
-        hourlyRate: 25000,
-        services: ['병원 동행', '장보기'],
+        hourlyRate: 50000,
+        services: ['Live2D 모델링', '3D 모델링'],
         certified: true,
-        imageUrl: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=120&h=120',
-        description: '5년간의 경험을 바탕으로 세심하고 전문적인 케어 서비스를 제공합니다.'
+        imageUrl: '/images/profile/avatar-studio.png',
+        description: '전문적인 Live2D 및 3D 아바타 제작 스튜디오입니다. 고품질 아바타 제작 경험 5년.'
       },
       {
-        name: '박정수',
-        age: 52,
+        name: '미라이 크리에이터',
+        age: 28,
         rating: 48, // 4.8
         reviews: 89,
-        experience: '7년',
+        experience: '3년',
         location: '서울 송파구',
-        hourlyRate: 23000,
-        services: ['가사 도움', '말벗'],
+        hourlyRate: 35000,
+        services: ['커스텀 의상', '애니메이션'],
         certified: true,
-        imageUrl: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=120&h=120',
-        description: '7년의 풍부한 경험으로 어르신들께 따뜻한 돌봄을 제공합니다.'
+        imageUrl: '/images/profile/mirai-creator.png',
+        description: '창의적인 아바타 의상 및 애니메이션 전문 크리에이터입니다.'
       },
       {
-        name: '이순희',
-        age: 48,
+        name: 'PixelArt Master',
+        age: 32,
         rating: 47, // 4.7
         reviews: 156,
         experience: '6년',
         location: '서울 마포구',
-        hourlyRate: 24000,
-        services: ['병원 동행', '말벗', '장보기'],
+        hourlyRate: 40000,
+        services: ['Live2D 모델링', '커스텀 의상', '애니메이션'],
         certified: true,
-        imageUrl: 'https://images.unsplash.com/photo-1607990281513-2c110a25bd8c?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=120&h=120',
-        description: '다양한 서비스 경험을 통해 개인별 맞춤 케어를 제공합니다.'
+        imageUrl: '/images/profile/pixelart-master.png',
+        description: '다양한 스타일의 아바타 제작이 가능한 베테랑 크리에이터입니다.'
       }
     ];
 
-    careManagersData.forEach(manager => {
-      const newManager: CareManager = {
+    avatarCreatorsData.forEach(creator => {
+      const newCreator: CareManager = {
         id: this.currentCareManagerId++,
-        ...manager,
-        isApproved: true, // isApproved 속성 추가
-        createdAt: new Date(), // createdAt 속성 추가
+        ...creator,
+        isApproved: true,
+        createdAt: new Date(),
         introContents: null,
       };
-      this.careManagers.set(newManager.id, newManager);
+      this.careManagers.set(newCreator.id, newCreator);
     });
+
+    // 상품 카테고리와 상품 더미 데이터 초기화 제거 - DB에서만 가져옴
   }
 
   // User operations
@@ -599,9 +313,27 @@ export class MemStorage implements IStorage {
     return user;
   }
 
-  // Care Manager operations
+  async updateUser(userId: number | string, payload: Partial<User>): Promise<User | undefined> {
+    const id = typeof userId === 'string' ? parseInt(userId) : userId;
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const updatedUser = {
+      ...user,
+      ...payload,
+      updatedAt: new Date()
+    };
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+
+  // Avatar Creator operations (아바타 크리에이터 관련)
   async getCareManager(id: number): Promise<CareManager | undefined> {
     return this.careManagers.get(id);
+  }
+
+  async getCareManagerByUserId(userId: string): Promise<CareManager | undefined> {
+    return Array.from(this.careManagers.values()).find(cm => cm.userId === userId);
   }
 
   async getAllCareManagers(): Promise<CareManager[]> {
@@ -612,13 +344,15 @@ export class MemStorage implements IStorage {
     const service = this.services.get(serviceId);
     if (!service) return [];
     
-    return Array.from(this.careManagers.values()).filter(manager => 
-      (manager.services as string[]).includes(service.name)
+    // 아바타 크리에이터가 해당 서비스를 제공하는지 확인
+    return Array.from(this.careManagers.values()).filter(creator => 
+      (creator.services as string[]).includes(service.name)
     );
   }
 
   async createCareManager(insertCareManager: InsertCareManager): Promise<CareManager> {
-    const careManager: CareManager = {
+    // 아바타 크리에이터 생성
+    const avatarCreator: CareManager = {
       id: this.currentCareManagerId++,
       ...insertCareManager,
       description: insertCareManager.description || null,
@@ -629,16 +363,16 @@ export class MemStorage implements IStorage {
       createdAt: new Date(),
       introContents: null,
     };
-    this.careManagers.set(careManager.id, careManager);
-    return careManager;
+    this.careManagers.set(avatarCreator.id, avatarCreator);
+    return avatarCreator;
   }
 
-  // 케어매니저 정보 업데이트
+  // 아바타 크리에이터 정보 업데이트
   async updateCareManager(id: number, payload: Partial<CareManager>): Promise<CareManager | undefined> {
-    const manager = this.careManagers.get(id);
-    if (!manager) return undefined;
+    const creator = this.careManagers.get(id);
+    if (!creator) return undefined;
     const updated: CareManager = {
-      ...manager,
+      ...creator,
       ...payload,
     } as CareManager;
     this.careManagers.set(id, updated);
@@ -801,62 +535,9 @@ export class MemStorage implements IStorage {
   }
 
   async getAllProducts(params?: { sellerId?: number; categoryId?: number; category?: string; search?: string; limit?: number; offset?: number }): Promise<Product[]> {
-    let result = Array.from(this.products.values());
-
-    if (params?.sellerId) {
-      result = result.filter(product => product.sellerId === params.sellerId);
-    }
-
-    if (params?.categoryId) {
-      result = result.filter(product => product.categoryId === params.categoryId);
-    }
-
-    // 카테고리 이름으로 필터링 (MemStorage에서는 매핑 필요)
-    if (params?.category) {
-      const categoryMapping: { [key: string]: number } = {
-        "가공식품": 2,
-        "건강식품": 3,
-        "기타": 4,
-        "농산물": 5,
-        "디지털상품": 6,
-        "생활용품": 7,
-        "수산물": 8,
-        "전자제품": 9,
-        "주류": 10,
-        "축산물": 11,
-        "취미/게임": 12,
-        "카페/베이커리": 13,
-        "패션": 14,
-        "하드웨어": 15
-      };
-      
-      const categoryId = categoryMapping[params.category];
-      if (categoryId) {
-        result = result.filter(product => product.categoryId === categoryId);
-      }
-    }
-
-    // 검색어 필터링
-    if (params?.search) {
-      const searchLower = params.search.toLowerCase();
-      result = result.filter(product => 
-        product.title.toLowerCase().includes(searchLower) ||
-        product.description?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // 최신순 정렬
-    result.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
-
-    // 페이지네이션
-    if (params?.offset) {
-      result = result.slice(params.offset);
-    }
-    if (params?.limit) {
-      result = result.slice(0, params.limit);
-    }
-
-    return result;
+    // MemStorage는 DB 연결 실패 시에만 사용 - 빈 배열 반환
+    console.log("⚠️ MemStorage.getAllProducts 호출 - DB를 사용하세요");
+    return [];
   }
 
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
@@ -904,7 +585,9 @@ export class MemStorage implements IStorage {
   }
 
   async getAllProductCategories(): Promise<ProductCategory[]> {
-    return Array.from(this.productCategories.values()).sort((a, b) => (a.categoryOrder || 0) - (b.categoryOrder || 0));
+    // MemStorage는 DB 연결 실패 시에만 사용 - 빈 배열 반환
+    console.log("⚠️ MemStorage.getAllProductCategories 호출 - DB를 사용하세요");
+    return [];
   }
 
   async createProductCategory(insertCategory: InsertProductCategory): Promise<ProductCategory> {
@@ -1060,6 +743,18 @@ export class MemStorage implements IStorage {
     return Array.from(this.orders.values());
   }
 
+  async getOrdersByCustomer(customerId: string): Promise<any[]> {
+    return Array.from(this.orders.values()).filter(
+      (order: any) => order.customerId === customerId
+    );
+  }
+
+  async getOrdersBySeller(sellerId: string): Promise<any[]> {
+    return Array.from(this.orders.values()).filter(
+      (order: any) => order.sellerId === sellerId
+    );
+  }
+
   async createOrder(orderData: any): Promise<any> {
     const orderId = `ORD-${this.orders.size + 1}`.padStart(7, '0');
     const newOrder = {
@@ -1078,7 +773,8 @@ export class MemStorage implements IStorage {
   async updateOrderStatus(orderId: string, status: string): Promise<any | undefined> {
     const order = this.orders.get(orderId);
     if (!order) return undefined;
-    order.status = status;
+    order.order_status = status;
+    order.updatedAt = new Date().toISOString();
     this.orders.set(orderId, order);
     return order;
   }
@@ -1086,8 +782,10 @@ export class MemStorage implements IStorage {
   async updateOrderShipping(orderId: string, trackingNumber: string, shippingCompany: string): Promise<any | undefined> {
     const order = this.orders.get(orderId);
     if (!order) return undefined;
-    order.trackingNumber = trackingNumber;
-    order.shippingCompany = shippingCompany;
+    order.tracking_number = trackingNumber;
+    order.shipping_company = shippingCompany;
+    order.order_status = 'shipped';
+    order.updatedAt = new Date().toISOString();
     this.orders.set(orderId, order);
     return order;
   }
@@ -1220,21 +918,37 @@ export class MemStorage implements IStorage {
     return this.productComments.delete(id);
   }
 
-  // 소개글 콘텐츠 관련
+  // 아바타 크리에이터 소개글 콘텐츠 관련
   async updateCareManagerIntroContents(careManagerId: number, introContents: any[]): Promise<boolean> {
-    const manager = this.careManagers.get(careManagerId);
-    if (!manager) return false;
-    manager.introContents = introContents;
-    this.careManagers.set(careManagerId, manager);
+    const creator = this.careManagers.get(careManagerId);
+    if (!creator) return false;
+    creator.introContents = introContents;
+    this.careManagers.set(careManagerId, creator);
     return true;
   }
 
   async getCareManagerIntroContents(careManagerId: number): Promise<any[] | null> {
-    const manager = this.careManagers.get(careManagerId);
-    if (!manager || !manager.introContents) {
+    const creator = this.careManagers.get(careManagerId);
+    if (!creator || !creator.introContents) {
       return null;
     }
-    return manager.introContents as any[];
+    return creator.introContents as any[];
+  }
+
+  async updateCareManagerServicePackages(careManagerId: number, packages: any[]): Promise<boolean> {
+    const creator = this.careManagers.get(careManagerId);
+    if (!creator) return false;
+    (creator as any).servicePackages = packages;
+    this.careManagers.set(careManagerId, creator);
+    return true;
+  }
+
+  async getCareManagerServicePackages(careManagerId: number): Promise<any[] | null> {
+    const creator = this.careManagers.get(careManagerId);
+    if (!creator || !(creator as any).servicePackages) {
+      return null;
+    }
+    return (creator as any).servicePackages as any[];
   }
 
   // Cart operations (memory)
@@ -1328,21 +1042,40 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  async getUserByFirebaseId(firebaseId: string): Promise<User | undefined> {
+    try {
+      const [user] = await db.select().from(users).where(eq(users.id, firebaseId));
+      return user || undefined;
+    } catch (error) {
+      console.error("Firebase ID로 사용자 조회 오류:", error);
+      return undefined;
+    }
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values({
-        ...insertUser,
-        userType: (insertUser.userType as UserType) || 'customer',
-        grade: (insertUser.grade as UserGrade) || 'bronze',
-        isApproved: insertUser.isApproved ?? false,
-      })
-      .returning();
-    return user;
+    console.log("📝 데이터베이스에 사용자 생성 시도:", insertUser);
+    
+    try {
+      const [user] = await db
+        .insert(users)
+        .values({
+          ...insertUser,
+          userType: (insertUser.userType as UserType) || 'customer',
+          grade: (insertUser.grade as UserGrade) || 'bronze',
+          isApproved: insertUser.isApproved ?? false,
+        })
+        .returning();
+      
+      console.log("✅ 데이터베이스 사용자 생성 성공:", { id: user.id, email: user.email });
+      return user;
+    } catch (error) {
+      console.error("❌ 데이터베이스 사용자 생성 실패:", error);
+      throw error;
+    }
   }
 
   // 사용자 유형 업데이트 메서드 추가
-  async updateUserType(userId: number, userType: string) {
+  async updateUserType(userId: string, userType: string) {
     const results = await db
       .update(users)
       .set({ userType })
@@ -1351,8 +1084,23 @@ export class DatabaseStorage implements IStorage {
     return results[0];
   }
 
-  // 케어 매니저 승인 메서드 추가
-  async approveCareManager(userId: number) {
+  // 사용자 정보 업데이트 메서드 추가
+  async updateUser(userId: number | string, payload: Partial<User>) {
+    try {
+      const results = await db
+        .update(users)
+        .set(payload)
+        .where(eq(users.id, userId))
+        .returning();
+      return results[0];
+    } catch (error) {
+      console.error("사용자 업데이트 오류:", error);
+      return undefined;
+    }
+  }
+
+  // 아바타 크리에이터 승인 메서드 추가
+  async approveCareManager(userId: string) {
     const results = await db
       .update(users)
       .set({ 
@@ -1366,7 +1114,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // 사용자 비밀번호 업데이트 메서드 추가
-  async updatePassword(userId: number, hashedPassword: string) {
+  async updatePassword(userId: string, hashedPassword: string) {
     const results = await db
       .update(users)
       .set({ password: hashedPassword })
@@ -1487,54 +1235,96 @@ export class DatabaseStorage implements IStorage {
     return results[0];
   }
 
-  // Care Manager operations
+  // Avatar Creator operations (아바타 크리에이터 관련)
   async getCareManager(id: number): Promise<CareManager | undefined> {
-    const [careManager] = await db.select().from(careManagers).where(eq(careManagers.id, id));
-    if (!careManager) return undefined;
+    const [avatarCreator] = await db.select().from(careManagers).where(eq(careManagers.id, id));
+    if (!avatarCreator) return undefined;
+    
+    // 디버깅: description 및 age 확인
+    console.log(`🔍 getCareManager(${id}) - 데이터:`, {
+      name: avatarCreator.name,
+      age: avatarCreator.age,
+      hasDescription: !!avatarCreator.description,
+      descriptionLength: avatarCreator.description?.length || 0,
+      descriptionPreview: avatarCreator.description?.substring(0, 50) || 'null/undefined',
+      hourlyRate: avatarCreator.hourlyRate
+    });
     
     // isApproved 속성이 없는 경우 기본값 추가
     return {
-      ...careManager,
-      isApproved: (careManager as any).isApproved ?? true
+      ...avatarCreator,
+      isApproved: (avatarCreator as any).isApproved ?? true
+    };
+  }
+
+  async getCareManagerByUserId(userId: string): Promise<CareManager | undefined> {
+    const [avatarCreator] = await db
+      .select()
+      .from(careManagers)
+      .where(eq(careManagers.userId, userId))
+      .limit(1);
+    
+    if (!avatarCreator) return undefined;
+    
+    // isApproved 속성이 없는 경우 기본값 추가
+    return {
+      ...avatarCreator,
+      isApproved: (avatarCreator as any).isApproved ?? true
     };
   }
 
   async getAllCareManagers(): Promise<CareManager[]> {
     try {
-      const allCareManagers = await db.select().from(careManagers);
+      const allAvatarCreators = await db.select().from(careManagers);
       
       // isApproved 속성이 없는 경우 기본값 추가
-      const managersWithApproval = allCareManagers.map((manager: any) => ({
-        ...manager,
-        isApproved: manager.isApproved ?? true
+      const creatorsWithApproval = allAvatarCreators.map((creator: any) => ({
+        ...creator,
+        isApproved: creator.isApproved ?? true
       }));
       
-      return managersWithApproval;
+      return creatorsWithApproval;
     } catch (error) {
-      console.error("케어매니저 목록 조회 오류:", error);
+      console.error("아바타 크리에이터 목록 조회 오류:", error);
       // 오류 발생시 기본 데이터 제공
       return [];
     }
   }
 
   async getCareManagersByService(serviceId: number): Promise<CareManager[]> {
-    // This would require a more complex query with JSON operations in a real implementation
+    // 아바타 크리에이터 서비스별 조회 (실제 구현에서는 JSON 연산 필요)
     return await db.select().from(careManagers);
   }
 
   async createCareManager(insertCareManager: InsertCareManager): Promise<CareManager> {
-    const [careManager] = await db
+    const [avatarCreator] = await db
       .insert(careManagers)
       .values(insertCareManager)
       .returning();
-    return careManager;
+    return avatarCreator;
   }
 
-  // 케어매니저 정보 업데이트 (부분 업데이트)
+  // 아바타 크리에이터 정보 업데이트 (부분 업데이트)
   async updateCareManager(id: number, payload: Partial<CareManager>): Promise<CareManager | undefined> {
+    // undefined 값 제거 (실제로 업데이트할 필드만 남김)
+    const cleanPayload: any = {};
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        cleanPayload[key] = value;
+      }
+    });
+
+    // 업데이트할 필드가 없으면 현재 데이터 반환
+    if (Object.keys(cleanPayload).length === 0) {
+      console.log(`⚠️ 업데이트할 필드가 없음 (id: ${id})`);
+      return await this.getCareManager(id);
+    }
+
+    console.log(`📝 실제 업데이트할 필드:`, cleanPayload);
+    
     const [updated] = await db
       .update(careManagers)
-      .set(payload as any)
+      .set(cleanPayload)
       .where(eq(careManagers.id, id))
       .returning();
     return updated;
@@ -1591,20 +1381,25 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getBookingsByCareManagerAndDate(careManagerId: number, date: string): Promise<Booking[]> {
-    // date가 "YYYY-MM-DD" 형식이므로 해당 날짜의 시작과 끝을 계산
-    const startDate = new Date(`${date}T00:00:00.000Z`);
-    const endDate = new Date(`${date}T23:59:59.999Z`);
-    
-    return await db
-      .select()
-      .from(bookings)
-      .where(
-        and(
-          eq(bookings.careManagerId, careManagerId),
-          gte(bookings.date, startDate),
-          lte(bookings.date, endDate)
-        )
-      );
+    try {
+      // date가 "YYYY-MM-DD" 형식이므로 해당 날짜의 시작과 끝을 계산
+      const startDate = new Date(`${date}T00:00:00.000Z`);
+      const endDate = new Date(`${date}T23:59:59.999Z`);
+      
+      return await db
+        .select()
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.careManagerId, careManagerId),
+            gte(bookings.bookingDate, startDate),
+            lte(bookings.bookingDate, endDate)
+          )
+        );
+    } catch (error) {
+      console.error("날짜별 예약 조회 오류:", error);
+      return [];
+    }
   }
 
   async createBooking(insertBooking: InsertBooking): Promise<Booking> {
@@ -1628,6 +1423,33 @@ export class DatabaseStorage implements IStorage {
       return booking || undefined;
     } catch (error) {
       console.error("예약 상태 변경 오류:", error);
+      return undefined;
+    }
+  }
+
+  async updateBookingWithCompletion(
+    id: number | string,
+    status: string,
+    completionFiles: string[],
+    completionNote: string,
+    completedAt?: string
+  ): Promise<Booking | undefined> {
+    try {
+      const numId = typeof id === 'string' ? parseInt(id) : id;
+      
+      const [booking] = await db
+        .update(bookings)
+        .set({
+          status,
+          completionFiles: completionFiles as any,
+          completionNote,
+          completedAt: completedAt ? new Date(completedAt) : new Date()
+        })
+        .where(eq(bookings.id, numId))
+        .returning();
+      return booking || undefined;
+    } catch (error) {
+      console.error("예약 완료 처리 오류:", error);
       return undefined;
     }
   }
@@ -1664,23 +1486,24 @@ export class DatabaseStorage implements IStorage {
   // Product operations
   async getProduct(id: number): Promise<Product | undefined> {
     try {
+      console.log(`📦 상품 조회 시도: ID ${id}`);
+      
       const result = await db
         .select({
           id: products.id,
+          name: products.name,
           title: products.title,
           description: products.description,
           price: products.price,
           discountPrice: products.discountPrice,
           stock: products.stock,
           images: products.images,
-          tags: products.tags,
           sellerId: products.sellerId,
           categoryId: products.categoryId,
-          status: products.status,
           rating: products.rating,
           reviewCount: products.reviewCount,
+          isActive: products.isActive,
           createdAt: products.createdAt,
-          updatedAt: products.updatedAt,
           // 카테고리 정보 추가
           category: productCategories.name,
         })
@@ -1689,28 +1512,23 @@ export class DatabaseStorage implements IStorage {
         .where(eq(products.id, id));
 
       if (result.length === 0) {
+        console.log(`❌ 상품 없음: ID ${id}`);
         return undefined;
       }
 
       const product = result[0];
-      console.log("상품 조회 결과 (카테고리 포함):", {
+      console.log("✅ 상품 조회 성공:", {
         id: product.id,
+        name: product.name,
         title: product.title,
         categoryId: product.categoryId,
-        category: product.category
+        category: product.category,
+        isActive: product.isActive
       });
 
       return product as any;
     } catch (error) {
-      console.error("상품 조회 오류:", error);
-      
-      // 메모리 데이터에서 상품 찾기
-      const memoryProduct = memoryProducts.find(p => p.id === id);
-      if (memoryProduct) {
-        console.log("메모리 데이터에서 상품 찾음:", memoryProduct.title);
-        return memoryProduct as unknown as Product;
-      }
-      
+      console.error(`❌ 상품 조회 오류 (ID ${id}):`, error);
       return undefined;
     }
   }
@@ -1718,26 +1536,54 @@ export class DatabaseStorage implements IStorage {
   async getAllProducts(params?: { sellerId?: number; categoryId?: number; category?: string; search?: string; limit?: number; offset?: number }): Promise<Product[]> {
     try {
       console.log("DB에서 상품 목록 조회 시도");
-      let query = db.select().from(products);
+      
+      // WHERE 조건들을 배열로 수집
+      const whereConditions: any[] = [];
 
       // 판매자 ID로 필터링
       if (params?.sellerId) {
-        query = query.where(eq(products.sellerId, params.sellerId));
+        whereConditions.push(eq(products.sellerId, params.sellerId));
       }
 
       // 카테고리 ID로 필터링
       if (params?.categoryId) {
-        query = query.where(eq(products.categoryId, params.categoryId));
+        whereConditions.push(eq(products.categoryId, params.categoryId));
+      }
+
+      // 카테고리 이름으로 필터링
+      if (params?.category && params.category !== '전체') {
+        const categoryMapping: { [key: string]: number } = {
+          "전체": 1,
+          "VTuber": 2,
+          "애니메이션": 3,
+          "리얼리스틱": 4,
+          "판타지": 5,
+          "SF/미래": 6,
+          "동물/펫": 7,
+          "커스텀": 8,
+          "액세서리": 9,
+          "이모션팩": 10
+        };
+        const categoryId = categoryMapping[params.category];
+        if (categoryId) {
+          whereConditions.push(eq(products.categoryId, categoryId));
+        }
       }
 
       // 검색어로 필터링
       if (params?.search) {
-        query = query.where(
+        whereConditions.push(
           or(
             like(products.name, `%${params.search}%`),
             like(products.description || '', `%${params.search}%`)
           )
         );
+      }
+
+      // 쿼리 빌드 (조건이 있으면 and로 연결)
+      let query = db.select().from(products);
+      if (whereConditions.length > 0) {
+        query = query.where(whereConditions.length === 1 ? whereConditions[0] : and(...whereConditions));
       }
 
       // 최신순 정렬
@@ -1756,49 +1602,7 @@ export class DatabaseStorage implements IStorage {
       return result;
     } catch (error) {
       console.error("상품 목록 조회 오류:", error);
-      console.log("메모리 기반 상품 데이터 사용");
-      
-      // 메모리 기반 데이터 필터링
-      let result = [...memoryProducts];
-
-      if (params?.sellerId) {
-        result = result.filter(product => product.sellerId === params.sellerId);
-      }
-
-      if (params?.categoryId) {
-        result = result.filter(product => product.categoryId === params.categoryId);
-      }
-
-      // 카테고리 이름으로 필터링
-      if (params?.category && params.category !== '전체') {
-        result = result.filter(product => product.category === params.category);
-      }
-
-      // 검색어 필터링
-      if (params?.search) {
-        const searchLower = params.search.toLowerCase();
-        result = result.filter(product => 
-          (product.title?.toLowerCase().includes(searchLower) || false) ||
-          (product.description?.toLowerCase().includes(searchLower) || false)
-        );
-      }
-
-      // 최신순 정렬
-      result.sort((a, b) => {
-        const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
-        const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
-        return dateB - dateA;
-      });
-
-      // 페이지네이션
-      if (params?.offset !== undefined) {
-        result = result.slice(params.offset);
-      }
-      if (params?.limit !== undefined) {
-        result = result.slice(0, params.limit);
-      }
-
-      return result;
+      return [];
     }
   }
 
@@ -1856,8 +1660,7 @@ export class DatabaseStorage implements IStorage {
       return result;
     } catch (error) {
       console.error("상품 카테고리 목록 조회 오류:", error);
-      console.log("메모리 기반 상품 카테고리 데이터 사용");
-      return memoryProductCategories as ProductCategory[];
+      return [];
     }
   }
 
@@ -2051,7 +1854,7 @@ export class DatabaseStorage implements IStorage {
           customer_name: "김영희",
           customer_phone: "010-1234-5678",
           orderItems: [
-            { product: { title: "신선한 사과" }, quantity: 2, price: 15000 }
+            { product: { title: "테크노" }, quantity: 2, price: 15000 }
           ],
           total_amount: 30000,
           payment_method: "카드결제",
@@ -2071,7 +1874,7 @@ export class DatabaseStorage implements IStorage {
           customer_name: "박철수",
           customer_phone: "010-9876-5432",
           orderItems: [
-            { product: { title: "유기농 배" }, quantity: 1, price: 25000 }
+            { product: { title: "사쿠라" }, quantity: 1, price: 25000 }
           ],
           total_amount: 25000,
           payment_method: "무통장입금",
@@ -2094,45 +1897,264 @@ export class DatabaseStorage implements IStorage {
 
   async createOrder(orderData: any): Promise<any> {
     try {
-      // 주문 ID 생성 (실제로는 DB에서 자동 생성되거나 시퀀스 사용)
-      const orderId = `ORD-${Date.now().toString().slice(-6)}`;
+      console.log("주문 생성 시작:", orderData);
       
-      // 주문 데이터 생성
-      const newOrder = {
-        id: orderId,
-        ...orderData,
-        createdAt: new Date().toISOString(),
-        payment_status: orderData.payment_status || "pending",
-        order_status: orderData.order_status || "pending",
-        tracking_number: orderData.tracking_number || "",
-        shipping_company: orderData.shipping_company || "",
-      };
+      // snake_case와 camelCase 모두 지원
+      const totalAmount = orderData.totalAmount || orderData.total_amount;
+      const paymentMethod = orderData.paymentMethod || orderData.payment_method;
+      const paymentId = orderData.paymentId || orderData.payment_id;
+      const paymentStatus = orderData.paymentStatus || orderData.payment_status;
+      const orderStatus = orderData.orderStatus || orderData.order_status;
+      const customerId = orderData.customerId || orderData.customer_id;
+      const sellerId = orderData.sellerId || orderData.seller_id;
+      const shippingAddress = orderData.shippingAddress || orderData.shipping_address;
+      const customerName = orderData.customerName || orderData.customer_name;
+      const customerPhone = orderData.customerPhone || orderData.customer_phone;
       
-      // 실제 구현에서는 DB에 저장
-      console.log("새 주문 생성:", newOrder);
+      console.log("변환된 주문 데이터:", {
+        totalAmount,
+        paymentMethod,
+        customerId,
+        sellerId,
+        customerName,
+        customerPhone
+      });
       
+      // 주문 생성
+      const [newOrder] = await db.insert(orders).values({
+        customerId: customerId,
+        sellerId: sellerId,
+        totalAmount: totalAmount,
+        paymentMethod: paymentMethod,
+        paymentId: paymentId,
+        paymentStatus: paymentStatus || (paymentMethod === 'bank_transfer' || paymentMethod === 'bank' ? 'awaiting_deposit' : 'pending'),
+        orderStatus: orderStatus || (paymentMethod === 'bank_transfer' || paymentMethod === 'bank' ? 'awaiting_deposit' : 'pending'),
+        shippingAddress: shippingAddress,
+        customerName: customerName,
+        customerPhone: customerPhone,
+        notes: orderData.notes,
+      }).returning();
+
+      console.log("주문 생성 완료:", newOrder);
+
+      // 주문 항목 생성
+      if (orderData.items && orderData.items.length > 0) {
+        const orderItemsData = orderData.items.map((item: any) => {
+          const productId = item.productId || item.product_id;
+          const selectedOptions = item.selectedOptions || item.selected_options;
+          
+          return {
+            orderId: newOrder.id,
+            productId: parseInt(productId),
+            quantity: item.quantity || 1,
+            price: item.price || 0,
+            selectedOptions: selectedOptions || [],
+          };
+        });
+
+        console.log("주문 항목 데이터:", orderItemsData);
+        await db.insert(orderItems).values(orderItemsData);
+        console.log("주문 항목 생성 완료:", orderItemsData.length, "개");
+      }
+
+      // 주문 정보를 상품 정보와 함께 조회
+      const orderWithItems = await this.getOrderById(newOrder.id);
+
       // 관리자 알림 생성
       await this.createAdminNotification({
         type: "order",
-        message: `새로운 주문이 접수되었습니다. (주문번호: ${orderId})`,
-        order_id: orderId,
-        reference_id: orderId
+        message: `새로운 주문이 접수되었습니다. (주문번호: ORD-${newOrder.id.toString().padStart(3, '0')})`,
+        order_id: newOrder.id.toString(),
+        reference_id: newOrder.id.toString()
       });
-      
-      return newOrder;
+
+      // 판매자 알림 생성
+      if (sellerId) {
+        await this.createSellerNotification({
+          sellerId: sellerId,
+          type: "order",
+          message: `새로운 주문이 접수되었습니다. (주문번호: ORD-${newOrder.id.toString().padStart(3, '0')})`,
+          orderId: newOrder.id,
+          referenceId: newOrder.id.toString()
+        });
+      }
+
+      return orderWithItems;
     } catch (error) {
       console.error("주문 생성 오류:", error);
       throw error;
     }
   }
 
+  async getOrderById(orderId: number): Promise<any> {
+    try {
+      const orderResult = await db
+        .select()
+        .from(orders)
+        .where(eq(orders.id, orderId))
+        .limit(1);
+
+      if (!orderResult || orderResult.length === 0) {
+        return null;
+      }
+
+      const order = orderResult[0];
+
+      // 주문 항목 조회
+      const items = await db
+        .select({
+          id: orderItems.id,
+          productId: orderItems.productId,
+          quantity: orderItems.quantity,
+          price: orderItems.price,
+          selectedOptions: orderItems.selectedOptions,
+          product: products,
+        })
+        .from(orderItems)
+        .leftJoin(products, eq(orderItems.productId, products.id))
+        .where(eq(orderItems.orderId, orderId));
+
+      return {
+        ...order,
+        orderItems: items,
+      };
+    } catch (error) {
+      console.error("주문 조회 오류:", error);
+      return null;
+    }
+  }
+
+  async getOrdersByCustomer(customerId: string): Promise<any[]> {
+    try {
+      console.log("고객 주문 조회:", customerId);
+      
+      const customerOrders = await db
+        .select()
+        .from(orders)
+        .where(eq(orders.customerId, customerId))
+        .orderBy(desc(orders.createdAt));
+
+      console.log("조회된 주문 수:", customerOrders.length);
+
+      // 각 주문의 항목 조회
+      const ordersWithItems = await Promise.all(
+        customerOrders.map(async (order) => {
+          const items = await db
+            .select({
+              id: orderItems.id,
+              productId: orderItems.productId,
+              quantity: orderItems.quantity,
+              price: orderItems.price,
+              selectedOptions: orderItems.selectedOptions,
+              product: products,
+            })
+            .from(orderItems)
+            .leftJoin(products, eq(orderItems.productId, products.id))
+            .where(eq(orderItems.orderId, order.id));
+
+          return {
+            ...order,
+            id: `ORD-${order.id.toString().padStart(3, '0')}`,
+            total_amount: Number(order.totalAmount),
+            payment_status: order.paymentStatus,
+            order_status: order.orderStatus,
+            tracking_number: order.trackingNumber,
+            shipping_company: order.shippingCompany,
+            orderItems: items,
+          };
+        })
+      );
+
+      return ordersWithItems;
+    } catch (error) {
+      console.error("고객 주문 조회 오류:", error);
+      return [];
+    }
+  }
+
+  async getOrdersBySeller(sellerId: string): Promise<any[]> {
+    try {
+      console.log("판매자 주문 조회:", sellerId);
+      
+      const sellerOrders = await db
+        .select()
+        .from(orders)
+        .where(eq(orders.sellerId, sellerId))
+        .orderBy(desc(orders.createdAt));
+
+      console.log("조회된 주문 수:", sellerOrders.length);
+
+      // 각 주문의 항목 조회
+      const ordersWithItems = await Promise.all(
+        sellerOrders.map(async (order) => {
+          const items = await db
+            .select({
+              id: orderItems.id,
+              productId: orderItems.productId,
+              quantity: orderItems.quantity,
+              price: orderItems.price,
+              selectedOptions: orderItems.selectedOptions,
+              product: products,
+            })
+            .from(orderItems)
+            .leftJoin(products, eq(orderItems.productId, products.id))
+            .where(eq(orderItems.orderId, order.id));
+
+          return {
+            ...order,
+            id: `ORD-${order.id.toString().padStart(3, '0')}`,
+            total_amount: Number(order.totalAmount),
+            payment_status: order.paymentStatus,
+            order_status: order.orderStatus,
+            customer_name: order.customerName,
+            customer_phone: order.customerPhone,
+            tracking_number: order.trackingNumber,
+            shipping_company: order.shippingCompany,
+            orderItems: items,
+          };
+        })
+      );
+
+      return ordersWithItems;
+    } catch (error) {
+      console.error("판매자 주문 조회 오류:", error);
+      return [];
+    }
+  }
+
   async updateOrderStatus(orderId: string, status: string): Promise<any | undefined> {
     try {
-      // 일시적인 더미 구현
+      console.log(`주문 상태 변경 시도: orderId=${orderId}, status=${status}`);
+      
+      // ORD-001 형식의 ID에서 숫자만 추출
+      const numericId = parseInt(orderId.replace(/^ORD-0*/, ''));
+      
+      if (isNaN(numericId)) {
+        console.error("유효하지 않은 주문 ID:", orderId);
+        return undefined;
+      }
+
+      const [updatedOrder] = await db
+        .update(orders)
+        .set({ 
+          orderStatus: status,
+          updatedAt: new Date()
+        })
+        .where(eq(orders.id, numericId))
+        .returning();
+
+      if (!updatedOrder) {
+        console.error("주문을 찾을 수 없음:", numericId);
+        return undefined;
+      }
+
+      console.log("주문 상태 변경 성공:", updatedOrder);
+
       return {
-        id: orderId,
-        order_status: status,
-        updatedAt: new Date()
+        id: `ORD-${updatedOrder.id.toString().padStart(3, '0')}`,
+        order_status: updatedOrder.orderStatus,
+        payment_status: updatedOrder.paymentStatus,
+        updatedAt: updatedOrder.updatedAt
       };
     } catch (error) {
       console.error("주문 상태 변경 오류:", error);
@@ -2142,13 +2164,41 @@ export class DatabaseStorage implements IStorage {
 
   async updateOrderShipping(orderId: string, trackingNumber: string, shippingCompany: string): Promise<any | undefined> {
     try {
-      // 일시적인 더미 구현
+      console.log(`배송 정보 업데이트 시도: orderId=${orderId}, trackingNumber=${trackingNumber}, shippingCompany=${shippingCompany}`);
+      
+      // ORD-001 형식의 ID에서 숫자만 추출
+      const numericId = parseInt(orderId.replace(/^ORD-0*/, ''));
+      
+      if (isNaN(numericId)) {
+        console.error("유효하지 않은 주문 ID:", orderId);
+        return undefined;
+      }
+
+      const [updatedOrder] = await db
+        .update(orders)
+        .set({ 
+          trackingNumber: trackingNumber,
+          shippingCompany: shippingCompany,
+          orderStatus: 'shipped',
+          updatedAt: new Date()
+        })
+        .where(eq(orders.id, numericId))
+        .returning();
+
+      if (!updatedOrder) {
+        console.error("주문을 찾을 수 없음:", numericId);
+        return undefined;
+      }
+
+      console.log("배송 정보 업데이트 성공:", updatedOrder);
+
       return {
-        id: orderId,
-        tracking_number: trackingNumber,
-        shipping_company: shippingCompany,
-        order_status: 'shipped',
-        updatedAt: new Date()
+        id: `ORD-${updatedOrder.id.toString().padStart(3, '0')}`,
+        tracking_number: updatedOrder.trackingNumber,
+        shipping_company: updatedOrder.shippingCompany,
+        order_status: updatedOrder.orderStatus,
+        payment_status: updatedOrder.paymentStatus,
+        updatedAt: updatedOrder.updatedAt
       };
     } catch (error) {
       console.error("배송 정보 업데이트 오류:", error);
@@ -2202,6 +2252,70 @@ export class DatabaseStorage implements IStorage {
       status: "read",
       updatedAt: new Date().toISOString()
     };
+  }
+
+  // Seller notifications operations
+  async getSellerNotifications(sellerId: string): Promise<any[]> {
+    try {
+      const { sellerNotifications } = await import("../shared/schema");
+      const results = await db
+        .select()
+        .from(sellerNotifications)
+        .where(eq(sellerNotifications.sellerId, sellerId))
+        .orderBy(desc(sellerNotifications.createdAt));
+      
+      return results.map((notif: any) => ({
+        id: notif.id,
+        type: notif.type,
+        message: notif.message,
+        order_id: notif.orderId,
+        reference_id: notif.referenceId,
+        is_read: notif.isRead,
+        createdAt: notif.createdAt
+      }));
+    } catch (error) {
+      console.error("판매자 알림 조회 오류:", error);
+      return [];
+    }
+  }
+
+  async createSellerNotification(notification: { sellerId: string; type: string; message: string; orderId?: number; referenceId?: string; }): Promise<any> {
+    try {
+      const { sellerNotifications } = await import("../shared/schema");
+      const [newNotification] = await db
+        .insert(sellerNotifications)
+        .values({
+          sellerId: notification.sellerId,
+          type: notification.type,
+          message: notification.message,
+          orderId: notification.orderId,
+          referenceId: notification.referenceId,
+          isRead: false
+        })
+        .returning();
+      
+      console.log("판매자 알림 생성 완료:", newNotification);
+      return newNotification;
+    } catch (error) {
+      console.error("판매자 알림 생성 오류:", error);
+      throw error;
+    }
+  }
+
+  async markSellerNotificationAsRead(notificationId: number): Promise<any | undefined> {
+    try {
+      const { sellerNotifications } = await import("../shared/schema");
+      const [updated] = await db
+        .update(sellerNotifications)
+        .set({ isRead: true })
+        .where(eq(sellerNotifications.id, notificationId))
+        .returning();
+      
+      return updated;
+    } catch (error) {
+      console.error("판매자 알림 읽음 처리 오류:", error);
+      return undefined;
+    }
   }
 
   // 상품 리뷰 관련
@@ -2264,16 +2378,16 @@ export class DatabaseStorage implements IStorage {
     return count > 0;
   }
 
-  // 소개글 콘텐츠 관련
+  // 아바타 크리에이터 소개글 콘텐츠 관련
   async updateCareManagerIntroContents(careManagerId: number, introContents: any[]): Promise<boolean> {
     try {
-      // 케어 매니저 테이블 업데이트
+      // 아바타 크리에이터 테이블 업데이트
       await db.update(careManagers)
         .set({ introContents })
         .where(eq(careManagers.id, careManagerId));
       return true;
     } catch (error) {
-      console.error("소개글 콘텐츠 업데이트 오류:", error);
+      console.error("아바타 크리에이터 소개글 콘텐츠 업데이트 오류:", error);
       return false;
     }
   }
@@ -2290,7 +2404,37 @@ export class DatabaseStorage implements IStorage {
       
       return result[0].introContents as any[];
     } catch (error) {
-      console.error("소개글 콘텐츠 조회 오류:", error);
+      console.error("아바타 크리에이터 소개글 콘텐츠 조회 오류:", error);
+      return null;
+    }
+  }
+
+  async updateCareManagerServicePackages(careManagerId: number, packages: any[]): Promise<boolean> {
+    try {
+      // 아바타 크리에이터 테이블 업데이트
+      await db.update(careManagers)
+        .set({ servicePackages: packages as any })
+        .where(eq(careManagers.id, careManagerId));
+      return true;
+    } catch (error) {
+      console.error("아바타 크리에이터 서비스 패키지 업데이트 오류:", error);
+      return false;
+    }
+  }
+
+  async getCareManagerServicePackages(careManagerId: number): Promise<any[] | null> {
+    try {
+      const result = await db.select({ servicePackages: careManagers.servicePackages })
+        .from(careManagers)
+        .where(eq(careManagers.id, careManagerId));
+      
+      if (result.length === 0 || !result[0].servicePackages) {
+        return null;
+      }
+      
+      return result[0].servicePackages as any[];
+    } catch (error) {
+      console.error("아바타 크리에이터 서비스 패키지 조회 오류:", error);
       return null;
     }
   }
@@ -2435,6 +2579,12 @@ export let storage: IStorage;
 // 데이터베이스 연결 확인 함수
 async function checkDatabaseConnection(): Promise<boolean> {
   try {
+    // db 객체가 존재하고 제대로 초기화되었는지 확인
+    if (!db || typeof db.select !== 'function') {
+      console.log("데이터베이스 객체가 초기화되지 않음");
+      return false;
+    }
+    
     // 간단한 쿼리로 연결 확인
     await db.select().from(users).limit(1);
     return true;
@@ -2446,13 +2596,22 @@ async function checkDatabaseConnection(): Promise<boolean> {
 
 // 초기화 함수
 export async function initializeStorage(): Promise<void> {
-  const isConnected = await checkDatabaseConnection();
+  // 먼저 데이터베이스 초기화 시도
+  const dbInitialized = await initializeDatabase();
   
-  if (isConnected) {
-    console.log("✅ 데이터베이스 연결 성공 - DatabaseStorage 사용");
-    storage = new DatabaseStorage();
+  if (dbInitialized) {
+    // 데이터베이스 연결 테스트
+    const isConnected = await checkDatabaseConnection();
+    
+    if (isConnected) {
+      console.log("✅ 데이터베이스 연결 성공 - DatabaseStorage 사용");
+      storage = new DatabaseStorage();
+    } else {
+      console.log("⚠️  데이터베이스 초기화는 되었지만 연결 실패 - MemStorage 사용");
+      storage = new MemStorage();
+    }
   } else {
-    console.log("⚠️  데이터베이스 연결 실패 - MemStorage 사용");
+    console.log("⚠️  데이터베이스 초기화 실패 - MemStorage 사용");
     storage = new MemStorage();
   }
 }

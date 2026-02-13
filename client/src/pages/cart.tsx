@@ -58,6 +58,7 @@ export default function CartPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cart", user?.uid] });
+      queryClient.invalidateQueries({ queryKey: ["header-cart", user?.uid] });
     },
   });
 
@@ -68,6 +69,7 @@ export default function CartPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cart", user?.uid] });
+      queryClient.invalidateQueries({ queryKey: ["header-cart", user?.uid] });
       toast({ title: "삭제되었습니다" });
     },
   });
@@ -79,6 +81,7 @@ export default function CartPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cart", user?.uid] });
+      queryClient.invalidateQueries({ queryKey: ["header-cart", user?.uid] });
       setSelectedIds(new Set());
       setSelectAll(false);
       toast({ title: "장바구니를 비웠습니다" });
@@ -149,31 +152,38 @@ export default function CartPage() {
 
   if (!user) {
     return (
-      <div className="container mx-auto px-4 py-10 text-center">
-        <h2 className="text-xl font-semibold mb-2">로그인이 필요합니다</h2>
-        <p className="text-gray-600 mb-4">장바구니를 보려면 로그인해주세요.</p>
-        <Button onClick={() => setShowAuthModal(true)}>로그인</Button>
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2 text-white">로그인이 필요합니다</h2>
+          <p className="text-gray-300 mb-4">장바구니를 보려면 로그인해주세요.</p>
+          <Button onClick={() => setShowAuthModal(true)} className="bg-blue-600 hover:bg-blue-700">
+            로그인
+          </Button>
+        </div>
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-10 text-center">
-        <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-        <p className="text-gray-600 mt-2">장바구니를 불러오는 중...</p>
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-6 h-6 border-4 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-gray-300 mt-2">장바구니를 불러오는 중...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-6">
-      <h1 className="text-2xl font-bold mb-4">장바구니</h1>
+    <div className="min-h-screen bg-gray-900">
+      <div className="container mx-auto max-w-5xl px-4 py-6">
+        <h1 className="text-2xl font-bold mb-4 text-white">장바구니</h1>
 
       {(!items || items.length === 0) ? (
-        <div className="text-center py-12 bg-white rounded-lg border">
-          <p className="text-gray-600">장바구니에 담긴 상품이 없습니다.</p>
-          <Button className="mt-4" onClick={toShop}>쇼핑 계속하기</Button>
+        <div className="text-center py-12 bg-gray-800 rounded-lg border border-gray-600">
+          <p className="text-gray-300">장바구니에 담긴 상품이 없습니다.</p>
+          <Button className="mt-4 bg-blue-600 hover:bg-blue-700" onClick={toShop}>쇼핑 계속하기</Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -182,11 +192,11 @@ export default function CartPage() {
             <div className="flex items-center gap-2 mb-2">
               <input id="select-all" type="checkbox" checked={selectAll && selectedIds.size === items.length}
                      onChange={toggleSelectAll} />
-              <label htmlFor="select-all" className="text-sm text-gray-700">전체 선택</label>
+              <label htmlFor="select-all" className="text-sm text-gray-300">전체 선택</label>
               {selectedIds.size > 0 && (
                 <>
-                  <span className="text-xs text-gray-500">선택 {selectedIds.size}개</span>
-                  <Button variant="outline" size="sm" onClick={() => {
+                  <span className="text-xs text-gray-400">선택 {selectedIds.size}개</span>
+                  <Button variant="default" size="sm" onClick={() => {
                     // 선택 삭제
                     const ids = Array.from(selectedIds);
                     ids.forEach(id => removeItem.mutate(id));
@@ -198,9 +208,9 @@ export default function CartPage() {
             </div>
 
             {items.map((it: any) => (
-              <div key={it.id} className="flex items-center gap-4 bg-white border rounded-lg p-3">
+              <div key={it.id} className="flex items-center gap-4 bg-gray-800 border border-gray-600 rounded-lg p-3">
                 <input type="checkbox" checked={selectedIds.has(it.id)} onChange={() => toggleSelect(it.id)} />
-                <div className="w-20 h-20 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                <div className="w-20 h-20 bg-gray-700 rounded overflow-hidden flex-shrink-0">
                   {it.product?.images && it.product.images.length > 0 ? (
                     <img src={typeof it.product.images[0] === 'string' ? it.product.images[0] : ''} className="w-full h-full object-cover" />
                   ) : (
@@ -208,15 +218,15 @@ export default function CartPage() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{it.product?.title || `상품 #${it.productId}`}</p>
+                  <p className="font-medium truncate text-white">{it.product?.title || `상품 #${it.productId}`}</p>
                   {Array.isArray(it.selectedOptions) && it.selectedOptions.length > 0 && (
-                    <div className="mt-1 text-xs text-gray-600">
+                    <div className="mt-1 text-xs text-gray-400">
                       {it.selectedOptions.map((opt: any, idx: number) => (
-                        <Badge key={idx} variant="outline" className="mr-1 mb-1">{opt.name}: {opt.value}</Badge>
+                        <Badge key={idx} variant="default" className="mr-1 mb-1 border-gray-600 text-gray-300">{opt.name}: {opt.value}</Badge>
                       ))}
                     </div>
                   )}
-                  <div className="mt-1 text-sm text-gray-700">
+                  <div className="mt-1 text-sm text-gray-300">
                     단가: {(() => {
                       const price = it.product?.discountPrice ?? it.product?.discount_price ?? it.product?.price ?? 0;
                       const num = typeof price === 'string' ? parseFloat(price) : Number(price);
@@ -225,31 +235,32 @@ export default function CartPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" onClick={() => updateQty.mutate({ itemId: it.id, quantity: Math.max(1, Number(it.quantity) - 1) })}>-</Button>
-                  <span className="w-8 text-center">{it.quantity}</span>
-                  <Button variant="outline" size="icon" onClick={() => updateQty.mutate({ itemId: it.id, quantity: Number(it.quantity) + 1 })}>+</Button>
+                  <Button variant="default" size="icon" className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white" onClick={() => updateQty.mutate({ itemId: it.id, quantity: Math.max(1, Number(it.quantity) - 1) })}>-</Button>
+                  <span className="w-8 text-center text-white">{it.quantity}</span>
+                  <Button variant="default" size="icon" className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white" onClick={() => updateQty.mutate({ itemId: it.id, quantity: Number(it.quantity) + 1 })}>+</Button>
                 </div>
                 <div>
-                  <Button variant="ghost" onClick={() => removeItem.mutate(it.id)}>삭제</Button>
+                  <Button variant="ghost" className="text-gray-300 hover:text-red-400 hover:bg-gray-700" onClick={() => removeItem.mutate(it.id)}>삭제</Button>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="bg-white border rounded-lg p-4 h-fit">
-            <h2 className="text-lg font-semibold mb-2">주문 요약</h2>
-            <div className="text-xs text-gray-500 mb-2">선택한 상품만 계산됩니다.</div>
-            <div className="flex justify-between text-sm mb-1"><span>선택 수량</span><span>{totalQty}개</span></div>
-            <div className="flex justify-between text-sm mb-1"><span>상품 금액</span><span>{Math.floor(subtotal).toLocaleString()}원</span></div>
-            <div className="flex justify-between text-sm mb-1"><span>배송비</span><span>{subtotal < 30000 && totalQty > 0 ? '3,000원' : (totalQty > 0 ? '무료' : '-')}</span></div>
-            <div className="flex justify-between font-bold text-base pt-2 border-t mt-2"><span>결제 예정 금액</span><span>{totalQty > 0 ? Math.floor(subtotal + (subtotal < 30000 ? 3000 : 0)).toLocaleString() : '0'}원</span></div>
+          <div className="bg-gray-800 border border-gray-600 rounded-lg p-4 h-fit">
+            <h2 className="text-lg font-semibold mb-2 text-white">주문 요약</h2>
+            <div className="text-xs text-gray-400 mb-2">선택한 상품만 계산됩니다.</div>
+            <div className="flex justify-between text-sm mb-1 text-gray-300"><span>선택 수량</span><span className="text-white">{totalQty}개</span></div>
+            <div className="flex justify-between text-sm mb-1 text-gray-300"><span>상품 금액</span><span className="text-white">{Math.floor(subtotal).toLocaleString()}원</span></div>
+            <div className="flex justify-between text-sm mb-1 text-gray-300"><span>배송비</span><span className="text-white">{subtotal < 30000 && totalQty > 0 ? '3,000원' : (totalQty > 0 ? '무료' : '-')}</span></div>
+            <div className="flex justify-between font-bold text-base pt-2 border-t border-gray-600 mt-2 text-white"><span>결제 예정 금액</span><span className="text-blue-400">{totalQty > 0 ? Math.floor(subtotal + (subtotal < 30000 ? 3000 : 0)).toLocaleString() : '0'}원</span></div>
             <div className="mt-4 flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => clearCart.mutate()}>장바구니 비우기</Button>
-              <Button className="flex-1" onClick={toCheckoutSelected} disabled={selectedItems.length === 0}>선택 상품 결제</Button>
+              <Button variant="default" className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white" onClick={() => clearCart.mutate()}>장바구니 비우기</Button>
+              <Button className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={toCheckoutSelected} disabled={selectedItems.length === 0}>선택 상품 결제</Button>
             </div>
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 } 

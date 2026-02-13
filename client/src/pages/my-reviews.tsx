@@ -60,31 +60,31 @@ export default function MyReviewsPage() {
         {
           id: "review_001",
           product_id: "1",
-          product_name: "프리미엄 김치",
-          product_image: "https://images.unsplash.com/photo-1516684669134-de6f7c473a2a?w=300",
+          product_name: "미라이 - VTuber 아바타",
+          product_image: "https://images.unsplash.com/photo-1535223289827-42f1e9919769?w=300",
           order_id: "order_001",
           rating: 5,
-          comment: "정말 맛있어요! 집에서 만든 것처럼 깔끔하고 시원한 맛이 일품입니다. 다음에도 꼭 주문할게요.",
+          comment: "정말 퀄리티가 높아요! 표정 변화와 움직임이 자연스럽고 음성 합성도 완벽합니다. 스트리밍에 사용하니 시청자 반응이 너무 좋아요!",
           created_at: "2024-01-15T10:30:00Z"
         },
         {
           id: "review_002", 
           product_id: "3",
-          product_name: "자연산 고등어",
-          product_image: "https://images.unsplash.com/photo-1544943845-ad535c4eb135?w=300",
+          product_name: "사쿠라 - 일본풍 VTuber",
+          product_image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300",
           order_id: "order_003",
           rating: 4,
-          comment: "신선하고 좋아요. 구워먹으니 정말 맛있었습니다.",
+          comment: "일본 전통 의상이 정말 예뻐요. 애니메이션도 부드럽고 목소리도 좋습니다.",
           created_at: "2024-01-05T09:15:00Z"
         },
         {
           id: "review_003",
           product_id: "2", 
-          product_name: "유기농 배추",
-          product_image: "https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=300",
+          product_name: "커스텀 AI 아바타 제작",
+          product_image: "https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?w=300",
           order_id: "order_001",
           rating: 5,
-          comment: "유기농이라 그런지 정말 달고 아삭해요. 김치 담그기에 최고입니다!",
+          comment: "완전 맞춤 제작이라 그런지 정말 마음에 들어요. 디테일도 완벽하고 제작 기간도 빨랐습니다!",
           created_at: "2024-01-15T10:30:00Z",
           updated_at: "2024-01-16T14:20:00Z"
         }
@@ -201,52 +201,53 @@ export default function MyReviewsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="min-h-screen bg-gray-900">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
       {/* 헤더 */}
       <div className="mb-6">
         <Button
           variant="ghost"
           onClick={() => setLocation('/profile')}
-          className="mb-4"
+          className="mb-4 text-white hover:text-gray-300"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          마이페이지로 돌아가기
+          마이페이지로 도아가기
         </Button>
 
         <div className="flex items-center gap-3 mb-2">
           <MessageSquare className="h-6 w-6 text-purple-600" />
-          <h1 className="text-2xl font-bold text-gray-800">내가 쓴 리뷰</h1>
+          <h1 className="text-2xl font-bold text-white">내 리뷰</h1>
         </div>
-        <p className="text-gray-600">구매하신 상품에 대한 리뷰를 관리할 수 있습니다.</p>
+        <p className="text-gray-400">구매한 AI 아바타와 크리에이터에 대한 리뷰를 관리할 수 있습니다.</p>
       </div>
 
       {/* 리뷰 통계 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card>
+        <Card className="bg-gray-800/70 border-gray-600/50">
           <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-purple-600 mb-1">
+            <div className="text-2xl font-bold text-purple-400 mb-1">
               {reviews.length}개
             </div>
-            <div className="text-sm text-gray-600">총 작성 리뷰</div>
+            <div className="text-sm text-gray-400">총 작성 리뷰</div>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="bg-gray-800/70 border-gray-600/50">
           <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-yellow-600 mb-1 flex items-center justify-center gap-1">
+            <div className="text-2xl font-bold text-yellow-400 mb-1 flex items-center justify-center gap-1">
               <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
               {averageRating}
             </div>
-            <div className="text-sm text-gray-600">평균 평점</div>
+            <div className="text-sm text-gray-400">평균 평점</div>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="bg-gray-800/70 border-gray-600/50">
           <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-green-600 mb-1">
+            <div className="text-2xl font-bold text-green-400 mb-1">
               {reviews.filter(r => r.rating >= 4).length}개
             </div>
-            <div className="text-sm text-gray-600">좋은 평가 (4점 이상)</div>
+            <div className="text-sm text-gray-400">좋은 평가 (4점 이상)</div>
           </CardContent>
         </Card>
       </div>
@@ -254,26 +255,26 @@ export default function MyReviewsPage() {
       {/* 리뷰 목록 */}
       <div className="space-y-4">
         {isLoading ? (
-          <Card>
+          <Card className="bg-gray-800/70 border-gray-600/50">
             <CardContent className="p-8 text-center">
               <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">리뷰를 불러오는 중...</p>
+              <p className="text-gray-400">리뷰를 불러오는 중...</p>
             </CardContent>
           </Card>
         ) : reviews.length === 0 ? (
-          <Card>
+          <Card className="bg-gray-800/70 border-gray-600/50">
             <CardContent className="p-8 text-center">
               <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-800 mb-2">작성한 리뷰가 없습니다</h3>
-              <p className="text-gray-600 mb-4">상품을 구매하고 첫 리뷰를 작성해보세요!</p>
+              <h3 className="text-lg font-medium text-white mb-2">작성한 리뷰가 없습니다</h3>
+              <p className="text-gray-400 mb-4">AI 아바타를 구매하고 첫 리뷰를 작성해보세요!</p>
               <Button onClick={() => setLocation('/shop')}>
-                쇼핑하러 가기
+                아바타 구매하러 가기
               </Button>
             </CardContent>
           </Card>
         ) : (
           reviews.map((review) => (
-            <Card key={review.id} className="overflow-hidden">
+            <Card key={review.id} className="bg-gray-800/70 border-gray-600/50 overflow-hidden">
               <CardContent className="p-6">
                 <div className="flex gap-4">
                   {/* 상품 이미지 */}
@@ -289,7 +290,7 @@ export default function MyReviewsPage() {
                   <div className="flex-1">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <h3 className="font-bold text-gray-800 mb-1">{review.product_name}</h3>
+                        <h3 className="font-bold text-white mb-1">{review.product_name}</h3>
                         <div className="flex items-center gap-2 mb-2">
                           {renderStars(review.rating)}
                           <span className="text-sm text-gray-500">({review.rating}.0)</span>
@@ -301,7 +302,7 @@ export default function MyReviewsPage() {
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button 
-                              variant="outline" 
+                              variant="default" 
                               size="sm"
                               onClick={() => handleEditReview(review)}
                             >
@@ -322,22 +323,22 @@ export default function MyReviewsPage() {
                                   className="w-12 h-12 object-cover rounded"
                                 />
                                 <div>
-                                  <div className="font-medium">{review.product_name}</div>
+                                  <div className="font-medium text-white">{review.product_name}</div>
                                   <div className="text-sm text-gray-500">주문번호: {review.order_id}</div>
                                 </div>
                               </div>
                               
                               <div>
-                                <label className="block text-sm font-medium mb-2">평점</label>
+                                <label className="block text-sm font-medium mb-2 text-white">평점</label>
                                 {renderStars(editRating, true, setEditRating)}
                               </div>
                               
                               <div>
-                                <label className="block text-sm font-medium mb-2">리뷰 내용</label>
+                                <label className="block text-sm font-medium mb-2 text-white">리뷰 내용</label>
                                 <Textarea
                                   value={editComment}
                                   onChange={(e) => setEditComment(e.target.value)}
-                                  placeholder="상품에 대한 솔직한 후기를 남겨주세요."
+                                  placeholder="AI 아바타나 크리에이터에 대한 솔직한 후기를 남겨주세요."
                                   rows={4}
                                 />
                               </div>
@@ -345,7 +346,7 @@ export default function MyReviewsPage() {
                             
                             <DialogFooter>
                               <Button
-                                variant="outline"
+                                variant="default"
                                 onClick={() => setEditingReview(null)}
                               >
                                 <X className="h-4 w-4 mr-2" />
@@ -363,7 +364,7 @@ export default function MyReviewsPage() {
                         </Dialog>
                         
                         <Button
-                          variant="outline"
+                          variant="default"
                           size="sm"
                           onClick={() => handleDeleteReview(review.id)}
                           disabled={deleteReviewMutation.isPending}
@@ -375,9 +376,9 @@ export default function MyReviewsPage() {
                       </div>
                     </div>
                     
-                    <p className="text-gray-700 mb-3">{review.comment}</p>
+                    <p className="text-gray-300 mb-3">{review.comment}</p>
                     
-                    <div className="flex items-center justify-between text-sm text-gray-500">
+                    <div className="flex items-center justify-between text-sm text-gray-400">
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
@@ -403,6 +404,7 @@ export default function MyReviewsPage() {
           ))
         )}
       </div>
+    </div>
     </div>
   );
 } 

@@ -13,7 +13,18 @@ const Navigation = () => {
   }, [location]);
 
   const handleTabClick = (tabId: string) => {
-    if (!user && (tabId === 'bookings' || tabId === 'chat' || tabId === 'profile')) {
+    // AI아바타는 내부 chat 페이지로 이동 (model 파라미터 포함)
+    if (tabId === 'ai-avatar') {
+      if (!user) {
+        setShowAuthModal(true);
+        return;
+      }
+      setActiveTab(tabId);
+      setLocation('/chat?model=mao');
+      return;
+    }
+    
+    if (!user && (tabId === 'chat' || tabId === 'profile')) {
       setShowAuthModal(true);
       return;
     }
@@ -29,7 +40,7 @@ const Navigation = () => {
     { id: 'home', icon: 'fas fa-home', label: '홈', path: '/' },
     { id: 'discord', icon: 'fas fa-comments', label: '디스코드', path: '/discord-home' },
     { id: 'shop', icon: 'fas fa-shopping-bag', label: '쇼핑몰', path: '/shop' },
-    { id: 'bookings', icon: 'fas fa-calendar', label: '예약현황', path: '/bookings' },
+    { id: 'ai-avatar', icon: 'fas fa-robot', label: 'AI아바타', path: '/chat?model=mao' },
     { id: 'profile', icon: 'fas fa-user', label: '마이페이지', path: '/profile' }
   ];
 

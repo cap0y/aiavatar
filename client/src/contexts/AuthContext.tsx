@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 // @ts-ignore – local Firebase wrapper
-import { auth, googleProvider } from "@/firebase";
+import { auth, googleProvider, saveUserToFirestore } from "@/firebase";
 // @ts-ignore
 import * as firebaseAuth from "firebase/auth";
 
@@ -50,7 +50,7 @@ export function ensureAdminRights(user: any): any {
 }
 
 // Kakao 로그인 설정
-const KAKAO_REST_KEY = "4d53287fcaa83a038163adf3b057b802";
+const KAKAO_REST_KEY = "4fe991b7974e24feba7aa4ce137fa324";
 const KAKAO_REDIRECT_URI = `${window.location.origin}/oauth/kakao/callback`;
 const KAKAO_SDK_URL = "https://developers.kakao.com/sdk/js/kakao.js";
 
@@ -225,7 +225,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
 
     // Firebase auth state listener
-    const unsub = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+    const unsub = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       console.log("Firebase 인증 상태 변경:", {
         firebaseUser: firebaseUser ? {
           uid: firebaseUser.uid,
@@ -235,9 +235,50 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
 
       if (firebaseUser) {
-        const mappedUser = mapFirebaseUser(firebaseUser);
+        const mappedUser = await mapFirebaseUser(firebaseUser);
         console.log("매핑된 사용자:", mappedUser);
         setUser(mappedUser);
+
+        // Firestore에 사용자 정보 저장
+        saveUserToFirestore({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL || null // undefined 대신 null 사용
+        }).catch(error => {
+          console.warn("Firestore 사용자 정보 저장 실패:", error);
+        });
+
+        // 서버 데이터베이스에도 사용자 정보 저장 (Firebase 사용자)
+        if (firebaseUser.email) {
+          try {
+            const serverUserData = {
+              uid: firebaseUser.uid, // Firebase UID를 id로 사용하기 위해 전달
+              username: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+              displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+              email: firebaseUser.email,
+              password: firebaseUser.uid, // Firebase UID를 임시 비밀번호로 사용
+              userType: 'customer', // 기본값으로 customer 설정
+              photoURL: firebaseUser.photoURL
+            };
+
+            console.log("Firebase 사용자를 서버 DB에 저장 시도:", serverUserData);
+            
+            const response = await fetch('/api/auth/register-firebase-user', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(serverUserData),
+            });
+
+            if (response.ok) {
+              console.log("✅ Firebase 사용자 서버 DB 저장 성공");
+            } else {
+              console.log("⚠️ 이미 존재하는 사용자이거나 저장 실패 (정상적일 수 있음)");
+            }
+          } catch (error) {
+            console.warn("Firebase 사용자 서버 DB 저장 실패:", error);
+          }
+        }
 
         // 로그인 성공 시 항상 인증 모달 닫기
         console.log("로그인 성공 - 인증 모달 닫기");
@@ -323,12 +364,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return () => unsub();
   }, []);
 
-  const mapFirebaseUser = (fbUser: FirebaseUser): User => {
+  const mapFirebaseUser = async (fbUser: FirebaseUser): Promise<User> => {
+    // 커스텀 클레임 가져오기
+    let customClaims: any = {};
+    try {
+      const idTokenResult = await fbUser.getIdTokenResult();
+      customClaims = idTokenResult.claims;
+      console.log("🔑 Firebase 커스텀 클레임:", customClaims);
+    } catch (error) {
+      console.warn("⚠️ 커스텀 클레임 가져오기 실패:", error);
+    }
+
     // 슈퍼 관리자 이메일 직접 확인 - 대소문자 구분 없이
-    const email = fbUser.email || "";
+    const email = customClaims.email || fbUser.email || "";
 
     // 슈퍼 관리자 확인 로직 강화
-    let userType: UserType = 'customer';
+    let userType: UserType = customClaims.userType || 'customer';
 
     // 디버깅을 위한 상세 로그 추가
     console.log("Firebase 사용자 매핑 - 이메일:", email);
@@ -346,9 +397,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       return {
         uid: fbUser.uid,
-        email: fbUser.email,
-        displayName: fbUser.displayName,
-        photoURL: fbUser.photoURL,
+        email: customClaims.email || fbUser.email,
+        displayName: customClaims.displayName || fbUser.displayName,
+        photoURL: customClaims.photoURL || fbUser.photoURL,
         userType: 'admin',
         grade: 'platinum',
         isApproved: true,
@@ -379,12 +430,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const mappedUser = {
       uid: fbUser.uid,
-      email: fbUser.email,
-      displayName: fbUser.displayName,
-      photoURL: fbUser.photoURL,
+      email: customClaims.email || fbUser.email,
+      displayName: customClaims.displayName || fbUser.displayName,
+      photoURL: customClaims.photoURL || fbUser.photoURL,
       userType,
       grade: 'bronze',  // 기본 등급 설정
-      isApproved: userType !== 'careManager' || false,  // 케어매니저가 아니면 승인 불필요
+      isApproved: userType !== 'careManager' || false,  // AI아바타가 아니면 승인 불필요
     };
 
     // 슈퍼 관리자 권한 최종 확인 및 적용
@@ -468,6 +519,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           }
         }
 
+        // Firestore에 사용자 정보 저장 (서버 API 로그인)
+        saveUserToFirestore({
+          uid: data.user.uid,
+          email: data.user.email,
+          displayName: data.user.displayName || data.user.name,
+          photoURL: data.user.photoURL || null // undefined 대신 null 사용
+        }).catch(error => {
+          console.warn("서버 로그인 후 Firestore 사용자 정보 저장 실패:", error);
+        });
+
         login(data.user);
         setShowAuthModal(false);
         return data.user;
@@ -544,7 +605,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setUser({
         ...user,
         userType,
-        isApproved: userType !== 'careManager' || false,  // 케어매니저로 변경 시 승인 필요
+        isApproved: userType !== 'careManager' || false,  // AI아바타로 변경 시 승인 필요
       });
     } catch (error) {
       console.error('사용자 타입 업데이트 오류:', error);
@@ -557,30 +618,80 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!user) return false;
 
     try {
-      // Firebase 사용자 프로필 업데이트
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        await updateProfile(currentUser, { photoURL });
-      }
-
-      // 상태 업데이트
-      setUser({
-        ...user,
-        photoURL
+      console.log("🖼️ 프로필 사진 업데이트 시작:", {
+        userId: user.uid || user.id,
+        photoURLLength: photoURL?.length,
+        isBase64: photoURL?.startsWith('data:'),
+        isHttpUrl: photoURL?.startsWith('http')
       });
 
-      // 서버 API 호출 - 케어 매니저 프로필 사진도 업데이트
+      // photoURL이 너무 길거나 base64인 경우 체크
+      const isValidUrl = photoURL && 
+                         photoURL.startsWith('http') && 
+                         photoURL.length < 1000; // Firebase photoURL 최대 길이 제한
+
+      // Firebase 사용자 프로필 업데이트 (유효한 URL이고 Firebase 사용자인 경우에만)
+      const currentUser = auth.currentUser;
+      if (currentUser && isValidUrl) {
+        try {
+          await updateProfile(currentUser, { photoURL });
+          console.log("✅ Firebase 프로필 업데이트 완료");
+        } catch (firebaseError: any) {
+          console.warn("⚠️ Firebase 프로필 업데이트 실패 (계속 진행):", firebaseError.message);
+          // Firebase 업데이트 실패해도 서버 업데이트는 계속 진행
+        }
+      } else if (!isValidUrl) {
+        console.log("⚠️ Firebase 프로필 업데이트 건너뜀: URL이 너무 길거나 유효하지 않음");
+      }
+
+      // 서버 API 호출 - 사용자 프로필 사진 업데이트
       try {
-        await fetch(`/api/users/${user.uid}/profile-photo`, {
+        const userId = user.uid || user.id;
+        console.log("🖼️ 프로필 사진 서버 업데이트 시작:", userId);
+        
+        const response = await fetch(`/api/users/${userId}/profile-photo`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ photoURL }),
         });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || '프로필 사진 업데이트 실패');
+        }
+
+        const data = await response.json();
+        console.log("✅ 프로필 사진 서버 업데이트 완료:", data);
+        
+        // 서버에서 반환된 실제 photoURL 사용
+        const finalPhotoURL = data.photoURL || photoURL;
+
+        // 상태 업데이트
+        setUser({
+          ...user,
+          photoURL: finalPhotoURL
+        });
+
+        // Firestore 사용자 정보도 업데이트 (uid와 email이 있는 경우에만)
+        if (currentUser && currentUser.uid && (currentUser.email || user.email)) {
+          try {
+            await saveUserToFirestore({
+              uid: currentUser.uid,
+              email: currentUser.email || user.email,
+              displayName: currentUser.displayName || user.displayName || user.name,
+              photoURL: finalPhotoURL
+            });
+            console.log("✅ Firestore 사용자 정보 업데이트 완료");
+          } catch (firestoreError) {
+            console.warn("⚠️ Firestore 업데이트 실패 (계속 진행):", firestoreError);
+          }
+        }
+
+        return true;
       } catch (error) {
         console.error('서버 프로필 사진 업데이트 오류:', error);
+        throw error;
       }
-
-      return true;
     } catch (error) {
       console.error('사용자 프로필 사진 업데이트 오류:', error);
       throw error;

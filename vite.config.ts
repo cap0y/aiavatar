@@ -9,7 +9,7 @@ export default defineConfig({
   publicDir: '../public',
   resolve: {
     alias: {
-      '@': path.resolve('./client/src'),
+      '@': path.resolve(__dirname, './client/src'),
     },
   },
   server: {
@@ -19,11 +19,12 @@ export default defineConfig({
     cors: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000', // 백엔드 API 서버로 프록시
+        target: 'http://localhost:5001', // 백엔드 API 서버로 프록시 (포트 5001로 수정)
         changeOrigin: true,
         secure: false,
         ws: true,
-        timeout: 10000,
+        timeout: 120000, // AI 이미지 생성을 위해 120초로 증가
+        proxyTimeout: 120000, // 프록시 타임아웃도 120초로 증가
         // 연결 풀 관리
         agent: false,
         headers: {
@@ -49,19 +50,27 @@ export default defineConfig({
     emptyOutDir: true,
     // 소스맵 생성으로 디버깅 개선
     sourcemap: true,
+    rollupOptions: {
+      external: (id) => {
+        // pixi-live2d가 PIXI를 찾을 수 있도록 외부 의존성으로 처리하지 않음
+        return false;
+      }
+    }
   },
   // 최적화 설정 - 문제가 되는 패키지들 제외
   optimizeDeps: {
     force: true, // 의존성 사전 번들링 강제 재실행
-    include: ['react', 'react-dom'], // 사전 번들링에 포함할 패키지
+    include: ['react', 'react-dom', 'pixi.js'], // 사전 번들링에 포함할 패키지
     exclude: [
       '@radix-ui/react-scroll-area', // 문제가 되는 패키지 제외
       'react-day-picker', // 문제가 되는 패키지 제외
+      'pixi-live2d', // 문제가 되는 패키지 제외
     ],
   },
   // 개발 모드에서 캐시 비활성화
   define: {
     __DEV__: JSON.stringify(true),
+    global: 'globalThis',
   },
   // CSS 설정
   css: {

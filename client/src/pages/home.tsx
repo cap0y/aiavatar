@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
+import BottomNavigation from "@/components/bottom-navigation";
 import {
   Carousel,
   CarouselContent,
@@ -15,8 +16,166 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { Badge } from "@/components/ui/badge";
-import { avatarSamples } from "@/data/avatarSamples";
+import { AvatarSamples } from "@/data/avatarSamples";
 import type { UseEmblaCarouselType } from "embla-carousel-react";
+import { useQuery } from "@tanstack/react-query";
+import type { CareManager } from "@shared/schema";
+
+// AI 크리에이터 카로셀 컴포넌트
+const AICreatorsCarousel = () => {
+  const [, setLocation] = useLocation();
+  const { user, setShowAuthModal } = useAuth();
+  const [creatorApi, setCreatorApi] = useState<any>();
+
+  // AI 크리에이터 데이터 가져오기
+  const { data: creators = [], isLoading } = useQuery<CareManager[]>({
+    queryKey: ['/api/care-managers'],
+  });
+
+  // Auto slide
+  useEffect(() => {
+    if (!creatorApi) return;
+
+    const interval = setInterval(() => {
+      creatorApi.scrollNext();
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [creatorApi]);
+
+  const handleCreatorClick = (creator: CareManager) => {
+    // 크리에이터 카드 클릭 시 개인 소개 페이지로 이동
+    setLocation(`/care-manager/${creator.id}`);
+  };
+
+  const handleMessageClick = (creator: CareManager, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // 크리에이터 개인 소개 페이지로 이동 (문의하기)
+    setLocation(`/care-manager/${creator.id}`);
+  };
+
+  const handleBookingClick = (creator: CareManager, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    // 크리에이터 상세 페이지로 이동
+    setLocation(`/care-manager/${creator.id}`);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-400"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <Carousel
+        className="w-full"
+        opts={{
+          align: "start",
+          loop: true,
+        }}
+        setApi={setCreatorApi}
+      >
+        <CarouselContent className="-ml-2 md:-ml-4">
+          {creators.map((creator) => (
+            <CarouselItem
+              key={creator.id}
+              className="pl-2 md:pl-4 basis-full sm:basis-1/2 lg:basis-1/3 xl:basis-1/4"
+            >
+              <Card 
+                className="cursor-pointer hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 bg-black/40 backdrop-blur-sm border-gray-500/30"
+                onClick={() => handleCreatorClick(creator)}
+              >
+                <CardContent className="p-4">
+                  <div className="text-center">
+                    {/* 프로필 이미지 */}
+                    <div className="relative mx-auto mb-4">
+                      <Avatar className="w-20 h-20 mx-auto border-2 border-purple-400">
+                        <AvatarImage 
+                          src={creator.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(creator.name)}&background=8b5cf6&color=fff`} 
+                          alt={creator.name} 
+                        />
+                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xl">
+                          {creator.name[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      {/* 인증 배지 */}
+                      {creator.isApproved && (
+                        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2">
+                          <Badge className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs px-2 py-0.5">
+                            <i className="fas fa-check-circle mr-1"></i>
+                            인증
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 크리에이터 정보 */}
+                    <h3 className="font-bold text-white mb-1 text-lg">{creator.name}</h3>
+                    <p className="text-sm text-gray-300 mb-2 line-clamp-2">
+                      {creator.specialization || "AI 아바타 전문가"}
+                    </p>
+
+                    {/* 평점 및 경력 */}
+                    <div className="flex items-center justify-center space-x-3 mb-3">
+                      <div className="flex items-center text-yellow-400">
+                        <i className="fas fa-star text-xs"></i>
+                        <span className="ml-1 text-white text-sm font-semibold">
+                          {creator.rating ? parseFloat(creator.rating).toFixed(1) : "5.0"}
+                        </span>
+                      </div>
+                      <div className="text-gray-400 text-xs">
+                        {creator.experience || "3년 이상"}
+                      </div>
+                    </div>
+
+                    {/* 시기본 작업비 요금 */}
+                    <div className="bg-gradient-to-r from-purple-600/30 to-pink-600/30 rounded-lg py-2 px-3 mb-3">
+                      <div className="text-white font-bold text-lg">
+                        {creator.hourlyRate ? `${Math.round(parseFloat(creator.hourlyRate)).toLocaleString()}원` : "50,000원"}
+                      </div>
+                      <div className="text-gray-300 text-xs">기본 작업비</div>
+                    </div>
+
+                    {/* 액션 버튼 */}
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={(e) => handleMessageClick(creator, e)}
+                        className="flex-1 bg-gray-600/70 hover:bg-gray-500 text-white text-xs"
+                      >
+                        <i className="fas fa-comment-dots mr-1"></i>
+                        문의
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={(e) => handleBookingClick(creator, e)}
+                        className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 text-white text-xs"
+                      >
+                        <i className="fas fa-palette mr-1"></i>
+                        의뢰하기
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 flex justify-between w-full px-1 z-20 pointer-events-none">
+          <CarouselPrevious className="pointer-events-auto bg-gray-600/70 hover:bg-gray-500 shadow-md border-0 text-white" />
+          <CarouselNext className="pointer-events-auto bg-gray-600/70 hover:bg-gray-500 shadow-md border-0 text-white" />
+        </div>
+      </Carousel>
+    </div>
+  );
+};
 
 // VTuber 캐릭터 컴포넌트
 const VTuberCharacter = ({ 
@@ -31,7 +190,7 @@ const VTuberCharacter = ({
   animation?: string; 
 }) => {
   return (
-    <div className={`absolute ${position} top-1/2 transform -translate-y-1/2 z-20 hidden lg:block ${animation}`}>
+    <div className={`absolute ${position} top-1/2 transform -translate-y-1/2 z-10 hidden lg:block ${animation}`}>
       <div className="relative">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-2xl scale-150"></div>
         <img 
@@ -51,6 +210,19 @@ const Home = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const { user, setShowAuthModal } = useAuth();
   const [, setLocation] = useLocation();
+
+  // 상품 데이터 가져오기
+  const { data: products = [] } = useQuery<any[]>({
+    queryKey: ['/api/products'],
+  });
+
+  // 공지사항 데이터 가져오기
+  const { data: notices = [] } = useQuery<any[]>({
+    queryKey: ['/api/notices'],
+  });
+
+  // 상품 카로셀 API state
+  const [productsApi, setProductsApi] = useState<any>();
 
   // 홈 페이지 진입 시 체크아웃 데이터 정리 (필요한 경우에만)
   useEffect(() => {
@@ -99,12 +271,12 @@ const Home = () => {
       path: '/chat'
     },
     {
-      id: 'community',
-      name: '커뮤니티',
-      icon: 'fas fa-users',
-      color: 'bg-gradient-to-br from-orange-500 to-red-500',
-      description: '다른 사용자들과 소통하기',
-      path: '/chat'
+      id: 'avatar-studio',
+      name: '아바타 스튜디오',
+      icon: 'fas fa-flask',
+      color: 'bg-gradient-to-br from-purple-600 to-blue-600',
+      description: 'Live2D 모델 제어 & 커스텀 생성',
+      path: '/avatar-studio'
     },
   ];
 
@@ -138,6 +310,17 @@ const Home = () => {
     };
   }, [featuresApi]);
 
+  // 상품 자동 슬라이드 효과
+  useEffect(() => {
+    if (!productsApi) return;
+
+    const interval = setInterval(() => {
+      productsApi.scrollNext();
+    }, 5000); // 5초마다 슬라이드
+
+    return () => clearInterval(interval);
+  }, [productsApi]);
+
   const handleSearch = () => {
     if (searchQuery.trim()) {
       // 채팅으로 이동하면서 검색어를 아바타 이름으로 전달
@@ -164,10 +347,10 @@ const Home = () => {
   };
 
   // 온라인 아바타들
-  const onlineAvatars = avatarSamples.filter(avatar => avatar.isOnline);
+  const onlineAvatars = AvatarSamples.filter(avatar => avatar.isOnline);
 
   // 추천 아바타들 (온라인 우선, 그 다음 전체)
-  const recommendedAvatars = [...onlineAvatars, ...avatarSamples.filter(avatar => !avatar.isOnline)].slice(0, 8);
+  const recommendedAvatars = [...onlineAvatars, ...AvatarSamples.filter(avatar => !avatar.isOnline)].slice(0, 8);
 
   return (
     <div 
@@ -180,7 +363,7 @@ const Home = () => {
       <Header />
 
       {/* Hero Section - 투명 배경 */}
-      <section className="relative py-8 bg-transparent">
+      <section className="relative py-4 bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative p-8 sm:p-16">
             {/* 배경 장식 요소들 */}
@@ -189,12 +372,19 @@ const Home = () => {
             <div className="absolute top-1/3 right-1/4 w-24 h-24 bg-pink-500/20 rounded-full blur-lg"></div>
             
             {/* VTuber 캐릭터 */}
-            <VTuberCharacter 
-              imageUrl="/images/2dmodel/1.png"
-              size="w-80 h-96"
-              position="right-10"
-              animation="animate-float"
-            />
+            <div className="absolute right-10 top-20 z-10 hidden lg:block animate-float">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-2xl scale-150"></div>
+                <img 
+                  src="/images/2dmodel/1.png" 
+                  alt="VTuber Character" 
+                  className="w-96 h-[500px] object-contain relative z-10 drop-shadow-2xl"
+                  style={{
+                    filter: 'drop-shadow(0 0 20px rgba(168, 85, 247, 0.4))'
+                  }}
+                />
+              </div>
+            </div>
 
             <div className="relative z-10">
               <div className="text-center lg:text-left lg:max-w-3xl">
@@ -282,7 +472,7 @@ const Home = () => {
       </section>
 
       {/* AI 기능 카테고리 - 투명 배경 */}
-      <section className="relative py-12 sm:py-16 bg-transparent overflow-hidden">
+      <section className="relative py-6 sm:py-8 bg-transparent overflow-hidden">
         {/* 배경 장식 요소들 */}
         <div className="absolute top-10 right-20 w-32 h-32 bg-blue-500/20 rounded-full blur-xl"></div>
         <div className="absolute bottom-20 left-20 w-40 h-40 bg-purple-500/20 rounded-full blur-xl"></div>
@@ -291,7 +481,7 @@ const Home = () => {
         {/* VTuber 캐릭터 */}
         <VTuberCharacter 
           imageUrl="/images/2dmodel/2.png"
-          size="w-72 h-90"
+          size="w-96 h-[480px]"
           position="left-10"
           animation="animate-pulse"
         />
@@ -326,8 +516,8 @@ const Home = () => {
         </div>
       </section>
 
-      {/* 추천 AI 아바타 수평 슬라이드 - 투명 배경 */}
-      <section className="relative py-8 bg-transparent">
+      {/* 추천 AI 크리에이터 수평 슬라이드 - 투명 배경 */}
+      <section className="relative py-6 bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative rounded-3xl bg-gradient-to-br from-pink-900 via-purple-900 to-blue-900 overflow-hidden shadow-2xl border border-pink-500/20 p-8 sm:p-16">
             {/* 배경 장식 요소들 */}
@@ -338,7 +528,7 @@ const Home = () => {
             {/* VTuber 캐릭터 */}
             <VTuberCharacter 
               imageUrl="/images/2dmodel/3.png"
-              size="w-80 h-96"
+              size="w-96 h-[500px]"
               position="right-8"
               animation="animate-bounce"
             />
@@ -348,21 +538,52 @@ const Home = () => {
             <div className="mb-4 sm:mb-0">
               <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 whitespace-nowrap">
                 <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                  추천 AI 아바타
+                  추천 AI 크리에이터
                 </span>
               </h2>
               <p className="text-base text-gray-300">
-                다양한 개성을 가진 AI 아바타들을 만나보세요
+                검증된 전문 AI 아바타 크리에이터들을 만나보세요
               </p>
             </div>
             <Button
-              onClick={() => setLocation("/chat")}
+              onClick={() => setLocation("/search")}
               className="gradient-purple text-white px-4 py-2 rounded-lg hover:opacity-90 transition-all duration-200 shadow-md text-sm whitespace-nowrap"
             >
-              채팅 시작하기 <i className="fas fa-chevron-right ml-1"></i>
+              전체 크리에이터 보기 <i className="fas fa-chevron-right ml-1"></i>
             </Button>
           </div>
 
+          <AICreatorsCarousel />
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      {/* 추천 AI 아바타 상품 섹션 - 수평 슬라이드 */}
+      <section className="relative py-6 bg-transparent">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">
+                <span className="bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+                  추천 AI 아바타 상품
+                </span>
+              </h2>
+            </div>
+            <div className="flex items-center space-x-4">
+              <p className="text-lg text-gray-300 hidden sm:block">
+                다양한 AI 아바타 캐릭터를 만나보세요
+              </p>
+              <Button
+                onClick={() => setLocation('/shop')}
+                className="gradient-orange text-white px-6 py-2 rounded-xl hover:opacity-90 transition-all duration-200 shadow-lg whitespace-nowrap"
+              >
+                전체 상품 보기 <i className="fas fa-chevron-right ml-2"></i>
+              </Button>
+            </div>
+          </div>
+          
           <div className="relative">
             <Carousel
               className="w-full"
@@ -370,49 +591,63 @@ const Home = () => {
                 align: "start",
                 loop: true,
               }}
-              setApi={setAvatarApi}
+              setApi={setProductsApi}
             >
               <CarouselContent className="-ml-2 md:-ml-4">
-                {recommendedAvatars.map((avatar) => (
+                {products.slice(0, 8).map((product: any) => (
                   <CarouselItem
-                    key={avatar.id}
+                    key={product.id}
                     className="pl-2 md:pl-4 basis-full sm:basis-1/2 lg:basis-1/3 xl:basis-1/4"
                   >
-                    <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 bg-black/40 backdrop-blur-sm border-gray-500/30"
-                          onClick={() => startChatWithAvatar(avatar.id)}>
-                      <CardContent className="p-4">
-                        <div className="text-center">
-                          {avatar.avatar ? (
-                            <div className="relative mx-auto mb-4">
-                              <Avatar className="w-16 h-16 mx-auto border-2 border-purple-400">
-                                <AvatarImage src={avatar.avatar} alt={avatar.name} />
-                                <AvatarFallback className={`bg-gradient-to-br ${avatar.backgroundColor} text-white`}>
-                                  {avatar.name[0]}
-                                </AvatarFallback>
-                              </Avatar>
-                              {avatar.isOnline && (
-                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-2 border-gray-800 rounded-full"></div>
+                    <Card 
+                      className="cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 bg-gray-800/70 backdrop-blur-sm border-gray-600/50"
+                      onClick={() => setLocation(`/product/${product.id}`)}
+                    >
+                      <CardContent className="p-0">
+                        <div className="relative h-48 overflow-hidden rounded-t-lg">
+                          <img
+                            src={product.images?.[0] || '/images/2dmodel/1.png'}
+                            alt={product.title}
+                            className="w-full h-full object-cover"
+                          />
+                          {/* 인증 마크 */}
+                          <div className="absolute top-2 left-2">
+                            <img 
+                              src="/images/certify.png" 
+                              alt="인증" 
+                              className="w-16 h-16 object-contain"
+                            />
+                          </div>
+                          {product.discountPrice && (
+                            <Badge className="absolute top-2 right-2 bg-red-500 text-white">
+                              {Math.round((1 - product.discountPrice / product.price) * 100)}% OFF
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="p-4">
+                          <h3 className="font-bold text-white mb-2 line-clamp-2">{product.title}</h3>
+                          <p className="text-sm text-gray-400 mb-3 line-clamp-2">{product.description}</p>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              {product.discountPrice ? (
+                                <>
+                                  <div className="text-sm text-gray-500 line-through">
+                                    {Math.round(product.price).toLocaleString()}원
+                                  </div>
+                                  <div className="text-lg font-bold text-orange-400">
+                                    {Math.round(product.discountPrice).toLocaleString()}원
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="text-lg font-bold text-white">
+                                  {Math.round(product.price).toLocaleString()}원
+                                </div>
                               )}
                             </div>
-                          ) : (
-                            <div className="w-16 h-16 mx-auto mb-4 text-4xl flex items-center justify-center text-white">
-                              {avatar.icon}
+                            <div className="flex items-center text-yellow-400 text-sm">
+                              <i className="fas fa-star mr-1"></i>
+                              <span>{product.rating ? Math.round(Number(product.rating)) : '5'}</span>
                             </div>
-                          )}
-                          <h3 className="font-semibold text-white mb-1">{avatar.name}</h3>
-                          <p className="text-sm text-gray-300 mb-2">{avatar.description}</p>
-                          <div className="flex flex-wrap gap-1 justify-center mb-3">
-                            {avatar.specialties.slice(0, 2).map((specialty, idx) => (
-                              <Badge key={idx} variant="secondary" className="text-xs bg-gray-600 text-gray-200">
-                                {specialty}
-                              </Badge>
-                            ))}
-                          </div>
-                          <div className="flex items-center justify-center space-x-2">
-                            <div className={`w-2 h-2 rounded-full ${avatar.isOnline ? 'bg-green-500' : 'bg-gray-500'}`}></div>
-                            <span className="text-xs text-gray-400">
-                              {avatar.isOnline ? '온라인' : '오프라인'}
-                            </span>
                           </div>
                         </div>
                       </CardContent>
@@ -426,13 +661,11 @@ const Home = () => {
               </div>
             </Carousel>
           </div>
-            </div>
-          </div>
         </div>
       </section>
 
       {/* AI 아바타와 함께 할 수 있는 것들 - 투명 배경 */}
-      <section className="relative py-16 sm:py-20 bg-transparent overflow-hidden">
+      <section className="relative py-6 sm:py-8 bg-transparent overflow-hidden">
         {/* 배경 장식 요소들 */}
         <div className="absolute top-10 left-10 w-32 h-32 bg-purple-500/20 rounded-full blur-xl"></div>
         <div className="absolute bottom-20 right-20 w-40 h-40 bg-blue-500/20 rounded-full blur-xl"></div>
@@ -441,7 +674,7 @@ const Home = () => {
         {/* VTuber 캐릭터들 */}
         <VTuberCharacter 
           imageUrl="/images/2dmodel/4.png"
-          size="w-96 h-[28rem]"
+          size="w-[550px] h-[650px]"
           position="right-8"
           animation=""
         />
@@ -450,7 +683,7 @@ const Home = () => {
         <div className="absolute left-8 bottom-20 z-15 hidden lg:block">
           <VTuberCharacter 
             imageUrl="/images/2dmodel/5.gif"
-            size="w-48 h-60"
+            size="w-80 h-96"
             position="static"
             animation="animate-float"
           />
@@ -458,16 +691,27 @@ const Home = () => {
 
         {/* 컨텐츠 영역 */}
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 z-10">
-          <div className="text-center lg:text-left lg:max-w-2xl mb-12">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
-              <span className="bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-                AI 아바타와 함께 할 수 있는 것들
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-12">
+            <div className="flex flex-col items-start mb-6 lg:mb-0">
+              <p className="text-lg text-gray-300 mb-4 leading-relaxed max-w-md">
+                각 아바타마다 고유한 개성과 전문 분야를 가지고 있어요. 
+                다양한 방식으로 소통하며 새로운 경험을 만들어보세요.
+              </p>
+              <Button
+                onClick={goToChat}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-10 py-4 rounded-2xl text-lg font-semibold shadow-2xl hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105"
+              >
+                <i className="fas fa-rocket mr-3"></i>
+                지금 시작하기
+              </Button>
+            </div>
+            <div className="lg:text-right">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
+                <span className="bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                  AI 아바타와 함께 할 수 있는 것들
                 </span>
               </h2>
-            <p className="text-xl text-gray-300 mb-8 leading-relaxed">
-              각 아바타마다 고유한 개성과 전문 분야를 가지고 있어요. 
-              다양한 방식으로 소통하며 새로운 경험을 만들어보세요.
-            </p>
+            </div>
           </div>
 
           {/* 수평 슬라이드 기능 카드들 */}
@@ -563,78 +807,112 @@ const Home = () => {
               </div>
             </Carousel>
           </div>
-
-          {/* CTA 버튼 */}
-          <div className="text-center lg:text-left mt-12">
-            <Button
-              onClick={goToChat}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-10 py-4 rounded-2xl text-lg font-semibold shadow-2xl hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105"
-            >
-              <i className="fas fa-rocket mr-3"></i>
-              지금 시작하기
-            </Button>
-          </div>
         </div>
       </section>
 
-      {/* 이용 방법 - 투명 배경 */}
-      <section className="relative py-8 bg-transparent">
+      {/* 공지사항 & 이용 방법 - 2열 레이아웃 */}
+      <section className="relative py-4 bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative rounded-3xl bg-gradient-to-br from-green-900 via-teal-900 to-blue-900 overflow-hidden shadow-2xl border border-green-500/20 p-8 sm:p-16">
-            {/* 배경 장식 요소들 */}
-            <div className="absolute top-20 right-20 w-40 h-40 bg-green-500/20 rounded-full blur-xl"></div>
-            <div className="absolute bottom-16 left-16 w-36 h-36 bg-teal-500/20 rounded-full blur-xl animate-pulse"></div>
-            <div className="absolute top-1/3 left-1/2 w-32 h-32 bg-blue-500/20 rounded-full blur-lg"></div>
-            
-            {/* VTuber 캐릭터 */}
-            <VTuberCharacter 
-              imageUrl="/images/2dmodel/6.png"
-              size="w-72 h-80"
-              position="left-12"
-              animation="animate-pulse"
-            />
-            
-            <div className="relative z-10">
-              <div className="text-center mb-10">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 공지사항 */}
+            <div className="bg-gradient-to-r from-blue-900/80 to-purple-900/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-500/30 shadow-xl">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-blue-500 text-white p-3 rounded-full">
+                    <i className="fas fa-bullhorn text-xl"></i>
+                  </div>
+                  <h3 className="text-white font-bold text-xl">공지사항</h3>
+                </div>
+                <Button
+                  onClick={() => setLocation('/notices')}
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-white/10"
+                >
+                  전체보기 <i className="fas fa-chevron-right ml-1"></i>
+                </Button>
+              </div>
+              {notices.length > 0 ? (
+                <div className="space-y-3">
+                  {notices.slice(0, 5).map((notice, index) => (
+                    <div 
+                      key={notice.id || index} 
+                      className="flex items-start space-x-3 hover:bg-white/5 p-2 rounded-lg transition-colors cursor-pointer"
+                      onClick={() => setLocation('/notices')}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          {notice.title?.includes('중요') && (
+                            <span className="inline-block px-2 py-0.5 bg-red-500 text-white text-xs rounded">
+                              중요
+                            </span>
+                          )}
+                          <p className="text-gray-200 font-medium line-clamp-1">
+                            {notice.title}
+                          </p>
+                        </div>
+                        {notice.content && (
+                          <p className="text-gray-400 text-xs line-clamp-1">
+                            {notice.content}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-gray-400 text-xs whitespace-nowrap">
+                        {new Date(notice.createdAt || notice.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-300">새로운 공지사항이 없습니다.</p>
+              )}
+            </div>
+
+            {/* 이용 방법 */}
+            <div className="bg-gradient-to-r from-green-900/80 to-teal-900/80 backdrop-blur-sm rounded-2xl p-6 border border-green-500/30 shadow-xl">
+              <div className="text-center mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
                   이용 방법
                 </h2>
-            <p className="text-gray-300 max-w-3xl mx-auto">
-              간단한 3단계로 AI 아바타와의 소통을 시작해보세요
+                <p className="text-gray-300 text-sm">
+                  빠르고 안전하게 케어 서비스를 예약하는 방법을 확인해보세요
                 </p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-10">
+              
+              <div className="grid grid-cols-3 gap-4">
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center mb-4 shadow-md">
-                <i className="fas fa-user-plus text-white text-xl"></i>
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center mb-2 shadow-md">
+                    <i className="fas fa-search text-white text-lg"></i>
                   </div>
-              <h3 className="text-xl font-bold text-white mb-2">
-                1. 회원가입/로그인
+                  <h3 className="text-sm font-bold text-white mb-1">
+                    1. 검색
                   </h3>
-              <p className="text-gray-300">
-                간편하게 회원가입하고 AI아바타세상에 입장하세요
+                  <p className="text-gray-300 text-xs">
+                    크리에이터찾기
                   </p>
                 </div>
+                
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mb-4 shadow-md">
-                <i className="fas fa-heart text-white text-xl"></i>
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mb-2 shadow-md">
+                    <i className="fas fa-calendar text-white text-lg"></i>
                   </div>
-              <h3 className="text-xl font-bold text-white mb-2">
-                2. 마음에 드는 아바타 선택
+                  <h3 className="text-sm font-bold text-white mb-1">
+                    2. 선택
                   </h3>
-              <p className="text-gray-300">
-                다양한 개성을 가진 AI 아바타 중에서 원하는 친구를 선택하세요
+                  <p className="text-gray-300 text-xs">
+                    날짜 및 시간
                   </p>
                 </div>
+                
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-teal-500 rounded-full flex items-center justify-center mb-4 shadow-md">
-                <i className="fas fa-comments text-white text-xl"></i>
+                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-500 rounded-full flex items-center justify-center mb-2 shadow-md">
+                    <i className="fas fa-check-circle text-white text-lg"></i>
                   </div>
-              <h3 className="text-xl font-bold text-white mb-2">
-                3. 대화 시작
+                  <h3 className="text-sm font-bold text-white mb-1">
+                    3. 완료
                   </h3>
-              <p className="text-gray-300">
-                텍스트, 음성, 영상 등 원하는 방식으로 아바타와 대화를 나누세요
+                  <p className="text-gray-300 text-xs">
+                    예약 완료
                   </p>
                 </div>
               </div>
@@ -644,7 +922,7 @@ const Home = () => {
       </section>
 
       {/* 사용자 후기 - 투명 배경 */}
-      <section className="relative py-16 sm:py-20 bg-transparent overflow-hidden text-white">
+      <section className="relative py-6 sm:py-8 bg-transparent overflow-hidden text-white">
         {/* 배경 장식 요소들 */}
         <div className="absolute top-24 left-24 w-44 h-44 bg-purple-500/20 rounded-full blur-xl animate-bounce"></div>
         <div className="absolute bottom-20 right-16 w-40 h-40 bg-pink-500/20 rounded-full blur-xl"></div>
@@ -653,7 +931,7 @@ const Home = () => {
         {/* VTuber 캐릭터 */}
         <VTuberCharacter 
           imageUrl="/images/2dmodel/7.png"
-          size="w-80 h-96"
+          size="w-96 h-[500px]"
           position="right-12"
           animation="animate-bounce"
         />
@@ -765,6 +1043,8 @@ const Home = () => {
 
       <Footer />
 
+      <BottomNavigation />
+
       <style
         dangerouslySetInnerHTML={{
           __html: `
@@ -800,6 +1080,13 @@ const Home = () => {
         .scrollbar-hide {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+
+        .line-clamp-1 {
+          display: -webkit-box;
+          -webkit-line-clamp: 1;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         }
 
         .line-clamp-2 {

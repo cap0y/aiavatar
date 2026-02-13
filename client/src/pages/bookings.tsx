@@ -14,6 +14,9 @@ import { ko } from "date-fns/locale";
 import { useQueryClient } from "@tanstack/react-query";
 import { createChatRoom } from "@/lib/socket";
 import { normalizeImageUrl } from '@/lib/url';
+import Header from "@/components/header";
+import BottomNavigation from "@/components/bottom-navigation";
+import { createCustomChannel } from "@/firebase";
 
 interface Booking {
   id: number;
@@ -25,6 +28,9 @@ interface Booking {
   status: string;
   totalAmount: number;
   notes: string;
+  completionFiles?: string[];
+  completionNote?: string;
+  completedAt?: string;
   careManager?: {
     id: number;
     name: string;
@@ -38,11 +44,11 @@ interface Booking {
 }
 
 const statusMap = {
-  pending: { label: "승인 대기", color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-  confirmed: { label: "예약 확정", color: "bg-blue-100 text-blue-700 border-blue-200" },
-  ongoing: { label: "서비스 진행 중", color: "bg-green-100 text-green-700 border-green-200" },
-  completed: { label: "완료", color: "bg-gray-100 text-gray-600 border-gray-200" },
-  cancelled: { label: "취소됨", color: "bg-red-100 text-red-700 border-red-200" },
+  pending: { label: "의뢰 검토 중", color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+  confirmed: { label: "제작 시작", color: "bg-blue-100 text-blue-700 border-blue-200" },
+  ongoing: { label: "제작 진행 중", color: "bg-green-100 text-green-700 border-green-200" },
+  completed: { label: "제작 완료", color: "bg-purple-100 text-purple-700 border-purple-200" },
+  cancelled: { label: "의뢰 취소", color: "bg-red-100 text-red-700 border-red-200" },
 };
 
 const Bookings = () => {
@@ -98,12 +104,12 @@ const Bookings = () => {
         return []; 
       }
 
-      // 예약 데이터 전처리 - 케어 매니저 정보가 없는 경우 기본값 설정
+      // 예약 데이터 전처리 - 크리에이터정보가 없는 경우 기본값 설정
       return data.map(booking => ({
         ...booking,
         careManager: booking.careManager || {
           id: booking.careManagerId,
-          name: `케어 매니저 #${booking.careManagerId}`,
+          name: `크리에이터#${booking.careManagerId}`,
           imageUrl: undefined
         },
         service: booking.service || {
@@ -215,8 +221,8 @@ const Bookings = () => {
     rawData: bookings
   });
 
-  // handleChatClick 함수 수정 - 연결 유지 보장
-  const handleChatClick = async (careManagerId: number, careManagerName?: string) => {
+  // handleChatClick 함수 수정 - 의뢰별 전용 대화방 생성
+  const handleChatClick = async (booking: Booking) => {
     try {
       if (!user) {
         toast({
@@ -228,15 +234,41 @@ const Bookings = () => {
 
       // 로딩 상태 설정
       setIsLoading(true);
-      console.log(`채팅 시작: 케어매니저 ID=${careManagerId}, 사용자 ID=${user.uid}`);
       
-      // SPA 방식으로 페이지 이동 (소켓 연결 유지) - 케어매니저 이름도 함께 전달
-      const params = new URLSearchParams();
-      params.set('to', careManagerId.toString());
-      if (careManagerName) {
-        params.set('name', encodeURIComponent(careManagerName));
+      // 의뢰 번호를 기반으로 고유한 채널 ID와 이름 생성
+      const channelId = `booking-${booking.id}`;
+      const channelName = `의뢰 #${booking.id} - ${booking.careManager?.name || 'AI 크리에이터'}`;
+      
+      console.log(`의뢰 채팅방 생성 시도: 의뢰ID=${booking.id}, 채널ID=${channelId}`);
+      
+      // Firebase에 텍스트 채널 생성 (이미 존재하면 업데이트)
+      const result = await createCustomChannel({
+        id: channelId,
+        name: channelName,
+        description: `${booking.careManager?.name || 'AI 크리에이터'}님의 작품 제작 의뢰 대화방`,
+        type: 'text',
+        isPrivate: true,
+        ownerId: user.uid,
+        ownerName: user.displayName || user.email || '고객',
+        members: [user.uid, `care-manager-${booking.careManagerId}`], // 고객과 크리에이터
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        maxUsers: 2
+      });
+
+      if (result.success) {
+        console.log('✅ 채팅방 생성 성공:', channelId);
+        
+        // 생성된 채널로 이동
+        setLocation(`/chat?type=custom&channel=${encodeURIComponent(channelId)}&name=${encodeURIComponent(channelName)}`);
+        
+        toast({
+          title: "채팅방 입장",
+          description: `${booking.careManager?.name || '크리에이터'}님과의 의뢰 대화방으로 이동합니다.`,
+        });
+      } else {
+        throw new Error('채널 생성 실패');
       }
-      setLocation(`/chat?${params.toString()}`);
       
     } catch (error) {
       console.error("채팅 시작 오류:", error);
@@ -258,7 +290,7 @@ const Bookings = () => {
   };
   
   const handleBookingClick = (careManagerId: number) => {
-    // 예약 항목 클릭 시 해당 케어매니저의 댓글 페이지로 이동
+    // 예약 항목 클릭 시 해당 AI아바타의 댓글 페이지로 이동
     setLocation(`/care-manager/${careManagerId}#comments`);
   };
 
@@ -266,36 +298,44 @@ const Bookings = () => {
   const displayBookings = filteredBookings;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-20">
-      {/* Header */}
-      <div className="bg-white/90 backdrop-blur-sm shadow-sm px-4 py-6">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">예약 현황</h1>
-          <p className="text-gray-600">케어 서비스 예약 현황을 확인하세요</p>
+    <div className="min-h-screen bg-gray-900 pb-20" style={{ paddingTop: '40px' }}>
+      <Header />
+      {/* Page Title Section */}
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="flex items-center gap-3 mb-2">
+          <button
+            onClick={() => setLocation('/')} 
+            className="text-gray-300 hover:text-white transition-colors duration-200 p-2 rounded-lg hover:bg-gray-700"
+            title="뒤로가기"
+          >
+            <i className="fas fa-arrow-left text-lg"></i>
+          </button>
+          <h1 className="text-2xl font-bold text-white">작품 의뢰 현황</h1>
         </div>
+        <p className="text-gray-400 ml-11 mb-6">AI 크리에이터에게 의뢰한 아바타 작품 진행 상황을 확인하세요</p>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="max-w-4xl mx-auto px-4">
         <Tabs defaultValue="upcoming" className="w-full" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 bg-white/90 backdrop-blur-sm rounded-xl p-1">
-            <TabsTrigger value="upcoming" className="rounded-lg">예정된 예약</TabsTrigger>
-            <TabsTrigger value="ongoing" className="rounded-lg">진행 중</TabsTrigger>
-            <TabsTrigger value="completed" className="rounded-lg">완료된 예약</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 bg-gray-800/90 backdrop-blur-sm rounded-xl p-1">
+            <TabsTrigger value="upcoming" className="rounded-lg">검토 중인 의뢰</TabsTrigger>
+            <TabsTrigger value="ongoing" className="rounded-lg">제작 중</TabsTrigger>
+            <TabsTrigger value="completed" className="rounded-lg">완료된 작품</TabsTrigger>
           </TabsList>
 
           {isQueryLoading || isLoading ? (
             <div className="py-20 text-center">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mb-4"></div>
-              <p className="text-gray-500">예약 정보를 불러오는 중입니다...</p>
+              <p className="text-gray-400">작품 의뢰 정보를 불러오는 중입니다...</p>
             </div>
           ) : displayBookings.length === 0 ? (
             <div className="py-20 text-center">
-              <i className="fas fa-calendar-times text-gray-400 text-4xl mb-4"></i>
-              <p className="text-gray-500">예약 내역이 없습니다</p>
+              <i className="fas fa-palette text-gray-400 text-4xl mb-4"></i>
+              <p className="text-gray-400">의뢰한 작품이 없습니다</p>
               <div className="flex flex-col space-y-2 items-center mt-4">
                 <Button 
                   onClick={() => refetch()}
-                  variant="outline"
+                  variant="default"
                   className="mb-2"
                 >
                   <i className="fas fa-sync-alt mr-2"></i>
@@ -307,7 +347,7 @@ const Bookings = () => {
                   className="bg-purple-600 hover:bg-purple-700"
                 >
                   <i className="fas fa-cloud-download-alt mr-2"></i>
-                  수동으로 예약 가져오기
+                  수동으로 의뢰 내역 가져오기
                 </Button>
               </div>
             </div>
@@ -317,47 +357,48 @@ const Bookings = () => {
                 {displayBookings.map(booking => (
                   <Card 
                     key={booking.id} 
-                    className="bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-100 shadow-lg cursor-pointer hover:shadow-xl transition-all"
+                    className="bg-gray-800/90 border-gray-600 shadow-lg cursor-pointer hover:shadow-xl transition-all hover:bg-gray-700"
                     onClick={() => handleBookingClick(booking.careManagerId)}
                   >
                     <CardContent className="p-6">
                       <div className="flex items-start space-x-4">
-                        <Avatar className="w-16 h-16 border-2 border-white shadow-md">
+                        <Avatar className="w-16 h-16 border-2 border-purple-400 shadow-md">
                           <AvatarImage src={normalizeImageUrl(booking.careManager?.imageUrl)} />
-                          <AvatarFallback>{booking.careManager?.name?.[0] || "?"}</AvatarFallback>
+                          <AvatarFallback className="bg-purple-600 text-white">{booking.careManager?.name?.[0] || "미"}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-xl font-bold text-gray-800">{booking.careManager?.name || "케어 매니저"}</h3>
-                            <Badge className={statusMap[booking.status as keyof typeof statusMap]?.color || ""}>
+                            <h3 className="text-xl font-bold text-white">{booking.careManager?.name || "AI 크리에이터"}</h3>
+                            <Badge className="bg-yellow-600 text-white border-yellow-500">
+                              <i className="fas fa-clock mr-1"></i>
                               {statusMap[booking.status as keyof typeof statusMap]?.label || booking.status}
                             </Badge>
                           </div>
-                          <div className="space-y-2 text-sm text-gray-600">
+                          <div className="space-y-2 text-sm text-gray-300">
                             <div className="flex items-center">
-                              <i className="fas fa-calendar mr-3 w-4 text-blue-500"></i>
+                              <i className="fas fa-calendar mr-3 w-4 text-purple-400"></i>
                               <span>{format(new Date(booking.date), 'yyyy년 MM월 dd일 HH:mm', { locale: ko })}</span>
                             </div>
                             <div className="flex items-center">
-                              <i className="fas fa-clock mr-3 w-4 text-blue-500"></i>
-                              <span>{booking.duration}시간</span>
+                              <i className="fas fa-clock mr-3 w-4 text-purple-400"></i>
+                              <span>작업 기간: {booking.duration}일</span>
                             </div>
                             <div className="flex items-center">
-                              <i className="fas fa-hospital mr-3 w-4 text-blue-500"></i>
+                              <i className="fas fa-check-circle mr-3 w-4 text-green-400"></i>
                               <span>{booking.service?.name || booking.notes}</span>
                             </div>
                           </div>
                           <div className="flex items-center justify-between mt-4">
-                            <span className="text-2xl font-bold text-blue-600">{booking.totalAmount.toLocaleString()}원</span>
+                            <span className="text-2xl font-bold text-green-400">{Math.floor(Number(booking.totalAmount) || 0).toLocaleString()}원</span>
                             <div className="flex space-x-2" onClick={e => e.stopPropagation()}>
                               {/* 대기 중일 때는 채팅/통화 버튼 비활성화 (상태 설명 추가) */}
                               <Button 
                                 variant="outline" 
                                 size="sm" 
-                                className="rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50"
+                                className="rounded-lg border-gray-600 text-gray-400 bg-gray-700/50"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleChatClick(booking.careManagerId, booking.careManager?.name);
+                                  handleChatClick(booking);
                                 }}
                                 disabled={true}
                                 title="예약 승인 후 채팅이 가능합니다"
@@ -368,7 +409,7 @@ const Bookings = () => {
                               <Button 
                                 variant="outline" 
                                 size="sm" 
-                                className="rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50"
+                                className="rounded-lg border-gray-600 text-gray-400 bg-gray-700/50"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleCallClick();
@@ -392,59 +433,60 @@ const Bookings = () => {
                 {filteredBookings.map(booking => (
                   <Card 
                     key={booking.id} 
-                    className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-100 shadow-lg cursor-pointer hover:shadow-xl transition-all"
+                    className="bg-gradient-to-br from-blue-900/40 to-purple-900/40 border-blue-600 shadow-lg cursor-pointer hover:shadow-xl transition-all hover:border-blue-500"
                     onClick={() => handleBookingClick(booking.careManagerId)}
                   >
                     <CardContent className="p-6">
                       <div className="flex items-start space-x-4">
-                        <Avatar className="w-16 h-16 border-2 border-white shadow-md">
+                        <Avatar className="w-16 h-16 border-2 border-blue-400 shadow-md">
                           <AvatarImage src={normalizeImageUrl(booking.careManager?.imageUrl)} />
-                          <AvatarFallback>{booking.careManager?.name?.[0] || "?"}</AvatarFallback>
+                          <AvatarFallback className="bg-blue-600 text-white">{booking.careManager?.name?.[0] || "미"}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-xl font-bold text-gray-800">{booking.careManager?.name || "케어 매니저"}</h3>
-                            <Badge className={statusMap[booking.status as keyof typeof statusMap]?.color || ""}>
+                            <h3 className="text-xl font-bold text-white">{booking.careManager?.name || "AI 크리에이터"}</h3>
+                            <Badge className="bg-blue-600 text-white border-blue-500">
+                              <i className="fas fa-brush mr-1"></i>
                               {statusMap[booking.status as keyof typeof statusMap]?.label || booking.status}
                             </Badge>
                           </div>
-                          <div className="space-y-2 text-sm text-gray-600">
+                          <div className="space-y-2 text-sm text-gray-300">
                             <div className="flex items-center">
-                              <i className="fas fa-clock mr-3 w-4 text-green-500"></i>
-                              <span>시작 시간: {format(new Date(booking.date), 'HH:mm', { locale: ko })}</span>
+                              <i className="fas fa-play-circle mr-3 w-4 text-blue-400"></i>
+                              <span>시작일: {format(new Date(booking.date), 'yyyy년 MM월 dd일 HH:mm', { locale: ko })}</span>
                             </div>
                             <div className="flex items-center">
-                              <i className="fas fa-home mr-3 w-4 text-green-500"></i>
+                              <i className="fas fa-palette mr-3 w-4 text-purple-400"></i>
                               <span>{booking.service?.name || booking.notes}</span>
                             </div>
                           </div>
                           
                           {/* Real-time Status */}
-                          <div className="bg-green-100 rounded-lg p-3 mt-4 border border-green-200">
-                            <div className="flex items-center text-sm text-green-700">
-                              <i className="fas fa-check-circle mr-2"></i>
+                          <div className="bg-blue-900/50 rounded-lg p-3 mt-4 border border-blue-600">
+                            <div className="flex items-center text-sm text-blue-300">
+                              <i className="fas fa-spinner fa-spin mr-2"></i>
                               <span>
-                                {booking.status === 'confirmed' ? '예약이 확정되었습니다' : '서비스가 진행중입니다'} 
+                                {booking.status === 'confirmed' ? '작품 제작 중입니다' : '서비스가 진행중입니다'} 
                                 ({format(new Date(), 'HH:mm', { locale: ko })})
                               </span>
                             </div>
                           </div>
                           
                           <div className="flex items-center justify-between mt-4">
-                            <span className="text-2xl font-bold text-green-600">{booking.totalAmount.toLocaleString()}원</span>
+                            <span className="text-2xl font-bold text-blue-400">{Math.floor(Number(booking.totalAmount) || 0).toLocaleString()}원</span>
                             <div className="flex space-x-2" onClick={e => e.stopPropagation()}>
                               <Button 
-                                variant="outline" 
+                                variant="default" 
                                 size="sm" 
-                                className="rounded-lg border-green-200 text-green-600 hover:bg-green-50"
+                                className="rounded-lg bg-blue-600 text-white hover:bg-blue-700 border-blue-500"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleChatClick(booking.careManagerId, booking.careManager?.name);
+                                  handleChatClick(booking);
                                 }}
                                 disabled={isLoading}
                               >
                                 {isLoading ? (
-                                  <div className="w-4 h-4 border-2 border-t-transparent border-green-600 rounded-full animate-spin mx-2" />
+                                  <div className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin mx-2" />
                                 ) : (
                                   <>
                                     <i className="fas fa-comment mr-2"></i>
@@ -453,9 +495,9 @@ const Bookings = () => {
                                 )}
                               </Button>
                               <Button 
-                                variant="outline" 
+                                variant="default" 
                                 size="sm" 
-                                className="rounded-lg border-green-200 text-green-600 hover:bg-green-50"
+                                className="rounded-lg bg-purple-600 text-white hover:bg-purple-700 border-purple-500"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleCallClick();
@@ -477,50 +519,115 @@ const Bookings = () => {
                 {filteredBookings.map(booking => (
                   <Card 
                     key={booking.id} 
-                    className="bg-white/90 backdrop-blur-sm border-gray-200 shadow-lg cursor-pointer hover:shadow-xl transition-all"
+                    className="bg-gray-800/90 border-gray-600 shadow-lg cursor-pointer hover:shadow-xl transition-all hover:bg-gray-700"
                     onClick={() => handleBookingClick(booking.careManagerId)}
                   >
                     <CardContent className="p-6">
                       <div className="flex items-start space-x-4">
-                        <Avatar className="w-16 h-16 border-2 border-white shadow-md">
+                        <Avatar className="w-16 h-16 border-2 border-green-400 shadow-md">
                           <AvatarImage src={normalizeImageUrl(booking.careManager?.imageUrl)} />
-                          <AvatarFallback>{booking.careManager?.name?.[0] || "?"}</AvatarFallback>
+                          <AvatarFallback className="bg-green-600 text-white">{booking.careManager?.name?.[0] || "미"}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-xl font-bold text-gray-800">{booking.careManager?.name || "케어 매니저"}</h3>
-                            <Badge variant="secondary" className={statusMap[booking.status as keyof typeof statusMap]?.color || ""}>
+                            <h3 className="text-xl font-bold text-white">{booking.careManager?.name || "AI 크리에이터"}</h3>
+                            <Badge className={booking.status === 'completed' ? 'bg-purple-600 text-white border-purple-500' : 'bg-red-600 text-white border-red-500'}>
+                              <i className={`${booking.status === 'completed' ? 'fas fa-check-circle' : 'fas fa-times-circle'} mr-1`}></i>
                               {statusMap[booking.status as keyof typeof statusMap]?.label || booking.status}
                             </Badge>
                           </div>
-                          <div className="space-y-2 text-sm text-gray-600">
+                          <div className="space-y-2 text-sm text-gray-300">
                             <div className="flex items-center">
-                              <i className="fas fa-calendar mr-3 w-4 text-gray-500"></i>
+                              <i className="fas fa-calendar-check mr-3 w-4 text-green-400"></i>
                               <span>{format(new Date(booking.date), 'yyyy년 MM월 dd일', { locale: ko })} 완료</span>
                             </div>
                             <div className="flex items-center">
-                              <i className="fas fa-clock mr-3 w-4 text-gray-500"></i>
-                              <span>서비스 시간: {booking.duration}시간</span>
+                              <i className="fas fa-clock mr-3 w-4 text-purple-400"></i>
+                              <span>작업 기간: {booking.duration}일</span>
                             </div>
                             <div className="flex items-center">
-                              <i className="fas fa-star mr-3 w-4 text-yellow-500"></i>
-                              <span>서비스: {booking.service?.name || booking.notes}</span>
+                              <i className="fas fa-palette mr-3 w-4 text-yellow-400"></i>
+                              <span>{booking.service?.name || booking.notes}</span>
                             </div>
                           </div>
+
+                          {/* 완료 메시지 */}
+                          {booking.completionNote && (
+                            <div className="mt-3 p-3 bg-blue-900/20 border border-blue-600 rounded-lg">
+                              <div className="flex items-start gap-2">
+                                <i className="fas fa-comment-dots text-blue-400 mt-0.5"></i>
+                                <div>
+                                  <p className="text-xs text-blue-400 font-semibold mb-1">크리에이터 메시지</p>
+                                  <p className="text-sm text-blue-200 whitespace-pre-wrap">{booking.completionNote}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 완료 파일 다운로드 */}
+                          {booking.completionFiles && booking.completionFiles.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                              <p className="text-xs text-gray-400 flex items-center">
+                                <i className="fas fa-file-download mr-2 text-green-400"></i>
+                                완성된 작품 파일 ({booking.completionFiles.length}개)
+                              </p>
+                              <div className="space-y-1">
+                                {booking.completionFiles.map((fileUrl, index) => (
+                                  <a
+                                    key={index}
+                                    href={fileUrl}
+                                    download
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 p-2 bg-gray-700 hover:bg-gray-600 rounded border border-gray-600 transition-colors text-sm"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <i className="fas fa-file text-blue-400"></i>
+                                    <span className="text-white flex-1 truncate">
+                                      {fileUrl.split('/').pop()?.split('?')[0] || `파일 ${index + 1}`}
+                                    </span>
+                                    <i className="fas fa-download text-green-400"></i>
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
                           <div className="flex items-center justify-between mt-4">
-                            <span className="text-xl font-bold text-gray-600">{booking.totalAmount.toLocaleString()}원</span>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="rounded-lg border-yellow-200 text-yellow-600 hover:bg-yellow-50"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setLocation(`/care-manager/${booking.careManagerId}#comments`);
-                              }}
-                            >
-                              <i className="fas fa-star mr-2"></i>
-                              리뷰 작성
-                            </Button>
+                            <span className="text-xl font-bold text-purple-400">{Math.floor(Number(booking.totalAmount) || 0).toLocaleString()}원</span>
+                            <div className="flex gap-2">
+                              {booking.completionFiles && booking.completionFiles.length > 0 && (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="rounded-lg border-green-500 text-green-400 hover:bg-green-900/20"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const shareUrl = `${window.location.origin}/booking/${booking.id}/files`;
+                                    navigator.clipboard.writeText(shareUrl);
+                                    toast({
+                                      title: "공유 링크 복사",
+                                      description: "파일 공유 링크가 클립보드에 복사되었습니다.",
+                                    });
+                                  }}
+                                >
+                                  <i className="fas fa-share mr-2"></i>
+                                  공유
+                                </Button>
+                              )}
+                              <Button 
+                                variant="default" 
+                                size="sm" 
+                                className="rounded-lg bg-yellow-600 text-white hover:bg-yellow-700 border-yellow-500"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setLocation(`/care-manager/${booking.careManagerId}#comments`);
+                                }}
+                              >
+                                <i className="fas fa-star mr-2"></i>
+                                리뷰 작성
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -532,6 +639,8 @@ const Bookings = () => {
           )}
         </Tabs>
       </div>
+
+      <BottomNavigation />
     </div>
   );
 };

@@ -67,16 +67,16 @@ const BookingItem = ({ booking, onCancel, refreshBookings }: BookingItemProps) =
       setIsLoading(true);
       console.log("채팅 버튼 클릭 - 채팅방 생성 시작");
       
-      // 케어 매니저 ID 추출
+      // 크리에이터ID 추출
       const careManagerId = booking.careManagerId || booking.careManager?.id;
       
       if (!careManagerId) {
-        console.error("케어 매니저 ID를 찾을 수 없음");
-        alert("케어 매니저 정보를 찾을 수 없습니다.");
+        console.error("크리에이터ID를 찾을 수 없음");
+        alert("크리에이터정보를 찾을 수 없습니다.");
         return;
       }
       
-      console.log(`케어 매니저 ID: ${careManagerId}, 사용자 ID: ${user.uid}`);
+      console.log(`크리에이터ID: ${careManagerId}, 사용자 ID: ${user.uid}`);
       
       // 채팅방 생성
       const result = await createChatRoom(user.uid, careManagerId.toString());
@@ -117,7 +117,7 @@ const BookingItem = ({ booking, onCancel, refreshBookings }: BookingItemProps) =
   };
 
   // 예약 정보 로그 출력 (디버깅용)
-  console.log(`예약 아이템 렌더링: ID=${booking.id}, 상태=${booking.status}, 케어매니저ID=${booking.careManagerId || booking.careManager?.id}`);
+  console.log(`예약 아이템 렌더링: ID=${booking.id}, 상태=${booking.status}, AI아바타ID=${booking.careManagerId || booking.careManager?.id}`);
 
   return (
     <Card className="mb-4 shadow-sm hover:shadow transition-shadow">
@@ -141,7 +141,7 @@ const BookingItem = ({ booking, onCancel, refreshBookings }: BookingItemProps) =
         <div className="flex items-center gap-4">
           <Avatar className="w-16 h-16 border-2 border-gray-100">
             <AvatarImage 
-              src={booking.careManager?.imageUrl || "/placeholder-avatar.png"} 
+              src={booking.careManager?.imageUrl || "/placeholder-Avatar.png"} 
               alt={booking.careManager?.name || "케어 매니저"} 
             />
             <AvatarFallback>
@@ -168,7 +168,7 @@ const BookingItem = ({ booking, onCancel, refreshBookings }: BookingItemProps) =
       <CardFooter className="flex justify-end gap-2 pt-2">
         {booking.status === 'confirmed' && (
           <Button 
-            variant="outline" 
+            variant="default" 
             onClick={handleChatClick} 
             disabled={isLoading}
             className={`relative ${isLoading ? 'opacity-70' : ''}`}

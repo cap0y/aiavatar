@@ -21,19 +21,24 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // @ts-ignore – user 객체에 name/displayName 존재 여부를 런타임에서만 확인
-  const userDisplay = user ? ((user as any).name ?? (user as any).displayName ?? user.email?.split("@")[0] ?? "") : "";
+  // 사용자 표시 이름 안전하게 가져오기
+  const getUserDisplayName = (user: any) => {
+    if (!user) return "";
+    return user.displayName || user.name || user.username || user.email?.split("@")[0] || "사용자";
+  };
+  
+  const userDisplay = getUserDisplayName(user);
 
   // 비밀번호 변경 모달 상태
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
   const handleMenuClick = (action: string) => {
     switch (action) {
-      case 'bookings':
-        setLocation('/bookings');
+      case 'commissions':
+        setLocation('/commissions');
         break;
       case 'payments':
-        setLocation('/payment-history');
+        setLocation('/orders');
         break;
       case 'reviews':
         setLocation('/my-reviews');
@@ -62,6 +67,9 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
           title: "로그아웃",
           description: "성공적으로 로그아웃되었습니다.",
         });
+        setLocation('/');
+        break;
+      case 'back':
         setLocation('/');
         break;
       default:
@@ -135,7 +143,7 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
 
       const compressedImage = await compressImage(file);
       
-      // Firebase와 케어매니저 프로필 모두 업데이트
+      // Firebase와 AI아바타 프로필 모두 업데이트
       const result = await updateUserPhoto(compressedImage);
       
       if (result) {
@@ -157,16 +165,25 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
   return (
     <>
       {/* Header */}
-      <div className="bg-white/90 backdrop-blur-sm shadow-sm px-4 py-6">
+      <div className="bg-gray-800 border-b border-gray-700 px-4 py-4">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">마이페이지</h1>
-          <p className="text-gray-600">계정 정보와 서비스 이용 현황을 확인하세요</p>
+          <div className="flex items-center gap-3 mb-1">
+            <button
+              onClick={() => handleMenuClick('back')}
+              className="text-gray-400 hover:text-white transition-colors duration-200 p-2 rounded-lg hover:bg-gray-700"
+              title="뒤로가기"
+            >
+              <i className="fas fa-arrow-left text-lg"></i>
+            </button>
+            <h1 className="text-xl font-bold text-white">마이페이지</h1>
+          </div>
+          <p className="text-sm text-gray-400 ml-11">AI 아바타 플랫폼 계정 정보와 이용 현황을 확인하세요</p>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-6">
         {/* Profile Section */}
-        <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-purple-100 shadow-lg mb-6">
+        <Card className="bg-gray-800/70 border-gray-600/50 shadow-lg mb-6">
           <CardContent className="p-6">
             <div className="flex items-center space-x-6">
               {/* 숨겨진 파일 입력 추가 */}
@@ -177,23 +194,23 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
                 accept="image/*"
                 className="hidden"
               />
-              <Avatar className="w-20 h-20 border-4 border-white shadow-lg cursor-pointer" onClick={handleEditProfile}>
+              <Avatar className="w-20 h-20 border-4 border-gray-600 shadow-lg cursor-pointer" onClick={handleEditProfile}>
                 <AvatarImage src={normalizeImageUrl(user.photoURL || undefined)} />
-                <AvatarFallback className="gradient-purple text-white text-2xl font-bold">
+                <AvatarFallback className="bg-purple-600 text-white text-2xl font-bold">
                   {userDisplay[0]}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <h2 className="text-2xl font-bold text-gray-800">{userDisplay}</h2>
-                  <Button size="sm" variant="outline" onClick={() => setShowPasswordDialog(true)}>
+                  <h2 className="text-2xl font-bold text-white">{userDisplay}</h2>
+                  <Button size="sm" variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white" onClick={() => setShowPasswordDialog(true)}>
                     비번변경
                   </Button>
                 </div>
-                <p className="text-gray-600 mb-1">{user.email}</p>
-                <p className="text-gray-600">010-1234-5678</p>
+                <p className="text-gray-400 mb-1">{user.email}</p>
+                <p className="text-gray-400">010-1234-5678</p>
                 <div className="mt-1">
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-500/20 text-green-700">
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-600 text-white">
                     일반 회원
                   </span>
                 </div>
@@ -201,7 +218,7 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
               <Button
                 onClick={handleEditProfile}
                 variant="outline"
-                className="gradient-purple text-white border-0 hover:opacity-90 transition-all duration-200 transform hover:scale-105 shadow-lg"
+                className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white transition-all duration-200"
               >
                 <i className="fas fa-edit mr-2"></i>
                 편집
@@ -211,20 +228,20 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
         </Card>
 
         {/* Menu Items */}
-        <Card className="bg-white/90 backdrop-blur-sm shadow-lg mb-6">
+        <Card className="bg-gray-800 border-gray-700 mb-6">
           <CardContent className="p-0">
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-gray-700">
               <button
-                onClick={() => handleMenuClick('bookings')}
-                className="w-full p-6 text-left hover:bg-purple-50 transition-all duration-200 flex items-center justify-between group"
+                onClick={() => handleMenuClick('commissions')}
+                className="w-full p-6 text-left hover:bg-gray-700 transition-all duration-200 flex items-center justify-between group"
               >
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                    <i className="fas fa-calendar-alt text-white text-lg"></i>
+                    <i className="fas fa-palette text-white text-lg"></i>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-800">예약 내역</h3>
-                    <p className="text-sm text-gray-500">케어 서비스 예약 현황 확인</p>
+                    <h3 className="font-semibold text-white">작품 의뢰 내역</h3>
+                    <p className="text-sm text-gray-400">AI 크리에이터에게 의뢰한 아바타 작품 현황</p>
                   </div>
                 </div>
                 <i className="fas fa-chevron-right text-gray-400 group-hover:text-purple-500 transition-colors duration-200"></i>
@@ -232,15 +249,15 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
 
               <button
                 onClick={() => handleMenuClick('payments')}
-                className="w-full p-6 text-left hover:bg-purple-50 transition-all duration-200 flex items-center justify-between group"
+                className="w-full p-6 text-left hover:bg-gray-700 transition-all duration-200 flex items-center justify-between group"
               >
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                    <i className="fas fa-credit-card text-white text-lg"></i>
+                    <i className="fas fa-receipt text-white text-lg"></i>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-800">결제 내역</h3>
-                    <p className="text-sm text-gray-500">서비스 이용 요금 및 결제 정보</p>
+                    <h3 className="font-semibold text-white">구매 내역</h3>
+                    <p className="text-sm text-gray-400">AI 아바타 구매 및 의뢰 결제 내역</p>
                   </div>
                 </div>
                 <i className="fas fa-chevron-right text-gray-400 group-hover:text-purple-500 transition-colors duration-200"></i>
@@ -248,15 +265,15 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
 
               <button
                 onClick={() => handleMenuClick('reviews')}
-                className="w-full p-6 text-left hover:bg-purple-50 transition-all duration-200 flex items-center justify-between group"
+                className="w-full p-6 text-left hover:bg-gray-700 transition-all duration-200 flex items-center justify-between group"
               >
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
                     <i className="fas fa-star text-white text-lg"></i>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-800">내가 쓴 리뷰</h3>
-                    <p className="text-sm text-gray-500">케어 매니저 리뷰 관리</p>
+                    <h3 className="font-semibold text-white">내 리뷰</h3>
+                    <p className="text-sm text-gray-400">구매한 AI 아바타 및 크리에이터 리뷰 관리</p>
                   </div>
                 </div>
                 <i className="fas fa-chevron-right text-gray-400 group-hover:text-purple-500 transition-colors duration-200"></i>
@@ -264,15 +281,15 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
 
               <button
                 onClick={() => handleMenuClick('inquiries')}
-                className="w-full p-6 text-left hover:bg-purple-50 transition-all duration-200 flex items-center justify-between group"
+                className="w-full p-6 text-left hover:bg-gray-700 transition-all duration-200 flex items-center justify-between group"
               >
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                    <i className="fas fa-comments text-white text-lg"></i>
+                    <i className="fas fa-question-circle text-white text-lg"></i>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-800">내 문의</h3>
-                    <p className="text-sm text-gray-500">내가 한 문의 내역 확인</p>
+                    <h3 className="font-semibold text-white">내 문의</h3>
+                    <p className="text-sm text-gray-400">AI 아바타 및 플랫폼 관련 문의 내역</p>
                   </div>
                 </div>
                 <i className="fas fa-chevron-right text-gray-400 group-hover:text-purple-500 transition-colors duration-200"></i>
@@ -280,15 +297,15 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
 
               <button
                 onClick={() => handleMenuClick('favorites')}
-                className="w-full p-6 text-left hover:bg-purple-50 transition-all duration-200 flex items-center justify-between group"
+                className="w-full p-6 text-left hover:bg-gray-700 transition-all duration-200 flex items-center justify-between group"
               >
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-red-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
                     <i className="fas fa-heart text-white text-lg"></i>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-800">찜한 케어 매니저</h3>
-                    <p className="text-sm text-gray-500">즐겨찾기한 케어 매니저 목록</p>
+                    <h3 className="font-semibold text-white">관심 아바타</h3>
+                    <p className="text-sm text-gray-400">찜한 AI 아바타 및 크리에이터 목록</p>
                   </div>
                 </div>
                 <i className="fas fa-chevron-right text-gray-400 group-hover:text-purple-500 transition-colors duration-200"></i>
@@ -298,20 +315,20 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
         </Card>
 
         {/* Settings */}
-        <Card className="bg-white/90 backdrop-blur-sm shadow-lg mb-6">
+        <Card className="bg-gray-800/70 border-gray-600/50 shadow-lg mb-6">
           <CardContent className="p-0">
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-gray-700">
               <button
                 onClick={() => handleMenuClick('notifications')}
-                className="w-full p-6 text-left hover:bg-purple-50 transition-all duration-200 flex items-center justify-between group"
+                className="w-full p-6 text-left hover:bg-gray-700 transition-all duration-200 flex items-center justify-between group"
               >
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
                     <i className="fas fa-bell text-white text-lg"></i>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-800">알림 설정</h3>
-                    <p className="text-sm text-gray-500">푸시 알림 및 이메일 설정</p>
+                    <h3 className="font-semibold text-white">알림 설정</h3>
+                    <p className="text-sm text-gray-400">작품 완성 알림 및 플랫폼 소식 설정</p>
                   </div>
                 </div>
                 <i className="fas fa-chevron-right text-gray-400 group-hover:text-purple-500 transition-colors duration-200"></i>
@@ -319,15 +336,15 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
 
               <button
                 onClick={() => handleMenuClick('privacy')}
-                className="w-full p-6 text-left hover:bg-purple-50 transition-all duration-200 flex items-center justify-between group"
+                className="w-full p-6 text-left hover:bg-gray-700 transition-all duration-200 flex items-center justify-between group"
               >
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
                     <i className="fas fa-shield-alt text-white text-lg"></i>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-800">개인정보 보호</h3>
-                    <p className="text-sm text-gray-500">개인정보 처리 및 보안 설정</p>
+                    <h3 className="font-semibold text-white">개인정보 보호</h3>
+                    <p className="text-sm text-gray-400">계정 보안 및 개인정보 관리</p>
                   </div>
                 </div>
                 <i className="fas fa-chevron-right text-gray-400 group-hover:text-purple-500 transition-colors duration-200"></i>
@@ -335,15 +352,15 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
 
               <button
                 onClick={() => handleMenuClick('support')}
-                className="w-full p-6 text-left hover:bg-purple-50 transition-all duration-200 flex items-center justify-between group"
+                className="w-full p-6 text-left hover:bg-gray-700 transition-all duration-200 flex items-center justify-between group"
               >
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                    <i className="fas fa-question-circle text-white text-lg"></i>
+                    <i className="fas fa-headset text-white text-lg"></i>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-800">고객 지원</h3>
-                    <p className="text-sm text-gray-500">FAQ, 1:1 문의 및 고객센터</p>
+                    <h3 className="font-semibold text-white">고객 지원</h3>
+                    <p className="text-sm text-gray-400">AI 아바타 플랫폼 이용 도움말 및 지원</p>
                   </div>
                 </div>
                 <i className="fas fa-chevron-right text-gray-400 group-hover:text-purple-500 transition-colors duration-200"></i>
@@ -369,31 +386,34 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
         </Card>
 
         {/* Statistics */}
-        <Card className="bg-gradient-to-br from-orange-50 to-red-50 border-orange-100 shadow-lg">
+        <Card className="bg-gray-800/70 border-gray-600/50 shadow-lg">
           <CardContent className="p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-6">이용 통계</h3>
+            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+              <i className="fas fa-chart-bar text-purple-400"></i>
+              AI 아바타 이용 통계
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center">
-                <Card className="bg-gradient-to-br from-blue-500 to-cyan-500 border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                <Card className="bg-blue-600/80 border-blue-500/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-blue-600">
                   <CardContent className="p-6">
-                    <div className="text-3xl font-bold text-white mb-2">12</div>
-                    <div className="text-blue-100 font-medium">총 예약 횟수</div>
+                    <div className="text-3xl font-bold text-white mb-2">5</div>
+                    <div className="text-blue-200 font-medium">구매한 아바타</div>
                   </CardContent>
                 </Card>
               </div>
               <div className="text-center">
-                <Card className="bg-gradient-to-br from-green-500 to-teal-500 border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                <Card className="bg-green-600/80 border-green-500/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-green-600">
                   <CardContent className="p-6">
-                    <div className="text-3xl font-bold text-white mb-2">36시간</div>
-                    <div className="text-green-100 font-medium">총 서비스 시간</div>
+                    <div className="text-3xl font-bold text-white mb-2">2</div>
+                    <div className="text-green-200 font-medium">진행 중인 의뢰</div>
                   </CardContent>
                 </Card>
               </div>
               <div className="text-center">
-                <Card className="bg-gradient-to-br from-purple-500 to-pink-500 border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                <Card className="bg-purple-600/80 border-purple-500/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-purple-600">
                   <CardContent className="p-6">
-                    <div className="text-3xl font-bold text-white mb-2">4.8</div>
-                    <div className="text-purple-100 font-medium">평균 만족도</div>
+                    <div className="text-3xl font-bold text-white mb-2">4.9</div>
+                    <div className="text-purple-200 font-medium">평균 만족도</div>
                   </CardContent>
                 </Card>
               </div>
@@ -403,12 +423,12 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
       </div>
       {/* 비밀번호 변경 모달 */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent className="sm:max-w-[420px]">
+        <DialogContent className="sm:max-w-[420px] bg-gray-800 border-gray-700">
           <DialogHeader>
-            <DialogTitle>비밀번호 변경</DialogTitle>
-            <DialogDescription>현재 비밀번호를 확인하고 새 비밀번호로 변경하세요.</DialogDescription>
+            <DialogTitle className="text-white">비밀번호 변경</DialogTitle>
+            <DialogDescription className="text-gray-400">현재 비밀번호를 확인하고 새 비밀번호로 변경하세요.</DialogDescription>
           </DialogHeader>
-          <PasswordChangeForm userId={user.uid || user.id} />
+          <PasswordChangeForm userId={user?.uid || user?.id || ''} />
         </DialogContent>
       </Dialog>
     </>
@@ -442,10 +462,10 @@ function PasswordChangeForm({ userId }: { userId: string | number }) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
-      <Input type="password" placeholder="현재 비밀번호" value={currentPassword} onChange={(e)=>setCurrentPassword(e.target.value)} required />
-      <Input type="password" placeholder="새 비밀번호(6자 이상)" value={newPassword} onChange={(e)=>setNewPassword(e.target.value)} required />
-      <Input type="password" placeholder="새 비밀번호 확인" value={confirmPassword} onChange={(e)=>setConfirmPassword(e.target.value)} required />
-      <Button type="submit" disabled={loading}>{loading ? '변경 중...' : '비밀번호 변경'}</Button>
+      <Input type="password" placeholder="현재 비밀번호" value={currentPassword} onChange={(e)=>setCurrentPassword(e.target.value)} required className="bg-gray-700 border-gray-600 text-white placeholder-gray-400" />
+      <Input type="password" placeholder="새 비밀번호(6자 이상)" value={newPassword} onChange={(e)=>setNewPassword(e.target.value)} required className="bg-gray-700 border-gray-600 text-white placeholder-gray-400" />
+      <Input type="password" placeholder="새 비밀번호 확인" value={confirmPassword} onChange={(e)=>setConfirmPassword(e.target.value)} required className="bg-gray-700 border-gray-600 text-white placeholder-gray-400" />
+      <Button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700">{loading ? '변경 중...' : '비밀번호 변경'}</Button>
     </form>
   );
 }

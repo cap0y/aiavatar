@@ -55,70 +55,56 @@ export function registerPaymentRoutes(app: Express) {
   // 결제 완료 처리 엔드포인트
   app.post('/api/payment/complete', async (req: Request, res: Response) => {
     try {
-      const { paymentId, items, shipping_address_id, total_amount } = req.body;
+      const { paymentId, items, shipping_address, customer_name, customer_phone, total_amount, payment_method } = req.body;
 
-      if (!paymentId || !items || !total_amount) {
+      if (!items || !total_amount || !customer_name) {
         return res.status(400).json({
           error: '필수 정보가 누락되었습니다.',
-          details: { paymentId, items, total_amount }
+          details: { items, total_amount, customer_name }
         });
       }
 
       console.log('결제 완료 처리 요청:', {
         paymentId,
         items,
-        total_amount
+        total_amount,
+        payment_method
       });
 
-      // 임시로 결제 성공 처리 (실제 환경에서는 포트원 API 검증 필요)
-      // 포트원 API 검증을 원한다면 아래 주석을 해제하세요
-      /*
-      let payment;
-      try {
-        payment = await getPaymentFromPortOne(paymentId);
-        console.log('포트원 결제 조회 결과:', payment);
-      } catch (error) {
-        console.error('포트원 결제 조회 오류:', error);
-        return res.status(400).json({
-          error: '결제 정보를 찾을 수 없습니다.',
-          details: error instanceof Error ? error.message : '알 수 없는 오류'
-        });
-      }
-
-      // 결제 상태 확인
-      if (payment.status !== 'PAID') {
-        return res.status(400).json({
-          error: '결제가 완료되지 않았습니다.',
-          paymentStatus: payment.status
-        });
-      }
-
-      // 결제 금액 검증
-      if (payment.amount?.total !== total_amount) {
-        return res.status(400).json({
-          error: '결제 금액이 일치하지 않습니다.',
-          expected: total_amount,
-          actual: payment.amount?.total || 0
-        });
-      }
-      */
-
-      // 임시 주문 생성 (실제로는 DB에 저장해야 함)
-      const order = {
-        id: Math.floor(Math.random() * 1000) + 1,
-        payment_id: paymentId,
-        total_amount: total_amount,
-        status: 'paid',
-        items: items,
-        created_at: new Date().toISOString()
+      // 주문 데이터 준비
+      const orderData = {
+        customerId: req.body.customer_id || req.body.user_id, // 고객 ID
+        sellerId: items[0]?.sellerId || req.body.seller_id, // 판매자 ID (첫 번째 상품의 판매자)
+        totalAmount: total_amount,
+        paymentMethod: payment_method || 'card',
+        paymentId: paymentId,
+        paymentStatus: payment_method === 'bank_transfer' ? 'awaiting_deposit' : 'paid',
+        orderStatus: payment_method === 'bank_transfer' ? 'awaiting_deposit' : 'pending',
+        shippingAddress: shipping_address,
+        customerName: customer_name,
+        customerPhone: customer_phone,
+        notes: req.body.notes || '',
+        items: items.map((item: any) => ({
+          productId: item.productId || item.product_id,
+          quantity: item.quantity,
+          price: item.price,
+          selectedOptions: item.selected_options || item.selectedOptions,
+        })),
       };
+
+      console.log('주문 데이터:', orderData);
+
+      // DB에 주문 저장
+      const order = await storage.createOrder(orderData);
 
       console.log('결제 완료 처리 성공:', order);
 
       res.json({
         success: true,
         order: order,
-        message: '결제가 완료되었습니다.'
+        message: payment_method === 'bank_transfer' 
+          ? '주문이 접수되었습니다. 입금 확인 후 처리됩니다.' 
+          : '결제가 완료되었습니다.'
       });
 
     } catch (error) {

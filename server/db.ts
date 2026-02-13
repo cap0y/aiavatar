@@ -84,38 +84,51 @@ async function connectToDatabase() {
   }
 }
 
-// 초기 연결 시도
-try {
-  // 비동기 함수를 동기적으로 실행하기 위한 즉시 실행 함수
-  (async () => {
-    const connected = await connectToDatabase();
-    if (!connected) {
-      // 연결 실패 시 대체 로직
-      console.error("대체 데이터베이스 연결 시도 중...");
-      
-      // 임시 메모리 객체
-      db = {
-        query: async () => [],
-        select: () => ({ from: () => ({ where: () => [] }) }),
-        insert: () => ({ values: () => [] }),
-        update: () => ({ set: () => ({ where: () => [] }) }),
-        delete: () => ({ where: () => [] })
-      };
-      console.log("임시 메모리 객체로 대체됨");
-    }
-  })();
-} catch (error) {
-  console.error("초기 데이터베이스 연결 설정 오류:", error);
+// 초기 연결 시도 - 동기적으로 처리
+let isConnecting = false;
+let connectionPromise: Promise<boolean> | null = null;
+
+// 연결 상태 확인 함수
+export async function isDatabaseConnected(): Promise<boolean> {
+  if (isConnecting && connectionPromise) {
+    return await connectionPromise;
+  }
   
-  // 임시 메모리 객체
-  db = {
-    query: async () => [],
-    select: () => ({ from: () => ({ where: () => [] }) }),
-    insert: () => ({ values: () => [] }),
-    update: () => ({ set: () => ({ where: () => [] }) }),
-    delete: () => ({ where: () => [] })
-  };
-  console.log("임시 메모리 객체로 대체됨 (오류 발생)");
+  if (isConnecting) {
+    return false;
+  }
+  
+  isConnecting = true;
+  connectionPromise = connectToDatabase();
+  
+  try {
+    const result = await connectionPromise;
+    isConnecting = false;
+    return result;
+  } catch (error) {
+    isConnecting = false;
+    return false;
+  }
+}
+
+// 초기 연결 시도 - 즉시 실행하지 않고 필요할 때만 연결
+let isInitialized = false;
+
+// 데이터베이스 초기화 함수
+export async function initializeDatabase(): Promise<boolean> {
+  if (isInitialized) {
+    return db !== null;
+  }
+  
+  try {
+    const connected = await connectToDatabase();
+    isInitialized = true;
+    return connected;
+  } catch (error) {
+    console.error("데이터베이스 연결 오류:", error);
+    isInitialized = true;
+    return false;
+  }
 }
 
 export { db };

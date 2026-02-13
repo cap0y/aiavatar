@@ -1,0 +1,49 @@
+[
+    {
+        "name": "mao",
+        "description": "Mao Character",
+        "url": "/live2d-models/mao/runtime/mao_pro.model3.json",
+        "kScale": 0.8,
+        "initialXshift": 0,
+        "initialYshift": -0.2,
+        "kXOffset": 0,
+        "idleMotionGroupName": "Idle",
+        "emotionMap": {
+            "neutral": 0,
+            "anger": 2,
+            "disgust": 2,
+            "fear": 1,
+            "joy": 3,
+            "smirk": 3,
+            "sadness": 1,
+            "surprise": 3
+        },
+        "tapMotions": {
+            "HitAreaHead": {
+                "": 1
+            },
+            "HitAreaBody": {
+                "": 1
+            }
+        }
+    },
+    {
+        "name": "ichika",
+        "description": "Ichika Character",
+        "url": "/live2d-models/ichika/01ichika_cloth001_3.1_f_t01.model3.json",
+        "kScale": 0.8,
+        "initialXshift": 0,
+        "initialYshift": -0.2,
+        "kXOffset": 0,
+        "idleMotionGroupName": "Idle",
+        "emotionMap": {
+            "neutral": 0,
+            "joy": 1,
+            "sadness": 2,
+            "anger": 3,
+            "surprise": 4,
+            "smirk": 5
+        },
+        "tapMotions": {}
+    }
+]

@@ -1,5 +1,4 @@
-// 이 파일은 attached_assets/서비스-결제-관리-페이지.tsx 의 코드를 기반으로 하여
-// App 컴포넌트를 ServicesPaymentsPage 로 이름만 변경한 것입니다.
+// AI 아바타 서비스/결제 관리 페이지 - 디스코드 테마 적용
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,10 +50,10 @@ const ServicesPaymentsPage = () => {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      completed: { label: '완료', className: 'bg-green-100 text-green-800' },
-      pending: { label: '대기', className: 'bg-yellow-100 text-yellow-800' },
-      failed: { label: '실패', className: 'bg-red-100 text-red-800' },
-      refunded: { label: '환불', className: 'bg-blue-100 text-blue-800' }
+      completed: { label: '완료', className: 'bg-green-600 text-white' },
+      pending: { label: '대기', className: 'bg-yellow-600 text-white' },
+      failed: { label: '실패', className: 'bg-red-600 text-white' },
+      refunded: { label: '환불', className: 'bg-blue-600 text-white' }
     } as const;
     const config = (statusConfig as any)[status] || statusConfig.pending;
     return <Badge className={config.className}>{config.label}</Badge>;
@@ -84,38 +83,59 @@ const ServicesPaymentsPage = () => {
   const paginated = sortedServices.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 bg-gray-900 min-h-full">
       {/* 통계 카드 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="bg-gray-800/70 border-gray-600/50">
           <CardContent className="p-6">
-            <p className="text-sm text-gray-600">총 서비스</p>
-            <p className="text-2xl font-bold text-gray-900">{filteredServices.length}</p>
+            <p className="text-sm text-gray-300">총 AI 아바타 서비스</p>
+            <p className="text-2xl font-bold text-white">{filteredServices.length}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gray-800/70 border-gray-600/50">
           <CardContent className="p-6">
-            <p className="text-sm text-gray-600">완료</p>
-            <p className="text-2xl font-bold text-green-600">{filteredServices.filter(s=>s.paymentStatus==='completed').length}</p>
+            <p className="text-sm text-gray-300">완료</p>
+            <p className="text-2xl font-bold text-green-400">{filteredServices.filter(s=>s.paymentStatus==='completed').length}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gray-800/70 border-gray-600/50">
+          <CardContent className="p-6">
+            <p className="text-sm text-gray-300">대기 중</p>
+            <p className="text-2xl font-bold text-yellow-400">{filteredServices.filter(s=>s.paymentStatus==='pending').length}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gray-800/70 border-gray-600/50">
+          <CardContent className="p-6">
+            <p className="text-sm text-gray-300">총 수익</p>
+            <p className="text-2xl font-bold text-blue-400">
+              {Math.floor(filteredServices.reduce((sum, s) => sum + s.amount, 0)).toLocaleString()}원
+            </p>
           </CardContent>
         </Card>
       </div>
 
       {/* 검색/필터 */}
-      <Card>
+      <Card className="bg-gray-800/70 border-gray-600/50">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">서비스/결제 목록</CardTitle>
+          <CardTitle className="text-lg font-semibold text-white">AI 아바타 서비스/결제 목록</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col md:flex-row gap-2">
-            <Input value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} placeholder="검색" />
+            <Input 
+              value={searchTerm} 
+              onChange={e=>setSearchTerm(e.target.value)} 
+              placeholder="서비스 ID, 회원명, AI 아바타명 검색..." 
+              className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+            />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32"><SelectValue placeholder="상태"/></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체</SelectItem>
-                <SelectItem value="completed">완료</SelectItem>
-                <SelectItem value="pending">대기</SelectItem>
-                <SelectItem value="failed">실패</SelectItem>
+              <SelectTrigger className="w-32 bg-gray-700 border-gray-600 text-white">
+                <SelectValue placeholder="상태"/>
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectItem value="all" className="text-white hover:bg-gray-700">전체</SelectItem>
+                <SelectItem value="completed" className="text-white hover:bg-gray-700">완료</SelectItem>
+                <SelectItem value="pending" className="text-white hover:bg-gray-700">대기</SelectItem>
+                <SelectItem value="failed" className="text-white hover:bg-gray-700">실패</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -123,14 +143,24 @@ const ServicesPaymentsPage = () => {
           {/* 테이블 */}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="border-b"><th className="py-2 px-3 text-left">ID</th><th className="py-2 px-3 text-left">회원</th><th className="py-2 px-3">서비스</th><th className="py-2 px-3 text-right">금액</th><th className="py-2 px-3">상태</th></tr></thead>
+              <thead>
+                <tr className="border-b border-gray-600/50">
+                  <th className="py-2 px-3 text-left text-gray-300">서비스 ID</th>
+                  <th className="py-2 px-3 text-left text-gray-300">회원</th>
+                  <th className="py-2 px-3 text-gray-300">AI 아바타</th>
+                  <th className="py-2 px-3 text-gray-300">서비스 타입</th>
+                  <th className="py-2 px-3 text-right text-gray-300">금액</th>
+                  <th className="py-2 px-3 text-gray-300">상태</th>
+                </tr>
+              </thead>
               <tbody>
                 {paginated.map(item=> (
-                  <tr key={item.id} className="border-b hover:bg-gray-50">
-                    <td className="py-2 px-3 font-mono text-blue-600">{item.serviceId}</td>
-                    <td className="py-2 px-3">{item.memberName}</td>
-                    <td className="py-2 px-3">{item.serviceType}</td>
-                    <td className="py-2 px-3 text-right">{item.amount.toLocaleString()}원</td>
+                  <tr key={item.id} className="border-b border-gray-600/50 hover:bg-gray-700/50">
+                    <td className="py-2 px-3 font-mono text-blue-400">{item.serviceId}</td>
+                    <td className="py-2 px-3 text-white">{item.memberName}</td>
+                    <td className="py-2 px-3 text-white">{item.careManagerName}</td>
+                    <td className="py-2 px-3 text-white">{item.serviceType}</td>
+                    <td className="py-2 px-3 text-right text-white">{item.amount.toLocaleString()}원</td>
                     <td className="py-2 px-3">{getStatusBadge(item.paymentStatus)}</td>
                   </tr>
                 ))}
@@ -142,13 +172,15 @@ const ServicesPaymentsPage = () => {
 
       {/* 상세 모달 (간략화) */}
       <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>서비스 상세</DialogTitle></DialogHeader>
+        <DialogContent className="bg-gray-800 border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">AI 아바타 서비스 상세</DialogTitle>
+          </DialogHeader>
           {selectedService && (
             <div className="space-y-4">
-              <p><strong>{selectedService.serviceType}</strong></p>
-              <p>결제금액: {selectedService.amount.toLocaleString()}원</p>
-              <Button onClick={()=>setIsDetailModalOpen(false)}>닫기</Button>
+              <p className="text-white"><strong>{selectedService.serviceType}</strong></p>
+              <p className="text-gray-300">결제금액: <span className="text-white">{selectedService.amount.toLocaleString()}원</span></p>
+              <Button onClick={()=>setIsDetailModalOpen(false)} className="bg-gray-600 hover:bg-gray-700 text-white">닫기</Button>
             </div>
           )}
         </DialogContent>

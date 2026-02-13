@@ -81,29 +81,36 @@ export default function PWAInstaller() {
 
   return (
     <>
-      {/* PWA 설치 프롬프트 */}
+      {/* PWA 설치 프롬프트 - 작고 깔끔한 디자인 */}
       {shouldShowInstallPrompt() && (
-        <div className="fixed bottom-20 left-4 right-4 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 md:bottom-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                케어링크 앱 설치
-              </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                더 빠른 접속과 오프라인 사용을 위해 앱을 설치하세요
-              </p>
+        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-[9999] md:bottom-6">
+          <div className="bg-gray-900 text-white rounded-2xl shadow-2xl p-4 max-w-[280px] border border-gray-700">
+            <div className="flex items-start mb-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-3 flex-shrink-0">
+                <Download className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold">앱 설치하기</h3>
+                <p className="text-xs text-gray-300 mt-0.5">
+                  빠른 접근을 위해 설치해세요
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-2 ml-4">
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleDismissInstall}
+                className="flex-1 text-gray-300 hover:text-white hover:bg-gray-800 h-9"
+              >
+                취소
+              </Button>
               <Button
                 size="sm"
                 onClick={handleInstallClick}
-                className="bg-primary hover:bg-primary/90"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-9"
               >
-                <Download className="w-4 h-4 mr-1" />
-                설치
-              </Button>
-              <Button size="sm" variant="ghost" onClick={handleDismissInstall}>
-                <X className="w-4 h-4" />
+                추가
               </Button>
             </div>
           </div>

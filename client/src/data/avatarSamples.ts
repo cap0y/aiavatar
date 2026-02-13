@@ -1,11 +1,11 @@
 import { AvatarSample } from '@/types/avatar';
 
-export const avatarSamples: AvatarSample[] = [
+export const AvatarSamples: AvatarSample[] = [
   {
     id: 'mao',
     name: '마오',
     description: '친근하고 활발한 AI 아바타',
-    avatar: '/liv2d/avatars/mao.png',
+    Avatar: '/liv2d/Avatars/mao.png',
     personality: '밝고 에너지가 넘치는 성격으로, 항상 긍정적이고 재미있는 대화를 나눌 수 있어요.',
     specialties: ['일상 대화', '게임', '음악 추천', '재미있는 이야기'],
     isOnline: true,
@@ -19,7 +19,7 @@ export const avatarSamples: AvatarSample[] = [
     id: 'shizuku',
     name: '시즈쿠',
     description: '차분하고 지적인 AI 아바타',
-    avatar: '/liv2d/avatars/shizuku.png',
+    Avatar: '/liv2d/Avatars/shizuku.png',
     personality: '조용하고 사려깊은 성격으로, 진지한 주제부터 일상까지 깊이 있는 대화를 나눕니다.',
     specialties: ['학습 도움', '책 추천', '철학적 대화', '조언'],
     isOnline: true,
@@ -116,9 +116,9 @@ export const avatarSamples: AvatarSample[] = [
 ];
 
 export const getAvatarById = (id: string): AvatarSample | undefined => {
-  return avatarSamples.find(avatar => avatar.id === id);
+  return AvatarSamples.find(Avatar => Avatar.id === id);
 };
 
 export const getOnlineAvatars = (): AvatarSample[] => {
-  return avatarSamples.filter(avatar => avatar.status === 'online');
+  return AvatarSamples.filter(Avatar => Avatar.status === 'online');
 };

@@ -4,4 +4,13 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+*.zip
 .git.backup.*
+.env
+.env.*
+!.env.example
+.local/
+.next/
+backup/
+public/personal-avatars/
+public/audio/

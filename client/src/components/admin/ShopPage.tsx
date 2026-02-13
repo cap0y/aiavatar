@@ -283,7 +283,7 @@ const ShopPage = () => {
             customer_name: "김영희",
             customer_phone: "010-1234-5678",
             orderItems: [
-              { product: { title: "신선한 사과" }, quantity: 2, price: 15000 }
+              { product: { title: "테크노" }, quantity: 2, price: 15000 }
             ],
             total_amount: 30000,
             payment_method: "카드결제",
@@ -303,7 +303,7 @@ const ShopPage = () => {
             customer_name: "박철수",
             customer_phone: "010-9876-5432",
             orderItems: [
-              { product: { title: "유기농 배" }, quantity: 1, price: 25000 }
+              { product: { title: "사쿠라" }, quantity: 1, price: 25000 }
             ],
             total_amount: 25000,
             payment_method: "무통장입금",
@@ -416,10 +416,6 @@ const ShopPage = () => {
       setProductTab("list");
       setEditingProduct(null);
       resetProductForm();
-      toast({
-        title: "상품 저장 완료",
-        description: "상품이 성공적으로 저장되었습니다.",
-      });
     },
     onError: (error) => {
       toast({
@@ -437,10 +433,6 @@ const ShopPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
-      toast({
-        title: "상품 삭제 완료",
-        description: "상품이 성공적으로 삭제되었습니다.",
-      });
     },
     onError: (error) => {
       toast({
@@ -471,10 +463,6 @@ const ShopPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
-      toast({
-        title: "주문 상태 변경 완료",
-        description: "주문 상태가 성공적으로 변경되었습니다.",
-      });
     },
     onError: (error) => {
       toast({
@@ -517,10 +505,6 @@ const ShopPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
-      toast({
-        title: "배송 정보 업데이트 완료",
-        description: "배송 정보가 성공적으로 업데이트되었습니다.",
-      });
       setTrackingDialog(false);
       setTrackingNumber("");
       setShippingCompany("");
@@ -553,10 +537,6 @@ const ShopPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-notifications"] });
-      toast({
-        title: "알림 읽음 처리 완료",
-        description: "알림이 읽음 처리되었습니다.",
-      });
     },
     onError: (error) => {
       toast({
@@ -734,11 +714,6 @@ const ShopPage = () => {
         return;
       }
 
-      toast({
-        title: "이미지 업로드 중",
-        description: "서버에 이미지를 업로드하고 있습니다...",
-      });
-
       // FormData 생성
       const formData = new FormData();
       formData.append('image', file);
@@ -768,12 +743,6 @@ const ShopPage = () => {
         // 이미지 URL을 상태에 저장 (base64 대신 서버 URL 사용)
         const newImages = [...productForm.images, result.imageUrl];
         setProductForm({ ...productForm, images: newImages });
-
-        toast({
-          title: "이미지 업로드 성공",
-          description: "이미지가 성공적으로 업로드되었습니다.",
-          variant: "default",
-        });
       } else {
         console.error("🛍️ 예상치 못한 응답 형식:", result);
         throw new Error('서버 응답이 올바르지 않습니다.');
@@ -884,10 +853,6 @@ const ShopPage = () => {
         return;
       }
 
-      toast({
-        title: "이미지 업로드 중",
-        description: "서버에 이미지를 업로드하고 있습니다...",
-      });
 
       // FormData 생성
       const formData = new FormData();
@@ -998,74 +963,74 @@ const ShopPage = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 bg-white dark:bg-[#030303] min-h-full transition-colors">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Store className="h-6 w-6 text-blue-600" />
-          쇼핑몰 관리
+        <h1 className="text-2xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
+          <Store className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+          AI 아바타 쇼핑몰 관리
         </h1>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">개요</TabsTrigger>
-          <TabsTrigger value="products">상품 관리</TabsTrigger>
-          <TabsTrigger value="orders">주문/배송 관리</TabsTrigger>
-          <TabsTrigger value="analytics">알림 관리</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 bg-gray-100 dark:bg-[#0B0B0B] border-gray-200 dark:border-[#1A1A1B] transition-colors">
+          <TabsTrigger value="overview" className="text-gray-700 dark:text-gray-300 data-[state=active]:bg-white dark:data-[state=active]:bg-[#1A1A1B] data-[state=active]:text-gray-900 dark:data-[state=active]:text-white">개요</TabsTrigger>
+          <TabsTrigger value="products" className="text-gray-700 dark:text-gray-300 data-[state=active]:bg-white dark:data-[state=active]:bg-[#1A1A1B] data-[state=active]:text-gray-900 dark:data-[state=active]:text-white">상품 관리</TabsTrigger>
+          <TabsTrigger value="orders" className="text-gray-700 dark:text-gray-300 data-[state=active]:bg-white dark:data-[state=active]:bg-[#1A1A1B] data-[state=active]:text-gray-900 dark:data-[state=active]:text-white">주문/배송 관리</TabsTrigger>
+          <TabsTrigger value="analytics" className="text-gray-700 dark:text-gray-300 data-[state=active]:bg-white dark:data-[state=active]:bg-[#1A1A1B] data-[state=active]:text-gray-900 dark:data-[state=active]:text-white">알림 관리</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-6">
+        <TabsContent value="overview" className="space-y-4 bg-white dark:bg-[#030303] transition-colors">
           {/* 통계 카드 */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
+            <Card className="bg-gray-50 dark:bg-[#0B0B0B] border-gray-200 dark:border-[#1A1A1B] transition-colors">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">총 상품</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">총 상품</CardTitle>
+                <Package className="h-4 w-4 text-gray-600 dark:text-gray-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{totalProducts}</div>
-                <p className="text-xs text-muted-foreground">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{totalProducts}</div>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   활성 상품: {activeProducts}개
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-gray-50 dark:bg-[#0B0B0B] border-gray-200 dark:border-[#1A1A1B] transition-colors">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">재고 가치</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">재고 가치</CardTitle>
+                <DollarSign className="h-4 w-4 text-gray-600 dark:text-gray-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
                   {Math.floor(totalValue).toLocaleString()}원
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   총 재고 금액
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-gray-50 dark:bg-[#0B0B0B] border-gray-200 dark:border-[#1A1A1B] transition-colors">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">재고 부족</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">재고 부족</CardTitle>
+                <TrendingUp className="h-4 w-4 text-gray-600 dark:text-gray-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{lowStockProducts}</div>
-                <p className="text-xs text-muted-foreground">
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">{lowStockProducts}</div>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   10개 미만 상품
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-gray-50 dark:bg-[#0B0B0B] border-gray-200 dark:border-[#1A1A1B] transition-colors">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">오늘 주문</CardTitle>
-                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">오늘 주문</CardTitle>
+                <ShoppingCart className="h-4 w-4 text-gray-600 dark:text-gray-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">0</div>
-                <p className="text-xs text-muted-foreground">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">0</div>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   신규 주문 건수
                 </p>
               </CardContent>
@@ -1073,31 +1038,31 @@ const ShopPage = () => {
           </div>
 
           {/* 최근 활동 */}
-          <Card>
+          <Card className="bg-gray-50 dark:bg-[#0B0B0B] border-gray-200 dark:border-[#1A1A1B] transition-colors">
             <CardHeader>
-              <CardTitle>최근 활동</CardTitle>
+              <CardTitle className="text-gray-900 dark:text-white">최근 활동</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center space-x-4">
-                  <Bell className="h-4 w-4 text-blue-500" />
+                  <Bell className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium">새로운 상품 등록됨</p>
-                    <p className="text-xs text-muted-foreground">2시간 전</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">새로운 AI 아바타 상품 등록됨</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">2시간 전</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <Truck className="h-4 w-4 text-green-500" />
+                  <Truck className="h-4 w-4 text-green-600 dark:text-green-400" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium">주문 배송 시작</p>
-                    <p className="text-xs text-muted-foreground">4시간 전</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">주문 배송 시작</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">4시간 전</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <Package className="h-4 w-4 text-orange-500" />
+                  <Package className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium">재고 부족 알림</p>
-                    <p className="text-xs text-muted-foreground">6시간 전</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">재고 부족 알림</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">6시간 전</p>
                   </div>
                 </div>
               </div>
@@ -1105,11 +1070,11 @@ const ShopPage = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="products" className="space-y-6">
-          <Card>
+        <TabsContent value="products" className="space-y-4 bg-white dark:bg-[#030303] transition-colors">
+          <Card className="bg-gray-50 dark:bg-[#0B0B0B] border-gray-200 dark:border-[#1A1A1B] transition-colors">
             <CardHeader>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-2">
-                <CardTitle>상품 관리</CardTitle>
+                <CardTitle className="text-gray-900 dark:text-white">AI 아바타 상품 관리</CardTitle>
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                   <Button 
                     variant={productTab === "list" ? "default" : "outline"}
@@ -1147,10 +1112,10 @@ const ShopPage = () => {
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                       <Input
-                        placeholder="상품명 검색..."
+                        placeholder="AI 아바타 상품명 검색..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 w-64"
+                        className="pl-10 w-64 bg-white dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                       />
                     </div>
                   </div>
@@ -1159,12 +1124,12 @@ const ShopPage = () => {
                     <div className="overflow-x-auto">
                       <table className="w-full text-left">
                         <thead>
-                          <tr className="border-b">
-                            <th className="py-3 px-4">상품명</th>
-                            <th className="py-3 px-4">가격</th>
-                            <th className="py-3 px-4">재고</th>
-                            <th className="py-3 px-4">상태</th>
-                            <th className="py-3 px-4">관리</th>
+                          <tr className="border-b border-gray-200 dark:border-[#1A1A1B]">
+                            <th className="py-3 px-4 text-gray-700 dark:text-gray-300">상품명</th>
+                            <th className="py-3 px-4 text-gray-700 dark:text-gray-300">가격</th>
+                            <th className="py-3 px-4 text-gray-700 dark:text-gray-300">재고</th>
+                            <th className="py-3 px-4 text-gray-700 dark:text-gray-300">상태</th>
+                            <th className="py-3 px-4 text-gray-700 dark:text-gray-300">관리</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1174,16 +1139,16 @@ const ShopPage = () => {
                             )
                             .slice(0, 10)
                             .map((product: any) => (
-                              <tr key={product.id} className="border-b hover:bg-gray-50">
+                              <tr key={product.id} className="border-b border-gray-200 dark:border-[#1A1A1B] hover:bg-gray-100 dark:hover:bg-[#0F0F0F]">
                                 <td className="py-3 px-4">
-                                  <div className="font-medium">{product.title}</div>
-                                  <div className="text-sm text-gray-500">ID: {product.id}</div>
+                                  <div className="font-medium text-gray-900 dark:text-white">{product.title}</div>
+                                  <div className="text-sm text-gray-600 dark:text-gray-400">ID: {product.id}</div>
                                 </td>
-                                <td className="py-3 px-4">
+                                <td className="py-3 px-4 text-gray-900 dark:text-white">
                                   {Math.floor(product.price).toLocaleString()}원
                                 </td>
                                 <td className="py-3 px-4">
-                                  <span className={product.stock < 10 ? "text-red-600 font-medium" : ""}>
+                                  <span className={product.stock < 10 ? "text-red-600 dark:text-red-400 font-medium" : "text-gray-900 dark:text-white"}>
                                     {product.stock}개
                                   </span>
                                 </td>
@@ -1210,7 +1175,7 @@ const ShopPage = () => {
                                   <div className="flex gap-1">
                                     <Button 
                                       size="sm" 
-                                      variant="outline"
+                                      variant="default"
                                       onClick={() => handleEditProduct(product)}
                                       title="상품 수정"
                                     >
@@ -1232,7 +1197,7 @@ const ShopPage = () => {
                       </table>
                     </div>
                   ) : (
-                    <div className="text-center py-12 text-gray-500">
+                    <div className="text-center py-12 text-gray-600 dark:text-gray-500">
                       등록된 상품이 없습니다.
                     </div>
                   )}
@@ -1241,74 +1206,79 @@ const ShopPage = () => {
 
               {/* 상품 등록/수정 폼 */}
               {(productTab === "register" || productTab === "edit") && (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">
-                      {productTab === "register" ? "새 상품 등록" : "상품 수정"}
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {productTab === "register" ? "새 AI 아바타 상품 등록" : "AI 아바타 상품 수정"}
                     </h3>
                     <Button 
                       variant="outline" 
                       onClick={() => setProductTab("list")}
+                      className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
                     >
                       <ArrowLeft className="h-4 w-4 mr-1" />
                       목록으로
                     </Button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* 좌측 컬럼 */}
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium mb-1">상품명</label>
+                        <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">상품명</label>
                         <Input
                           value={productForm.title}
                           onChange={(e) => setProductForm({ ...productForm, title: e.target.value })}
-                          placeholder="상품명을 입력하세요"
+                          placeholder="AI 아바타 상품명을 입력하세요"
+                          className="bg-white dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-1">가격</label>
+                        <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">가격</label>
                         <Input
                           type="number"
                           value={productForm.price}
                           onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
                           placeholder="가격을 입력하세요"
+                          className="bg-white dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-1">할인 가격</label>
+                        <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">할인 가격</label>
                         <Input
                           type="number"
                           value={productForm.discount_price}
                           onChange={(e) => setProductForm({ ...productForm, discount_price: e.target.value })}
                           placeholder="할인 가격을 입력하세요"
+                          className="bg-white dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-1">재고 수량</label>
+                        <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">재고 수량</label>
                         <Input
                           type="number"
                           value={productForm.stock}
                           onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })}
                           placeholder="재고 수량을 입력하세요"
+                          className="bg-white dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-1">카테고리</label>
+                        <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">카테고리</label>
                         <select
-                          className="w-full border rounded-md p-2"
+                          className="w-full border rounded-md p-2 bg-white dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] text-gray-900 dark:text-white"
                           value={productForm.category_id}
                           onChange={(e) => setProductForm({ ...productForm, category_id: e.target.value })}
                         >
-                          <option value="">카테고리 선택</option>
+                          <option value="" className="bg-white dark:bg-[#1A1A1B] text-gray-500 dark:text-gray-400">AI 아바타 카테고리 선택</option>
                           {(categoriesData || [])
                             .filter((cat: string) => cat !== "전체")
                             .map((category: string, index: number) => (
-                              <option key={index} value={index + 1}>
+                              <option key={index} value={index + 1} className="bg-white dark:bg-[#1A1A1B] text-gray-900 dark:text-white">
                                 {category}
                               </option>
                             ))}
@@ -1316,21 +1286,21 @@ const ShopPage = () => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-1">상태</label>
+                        <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">상태</label>
                         <select
-                          className="w-full border rounded-md p-2"
+                          className="w-full border rounded-md p-2 bg-white dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] text-gray-900 dark:text-white"
                           value={productForm.status}
                           onChange={(e) => setProductForm({ ...productForm, status: e.target.value })}
                         >
-                          <option value="active">판매중</option>
-                          <option value="hidden">숨김</option>
-                          <option value="sold_out">품절</option>
+                          <option value="active" className="bg-white dark:bg-[#1A1A1B] text-gray-900 dark:text-white">판매중</option>
+                          <option value="hidden" className="bg-white dark:bg-[#1A1A1B] text-gray-900 dark:text-white">숨김</option>
+                          <option value="sold_out" className="bg-white dark:bg-[#1A1A1B] text-gray-900 dark:text-white">품절</option>
                         </select>
                       </div>
 
                       {/* 상품 이미지 */}
                       <div>
-                        <label className="block text-sm font-medium mb-1">상품 이미지</label>
+                        <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">상품 이미지</label>
                         <input
                           type="file"
                           ref={fileInputRef}
@@ -1339,12 +1309,12 @@ const ShopPage = () => {
                           className="hidden"
                         />
                         <div
-                          className="border-2 border-dashed rounded-md p-4 text-center cursor-pointer hover:bg-gray-50"
+                          className="border-2 border-dashed rounded-md p-4 text-center cursor-pointer bg-gray-50 dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] hover:bg-gray-100 dark:hover:bg-[#272729] transition-colors"
                           onClick={() => fileInputRef.current?.click()}
                         >
-                          <Upload className="h-6 w-6 mx-auto mb-2 text-gray-400" />
-                          <p>이미지 업로드</p>
-                          <p className="text-xs text-gray-500">클릭하여 이미지를 선택하세요</p>
+                          <Upload className="h-6 w-6 mx-auto mb-2 text-gray-600 dark:text-gray-400" />
+                          <p className="text-gray-900 dark:text-white">이미지 업로드</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-500">클릭하여 이미지를 선택하세요</p>
                         </div>
 
                         {/* 업로드된 이미지 미리보기 */}
@@ -1453,7 +1423,7 @@ const ShopPage = () => {
                               />
                               <Button
                                 size="sm"
-                                variant="outline"
+                                variant="default"
                                 onClick={addOptionValue}
                               >
                                 추가
@@ -1632,7 +1602,7 @@ const ShopPage = () => {
 
                   <div className="flex justify-end gap-2">
                     <Button 
-                      variant="outline" 
+                      variant="default" 
                       onClick={() => setProductTab("list")}
                     >
                       <X className="h-4 w-4 mr-1" />
@@ -1652,10 +1622,10 @@ const ShopPage = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="orders" className="space-y-6">
-          <Card>
+        <TabsContent value="orders" className="space-y-4 bg-white dark:bg-[#030303] transition-colors">
+          <Card className="bg-gray-50 dark:bg-[#0B0B0B] border-gray-200 dark:border-[#1A1A1B] transition-colors">
             <CardHeader>
-              <CardTitle>주문/배송 관리</CardTitle>
+              <CardTitle className="text-gray-900 dark:text-white">AI 아바타 주문/배송 관리</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex justify-between items-center mb-4">
@@ -1665,39 +1635,39 @@ const ShopPage = () => {
                     placeholder="주문번호 검색..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-64"
+                    className="pl-10 w-64 bg-white dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   />
                 </div>
                 <select
-                  className="w-40 border rounded-md p-2"
+                  className="w-40 border rounded-md p-2 bg-white dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] text-gray-900 dark:text-white"
                   value={orderStatus}
                   onChange={(e) => setOrderStatus(e.target.value)}
                 >
-                  <option value="all">모든 주문</option>
-                  <option value="pending">대기 중</option>
-                  <option value="paid">결제 완료</option>
-                  <option value="shipped">배송 중</option>
-                  <option value="completed">배송 완료</option>
-                  <option value="cancelled">취소됨</option>
+                  <option value="all" className="bg-white dark:bg-[#1A1A1B] text-gray-900 dark:text-white">모든 주문</option>
+                  <option value="pending" className="bg-white dark:bg-[#1A1A1B] text-gray-900 dark:text-white">대기 중</option>
+                  <option value="paid" className="bg-white dark:bg-[#1A1A1B] text-gray-900 dark:text-white">결제 완료</option>
+                  <option value="shipped" className="bg-white dark:bg-[#1A1A1B] text-gray-900 dark:text-white">배송 중</option>
+                  <option value="completed" className="bg-white dark:bg-[#1A1A1B] text-gray-900 dark:text-white">배송 완료</option>
+                  <option value="cancelled" className="bg-white dark:bg-[#1A1A1B] text-gray-900 dark:text-white">취소됨</option>
                 </select>
                 <select
-                  className="w-32 border rounded-md p-2"
+                  className="w-32 border rounded-md p-2 bg-white dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] text-gray-900 dark:text-white"
                   value={sortOrder}
                   onChange={(e) => setSortOrder(e.target.value as "desc" | "asc")}
                 >
-                  <option value="desc">최신순</option>
-                  <option value="asc">오래된순</option>
+                  <option value="desc" className="bg-white dark:bg-[#1A1A1B] text-gray-900 dark:text-white">최신순</option>
+                  <option value="asc" className="bg-white dark:bg-[#1A1A1B] text-gray-900 dark:text-white">오래된순</option>
                 </select>
               </div>
 
               {isOrdersLoading ? (
-                <div className="text-center py-12 text-gray-500">
-                  <Truck className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <div className="text-center py-12 text-gray-600 dark:text-gray-400">
+                  <Truck className="h-12 w-12 mx-auto mb-4 text-gray-600 dark:text-gray-400" />
                   <p>주문 목록을 불러오는 중입니다...</p>
                 </div>
               ) : (!orders || orders.length === 0) ? (
-                <div className="text-center py-12 text-gray-500">
-                  <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <div className="text-center py-12 text-gray-600 dark:text-gray-400">
+                  <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-gray-600 dark:text-gray-400" />
                   <p>검색된 주문이 없습니다.</p>
                 </div>
               ) : (
@@ -1769,7 +1739,7 @@ const ShopPage = () => {
                                 </select>
                                 <Button 
                                   size="sm" 
-                                  variant="outline"
+                                  variant="default"
                                   onClick={() => {
                                     setSelectedOrderId(order.id);
                                     setTrackingNumber(order.tracking_number || "");
@@ -1834,7 +1804,7 @@ const ShopPage = () => {
                   </select>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setTrackingDialog(false)}>
+                  <Button variant="default" onClick={() => setTrackingDialog(false)}>
                     취소
                   </Button>
                   <Button onClick={handleShippingUpdate}>
@@ -1846,10 +1816,10 @@ const ShopPage = () => {
           </Dialog>
         </TabsContent>
 
-        <TabsContent value="analytics" className="space-y-6">
-          <Card>
+        <TabsContent value="analytics" className="space-y-4 bg-white dark:bg-[#030303] transition-colors">
+          <Card className="bg-gray-50 dark:bg-[#0B0B0B] border-gray-200 dark:border-[#1A1A1B] transition-colors">
             <CardHeader>
-              <CardTitle>알림 관리</CardTitle>
+              <CardTitle className="text-gray-900 dark:text-white">AI 아바타 알림 관리</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex justify-between items-center mb-4">
@@ -1859,28 +1829,28 @@ const ShopPage = () => {
                     placeholder="알림 메시지 검색..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-64"
+                    className="pl-10 w-64 bg-white dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   />
                 </div>
                 <select
-                  className="w-40 border rounded-md p-2"
+                  className="w-40 border rounded-md p-2 bg-white dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] text-gray-900 dark:text-white"
                   value={searchTerm} // 검색어를 상태로 사용
                   onChange={(e) => setSearchTerm(e.target.value)}
                 >
-                  <option value="">모든 알림</option>
-                  <option value="shipping">배송 관련</option>
-                  <option value="order">주문 관련</option>
+                  <option value="" className="bg-white dark:bg-[#1A1A1B] text-gray-900 dark:text-white">모든 알림</option>
+                  <option value="shipping" className="bg-white dark:bg-[#1A1A1B] text-gray-900 dark:text-white">배송 관련</option>
+                  <option value="order" className="bg-white dark:bg-[#1A1A1B] text-gray-900 dark:text-white">주문 관련</option>
                 </select>
               </div>
 
               {isNotificationsLoading ? (
-                <div className="text-center py-12 text-gray-500">
-                  <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <div className="text-center py-12 text-gray-600 dark:text-gray-400">
+                  <Bell className="h-12 w-12 mx-auto mb-4 text-gray-600 dark:text-gray-400" />
                   <p>알림 목록을 불러오는 중입니다...</p>
                 </div>
               ) : (!notifications || notifications.length === 0) ? (
-                <div className="text-center py-12 text-gray-500">
-                  <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <div className="text-center py-12 text-gray-600 dark:text-gray-400">
+                  <Bell className="h-12 w-12 mx-auto mb-4 text-gray-600 dark:text-gray-400" />
                   <p>검색된 알림이 없습니다.</p>
                 </div>
               ) : (
@@ -1912,7 +1882,7 @@ const ShopPage = () => {
                               <div>{notif.message}</div>
                             </td>
                             <td className="py-3 px-4">
-                              <Badge variant="outline">{notif.type}</Badge>
+                              <Badge variant="default">{notif.type}</Badge>
                             </td>
                             <td className="py-3 px-4">
                               <div>{notif.order_id}</div>
@@ -1923,12 +1893,12 @@ const ShopPage = () => {
                               </Badge>
                             </td>
                             <td className="py-3 px-4">
-                              <Badge variant="outline">{notif.status}</Badge>
+                              <Badge variant="default">{notif.status}</Badge>
                             </td>
                             <td className="py-3 px-4">
                               <Button 
                                 size="sm" 
-                                variant="outline"
+                                variant="default"
                                 onClick={() => handleMarkNotificationAsRead(notif.id)}
                                 title="읽음 처리"
                               >

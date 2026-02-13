@@ -10,12 +10,14 @@ import CareManagerProfile from "@/components/profile/CareManagerProfile";
 import AdminProfile from "@/components/profile/AdminProfile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEffect, useState } from "react";
+import Header from "@/components/header";
+import BottomNavigation from "@/components/bottom-navigation";
 
 // 관리자 대시보드 탭 목록
 const adminTabs = [
   { id: "dashboard", label: "대시보드", icon: "fas fa-tachometer-alt" },
   { id: "members", label: "회원 관리", icon: "fas fa-users" },
-  { id: "caremanagers", label: "케어매니저 관리", icon: "fas fa-user-nurse" },
+  { id: "caremanagers", label: "AI아바타 관리", icon: "fas fa-user-nurse" },
   { id: "services", label: "서비스/결제 관리", icon: "fas fa-credit-card" },
   { id: "settlement", label: "정산 관리", icon: "fas fa-calculator" },
   { id: "disputes", label: "분쟁 조정", icon: "fas fa-balance-scale" },
@@ -90,8 +92,10 @@ const Profile = () => {
   // decom2soft@gmail.com 계정은 관리자 프로필로 렌더링
   if (adminUser) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-20">
+      <div className="min-h-screen bg-gray-900 w-full" style={{ margin: 0, padding: 0, paddingTop: '32px' }}>
+        <Header />
         <AdminProfile user={adminUser} />
+        <BottomNavigation />
       </div>
     );
   }
@@ -100,20 +104,26 @@ const Profile = () => {
   switch (user.userType) {
     case 'admin':
       return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-20">
+        <div className="min-h-screen bg-gray-900 w-full" style={{ margin: 0, padding: 0, paddingTop: '32px' }}>
+          <Header />
           <AdminProfile user={user} />
+          <BottomNavigation />
         </div>
       );
     case 'careManager':
       return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-20">
+        <div className="min-h-screen bg-gray-900 pb-20 w-full" style={{ margin: 0, padding: 0, paddingTop: '32px' }}>
+          <Header />
           <CareManagerProfile user={user} />
+          <BottomNavigation />
         </div>
       );
     default:
       return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 pb-20">
+        <div className="min-h-screen bg-gray-900 pb-20 w-full" style={{ margin: 0, padding: 0, paddingTop: '32px' }}>
+          <Header />
           <CustomerProfile user={user} />
+          <BottomNavigation />
         </div>
       );
   }

@@ -19,8 +19,8 @@ interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   manager: CareManager;
-  userId: number;
-  serviceId: number;
+  userId: number | string;
+  serviceId?: number;
   onSuccess?: () => void;
 }
 
@@ -246,7 +246,7 @@ const BookingModal = ({ isOpen, onClose, manager, userId, serviceId, onSuccess }
       const bookingData = {
         userId: userId.toString(), // userId를 문자열로 변환 (스키마에서 userId가 text로 정의됨)
         careManagerId: parseInt(manager.id.toString()),
-        serviceId: parseInt(serviceId.toString()),
+        serviceId: serviceId ? parseInt(serviceId.toString()) : 1, // serviceId가 없으면 기본값 1
         date: new Date(year, month, day, startTimeHours, startTimeMinutes, 0, 0),
         duration: duration,
         totalAmount: manager.hourlyRate * duration,
@@ -295,7 +295,7 @@ const BookingModal = ({ isOpen, onClose, manager, userId, serviceId, onSuccess }
           onSuccess();
         }
         
-        // 예약 후 케어매니저 상세 페이지의 댓글 섹션으로 이동
+        // 예약 후 AI아바타 상세 페이지의 댓글 섹션으로 이동
         // 북마크 페이지로 먼저 이동하고 나서 댓글 페이지로 이동
         onClose();
         setLocation('/bookings');
@@ -352,7 +352,7 @@ const BookingModal = ({ isOpen, onClose, manager, userId, serviceId, onSuccess }
       <DialogContent className="sm:max-w-[600px] w-[95%] p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-3">
           <DialogTitle className="text-center text-xl font-bold">
-            {manager.name} 케어 매니저 예약
+            {manager.name} 크리에이터예약
           </DialogTitle>
           <DialogDescription className="text-center text-gray-500">
             원하시는 날짜와 시간을 선택해주세요.
@@ -422,7 +422,7 @@ const BookingModal = ({ isOpen, onClose, manager, userId, serviceId, onSuccess }
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-sm font-medium">시간 선택 ({dateRangeText()})</h4>
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     onClick={() => setUseCustomTime(!useCustomTime)}
                     className="text-xs px-2 py-1 h-auto"
@@ -510,7 +510,7 @@ const BookingModal = ({ isOpen, onClose, manager, userId, serviceId, onSuccess }
         
         <DialogFooter className="mt-4 px-6 pb-6 pt-2">
           <Button
-            variant="outline"
+            variant="default"
             onClick={onClose}
             className="w-full sm:w-auto"
           >

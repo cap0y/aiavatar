@@ -41,8 +41,8 @@ export default function PaymentHistoryPage() {
           status: "completed",
           created_at: "2024-01-15T10:30:00Z",
           items: [
-            { product_name: "프리미엄 김치", quantity: 2, price: 12000 },
-            { product_name: "유기농 배추", quantity: 1, price: 8000 },
+            { product_name: "미라이 - VTuber 아바타", quantity: 1, price: 120000 },
+            { product_name: "아바타 커스터마이징", quantity: 1, price: 15000 },
           ]
         },
         {
@@ -53,7 +53,7 @@ export default function PaymentHistoryPage() {
           status: "pending",
           created_at: "2024-01-10T14:20:00Z",
           items: [
-            { product_name: "천연 꿀", quantity: 1, price: 20000 },
+            { product_name: "사쿠라 - 일본풍 VTuber", quantity: 1, price: 25000 },
           ]
         },
         {
@@ -64,8 +64,8 @@ export default function PaymentHistoryPage() {
           status: "completed",
           created_at: "2024-01-05T09:15:00Z",
           items: [
-            { product_name: "자연산 고등어", quantity: 3, price: 10000 },
-            { product_name: "프리미엄 김치", quantity: 1, price: 12000 },
+            { product_name: "AI 아바타 제작 의뢰", quantity: 1, price: 35000 },
+            { product_name: "음성 합성 추가", quantity: 1, price: 12000 },
           ]
         }
       ] as Payment[];
@@ -84,7 +84,7 @@ export default function PaymentHistoryPage() {
       case "failed":
         return <Badge variant="destructive">결제실패</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="default">{status}</Badge>;
     }
   };
 
@@ -122,51 +122,52 @@ export default function PaymentHistoryPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="min-h-screen bg-gray-900">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
       {/* 헤더 */}
       <div className="mb-6">
         <Button
           variant="ghost"
           onClick={() => setLocation('/profile')}
-          className="mb-4"
+          className="mb-4 text-white hover:text-gray-300"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           마이페이지로 돌아가기
         </Button>
 
         <div className="flex items-center gap-3 mb-2">
-          <Receipt className="h-6 w-6 text-blue-600" />
-          <h1 className="text-2xl font-bold text-gray-800">결제 내역</h1>
+          <Receipt className="h-6 w-6 text-purple-600" />
+          <h1 className="text-2xl font-bold text-white">구매 내역</h1>
         </div>
-        <p className="text-gray-600">지금까지의 결제 내역을 확인할 수 있습니다.</p>
+        <p className="text-gray-400">AI 아바타 구매 및 작품 의뢰 결제 내역을 확인할 수 있습니다.</p>
       </div>
 
       {/* 결제 통계 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card>
+        <Card className="bg-gray-800/70 border-gray-600/50">
           <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-blue-600 mb-1">
+            <div className="text-2xl font-bold text-blue-400 mb-1">
               {payments.length}건
             </div>
-            <div className="text-sm text-gray-600">총 주문 건수</div>
+            <div className="text-sm text-gray-400">총 주문 건수</div>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="bg-gray-800/70 border-gray-600/50">
           <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-green-600 mb-1">
+            <div className="text-2xl font-bold text-green-400 mb-1">
               {formatPrice(payments.reduce((sum, payment) => sum + payment.amount, 0))}
             </div>
-            <div className="text-sm text-gray-600">총 결제 금액</div>
+            <div className="text-sm text-gray-400">총 결제 금액</div>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="bg-gray-800/70 border-gray-600/50">
           <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-purple-600 mb-1">
+            <div className="text-2xl font-bold text-purple-400 mb-1">
               {payments.filter(p => p.status === 'completed').length}건
             </div>
-            <div className="text-sm text-gray-600">결제 완료</div>
+            <div className="text-sm text-gray-400">결제 완료</div>
           </CardContent>
         </Card>
       </div>
@@ -177,30 +178,30 @@ export default function PaymentHistoryPage() {
           <Card>
             <CardContent className="p-8 text-center">
               <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">결제 내역을 불러오는 중...</p>
+              <p className="text-gray-400">결제 내역을 불러오는 중...</p>
             </CardContent>
           </Card>
         ) : payments.length === 0 ? (
-          <Card>
+          <Card className="bg-gray-800/70 border-gray-600/50">
             <CardContent className="p-8 text-center">
               <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-800 mb-2">결제 내역이 없습니다</h3>
-              <p className="text-gray-600 mb-4">아직 주문하신 상품이 없습니다.</p>
+              <h3 className="text-lg font-medium text-white mb-2">구매 내역이 없습니다</h3>
+              <p className="text-gray-400 mb-4">아직 구매하신 AI 아바타가 없습니다.</p>
               <Button onClick={() => setLocation('/shop')}>
-                쇼핑하러 가기
+                아바타 구매하러 가기
               </Button>
             </CardContent>
           </Card>
         ) : (
           payments.map((payment) => (
-            <Card key={payment.id} className="overflow-hidden">
-              <CardHeader className="bg-gray-50 border-b">
+            <Card key={payment.id} className="bg-gray-800/70 border-gray-600/50 overflow-hidden">
+              <CardHeader className="bg-gray-700/50 border-b border-gray-600">
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="text-lg mb-1">
+                    <CardTitle className="text-lg mb-1 text-white">
                       주문번호: {payment.order_id}
                     </CardTitle>
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <div className="flex items-center gap-4 text-sm text-gray-300">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
                         {formatDate(payment.created_at)}
@@ -213,7 +214,7 @@ export default function PaymentHistoryPage() {
                   </div>
                   <div className="text-right">
                     {getStatusBadge(payment.status)}
-                    <div className="text-lg font-bold text-gray-800 mt-2">
+                    <div className="text-lg font-bold text-white mt-2">
                       {formatPrice(payment.amount)}
                     </div>
                   </div>
@@ -223,31 +224,31 @@ export default function PaymentHistoryPage() {
               <CardContent className="p-6">
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 mb-3">
-                    <Package className="h-4 w-4 text-gray-500" />
-                    <span className="font-medium">주문 상품</span>
+                    <Package className="h-4 w-4 text-gray-400" />
+                    <span className="font-medium text-white">구매한 아바타 & 서비스</span>
                   </div>
                   
                   {payment.items.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                    <div key={index} className="flex justify-between items-center py-2 border-b border-gray-600 last:border-b-0">
                       <div>
-                        <div className="font-medium text-gray-800">{item.product_name}</div>
-                        <div className="text-sm text-gray-600">수량: {item.quantity}개</div>
+                        <div className="font-medium text-white">{item.product_name}</div>
+                        <div className="text-sm text-gray-400">수량: {item.quantity}개</div>
                       </div>
                       <div className="text-right">
-                        <div className="font-medium">{formatPrice(item.price * item.quantity)}</div>
-                        <div className="text-sm text-gray-600">{formatPrice(item.price)} × {item.quantity}</div>
+                        <div className="font-medium text-white">{formatPrice(item.price * item.quantity)}</div>
+                        <div className="text-sm text-gray-400">{formatPrice(item.price)} × {item.quantity}</div>
                       </div>
                     </div>
                   ))}
                 </div>
                 
-                <div className="flex gap-2 mt-4 pt-4 border-t">
-                  <Button variant="outline" size="sm" className="flex-1">
+                <div className="flex gap-2 mt-4 pt-4 border-t border-gray-600">
+                  <Button variant="default" size="sm" className="flex-1">
                     <Receipt className="h-4 w-4 mr-2" />
                     영수증 보기
                   </Button>
                   {payment.status === 'completed' && (
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button variant="default" size="sm" className="flex-1">
                       재주문하기
                     </Button>
                   )}
@@ -262,6 +263,7 @@ export default function PaymentHistoryPage() {
           ))
         )}
       </div>
+    </div>
     </div>
   );
 } 

@@ -32,6 +32,9 @@ export function normalizeImageUrl(inputUrl?: string): string {
           ? pathWithSearch.substring(4)
           : pathWithSearch;
       }
+
+      // 외부 호스트의 URL (Google, Kakao 프로필 사진 등)은 원본 그대로 반환
+      return inputUrl;
     }
   } catch {
     // URL 파싱 실패시 원본 반환

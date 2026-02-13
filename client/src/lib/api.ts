@@ -47,7 +47,23 @@ export const productAPI = {
     return response.data;
   },
 
-  // ... existing methods ...
+  // 상품 생성
+  createProduct: async (product: any) => {
+    const response = await api.post('/api/products', product);
+    return response.data;
+  },
+
+  // 상품 수정
+  updateProduct: async (id: string | number, product: any) => {
+    const response = await api.put(`/api/products/${id}`, product);
+    return response.data;
+  },
+
+  // 상품 삭제
+  deleteProduct: async (id: string | number) => {
+    const response = await api.delete(`/api/products/${id}`);
+    return response.data;
+  },
 };
 
 // 장바구니 API
@@ -58,8 +74,12 @@ export const cartAPI = {
       const { data } = await api.get(`/api/users/${uid}/cart`);
       // 서버가 { cartItems: [] } 형태로 응답하는 경우
       return data.cartItems || [];
-    } catch (error) {
-      console.error("장바구니 조회 오류:", error);
+    } catch (error: any) {
+      if (error.response?.status === 500) {
+        console.warn("장바구니 서버 연결 실패 - API 서버가 실행되지 않았을 수 있습니다.");
+      } else {
+        console.warn("장바구니 조회 일시적 오류:", error);
+      }
       return []; // 오류 발생 시 빈 배열 반환
     }
   },
@@ -90,7 +110,7 @@ export const cartAPI = {
   },
 };
 
-// 즐겨찾기(케어 매니저 찜) API
+// 즐겨찾기(크리에이터찜) API
 export const favoritesAPI = {
   getFavorites: async (userId: string | number) => {
     const uid = String(userId);
@@ -109,6 +129,7 @@ export const favoritesAPI = {
 };
 
 export async function changePassword(params: { userId: string | number; currentPassword: string; newPassword: string }) {
+  // 통합 엔드포인트 사용 (UUID 및 숫자 ID 모두 지원)
   const res = await fetch('/api/auth/change-password', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

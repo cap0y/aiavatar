@@ -3,6 +3,9 @@ import { useLocation } from 'wouter';
 import ServerSidebar from './ServerSidebar';
 import ChannelSidebar from './ChannelSidebar';
 import ProductDetailPage from '../../pages/product-detail';
+import { useIsMobile } from '../../hooks/use-mobile';
+import Header from '../header';
+import BottomNavigation from '../bottom-navigation';
 
 interface Channel {
   id: string;
@@ -16,6 +19,7 @@ interface ProductDetailLayoutProps {
 
 const ProductDetailLayout: React.FC<ProductDetailLayoutProps> = ({ productId }) => {
   const [, setLocation] = useLocation();
+  const isMobile = useIsMobile();
   const [activeChannel, setActiveChannel] = useState<Channel>({
     id: 'shop-all',
     name: '상점',
@@ -77,35 +81,46 @@ const ProductDetailLayout: React.FC<ProductDetailLayoutProps> = ({ productId }) 
   };
 
   return (
-    <div className="flex h-screen bg-gray-900 text-white">
-      <ServerSidebar />
-      <ChannelSidebar activeChannelId={activeChannel.id} onChannelChange={handleChannelChange} />
-      <div className="flex-1 flex flex-col overflow-auto">
-        <div className="h-12 border-b border-gray-700 flex items-center px-4 shadow-sm">
-          <div className="flex items-center">
-            <button className="text-gray-400 hover:text-white mr-3" onClick={handleGoBack}>
-              <i className="fas fa-arrow-left mr-1"></i>
-              <span className="text-sm">돌아가기</span>
-            </button>
-            <i className="fas fa-store text-gray-400 mr-2"></i>
-            <h2 className="font-semibold text-white">상품 상세</h2>
+    <div className="flex flex-col h-screen bg-white dark:bg-[#030303]">
+      {/* 상단 헤더 */}
+      <Header />
+      
+      <div className="flex flex-1 overflow-hidden" style={{ paddingTop: "40px" }}>
+        {/* 왼쪽 사이드바들 */}
+        {!isMobile && <ServerSidebar />}
+        {!isMobile && <ChannelSidebar activeChannelId={activeChannel.id} onChannelChange={handleChannelChange} />}
+        
+        {/* 메인 컨텐츠 */}
+        <div className="flex-1 flex flex-col overflow-auto">
+          <div className="h-12 border-b border-gray-200 dark:border-gray-700 flex items-center px-4 shadow-sm bg-white dark:bg-[#0B0B0B]">
+            <div className="flex items-center">
+              <button className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mr-3" onClick={handleGoBack}>
+                <i className="fas fa-arrow-left mr-1"></i>
+                <span className="text-sm">돌아가기</span>
+              </button>
+              <i className="fas fa-store text-gray-600 dark:text-gray-400 mr-2"></i>
+              <h2 className="font-semibold text-gray-900 dark:text-white">상품 상세</h2>
+            </div>
+            <div className="ml-auto flex items-center space-x-4">
+              <button className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                <i className="fas fa-search"></i>
+              </button>
+              <button className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                <i className="fas fa-inbox"></i>
+              </button>
+              <button className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                <i className="fas fa-question-circle"></i>
+              </button>
+            </div>
           </div>
-          <div className="ml-auto flex items-center space-x-4">
-            <button className="text-gray-400 hover:text-white">
-              <i className="fas fa-search"></i>
-            </button>
-            <button className="text-gray-400 hover:text-white">
-              <i className="fas fa-inbox"></i>
-            </button>
-            <button className="text-gray-400 hover:text-white">
-              <i className="fas fa-question-circle"></i>
-            </button>
+          <div className="flex-1 overflow-auto bg-white dark:bg-[#030303]">
+            <ProductDetailPage productId={productId} />
           </div>
-        </div>
-        <div className="flex-1 overflow-auto bg-gray-800">
-          <ProductDetailPage productId={productId} />
         </div>
       </div>
+      
+      {/* 하단 네비게이션 */}
+      <BottomNavigation />
     </div>
   );
 };

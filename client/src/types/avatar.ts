@@ -2,7 +2,7 @@ export interface AvatarSample {
   id: string;
   name: string;
   description: string;
-  avatar?: string;
+  Avatar?: string;
   icon?: string;
   personality: string;
   specialties: string[];
@@ -16,7 +16,7 @@ export interface AvatarSample {
 
 export interface AvatarMessage {
   id: string;
-  avatarId: string;
+  AvatarId: string;
   content: string;
   timestamp: Date;
   type: 'text' | 'image' | 'voice' | 'video';

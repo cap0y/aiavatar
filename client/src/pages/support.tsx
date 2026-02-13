@@ -120,30 +120,30 @@ export default function SupportPage() {
     {
       id: "2",
       category: "서비스 이용",
-      question: "케어 매니저 예약은 어떻게 하나요?",
+      question: "AI 아바타는 어떻게 구매하나요?",
       answer:
-        "홈페이지에서 원하는 케어 매니저를 선택한 후, 프로필을 확인하고 '예약하기' 버튼을 클릭하세요. 날짜와 시간을 선택하여 예약할 수 있습니다.",
+        "상점에서 원하는 AI 아바타를 선택한 후, 상세 정보를 확인하고 '구매하기' 버튼을 클릭하세요. 결제 완료 후 바로 아바타를 이용할 수 있습니다.",
     },
     {
       id: "3",
       category: "결제",
-      question: "결제 수단은 어떤 것들이 있나요?",
+      question: "어떤 결제 수단을 사용할 수 있나요?",
       answer:
         "신용카드, 체크카드, 계좌이체, 간편결제(카카오페이, 네이버페이 등)를 지원합니다. 모든 결제는 안전하게 암호화되어 처리됩니다.",
     },
     {
       id: "4",
       category: "취소/환불",
-      question: "예약을 취소하려면 어떻게 해야 하나요?",
+      question: "작품 의뢰를 취소하려면 어떻게 해야 하나요?",
       answer:
-        "마이페이지 > 예약 내역에서 취소하고자 하는 예약을 선택하여 취소할 수 있습니다. 취소 시점에 따라 취소 수수료가 발생할 수 있습니다.",
+        "마이페이지 > 작품 의뢰 내역에서 취소하고자 하는 의뢰를 선택하여 취소할 수 있습니다. 제작 진행 상황에 따라 취소 수수료가 발생할 수 있습니다.",
     },
     {
       id: "5",
       category: "서비스 이용",
-      question: "케어 매니저와 연락이 안 될 때는 어떻게 하나요?",
+      question: "AI 크리에이터와 연락이 안 될 때는 어떻게 하나요?",
       answer:
-        "앱 내 메시지 기능을 이용해보시고, 그래도 연락이 안 되면 고객센터로 연락주세요. 즉시 담당자가 확인하여 도움을 드리겠습니다.",
+        "플랫폼 내 메시지 기능을 이용해보시고, 그래도 연락이 안 되면 고객센터로 연락주세요. 즉시 담당자가 확인하여 도움을 드리겠습니다.",
     },
     {
       id: "6",
@@ -168,24 +168,25 @@ export default function SupportPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="min-h-screen bg-gray-900">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
       {/* 헤더 */}
       <div className="mb-6">
         <Button
           variant="ghost"
           onClick={() => setLocation("/profile")}
-          className="mb-4"
+          className="mb-4 text-white hover:text-gray-300"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          마이페이지로 돌아가기
+          마이페이지로 돋아가기
         </Button>
 
         <div className="flex items-center gap-3 mb-2">
-          <Headphones className="h-6 w-6 text-blue-600" />
-          <h1 className="text-2xl font-bold text-gray-800">고객 지원</h1>
+          <Headphones className="h-6 w-6 text-emerald-600" />
+          <h1 className="text-2xl font-bold text-white">고객 지원</h1>
         </div>
-        <p className="text-gray-600">
-          궁금한 사항이 있으시면 언제든지 문의해주세요.
+        <p className="text-gray-400">
+          AI 아바타 플랫폼 이용에 궁금한 사항이 있으시면 언제든지 문의해주세요.
         </p>
       </div>
 
@@ -217,30 +218,30 @@ export default function SupportPage() {
 
       {/* 연락처 정보 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card className="text-center">
+        <Card className="bg-gray-800/70 border-gray-600/50 text-center">
           <CardContent className="p-6">
-            <Phone className="h-8 w-8 text-green-600 mx-auto mb-3" />
-            <h3 className="font-medium mb-2">전화 상담</h3>
-            <p className="text-sm text-gray-600 mb-2">1588-1234</p>
-            <p className="text-xs text-gray-500">평일 09:00 - 18:00</p>
+            <Phone className="h-8 w-8 text-green-400 mx-auto mb-3" />
+            <h3 className="font-medium mb-2 text-white">전화 상담</h3>
+            <p className="text-sm text-gray-300 mb-2">1588-1234</p>
+            <p className="text-xs text-gray-400">평일 09:00 - 18:00</p>
           </CardContent>
         </Card>
 
-        <Card className="text-center">
+        <Card className="bg-gray-800/70 border-gray-600/50 text-center">
           <CardContent className="p-6">
-            <Mail className="h-8 w-8 text-blue-600 mx-auto mb-3" />
-            <h3 className="font-medium mb-2">이메일 문의</h3>
-            <p className="text-sm text-gray-600 mb-2">support@carelink.co.kr</p>
-            <p className="text-xs text-gray-500">24시간 접수</p>
+            <Mail className="h-8 w-8 text-blue-400 mx-auto mb-3" />
+            <h3 className="font-medium mb-2 text-white">이메일 문의</h3>
+            <p className="text-sm text-gray-300 mb-2">support@aiavatar.co.kr</p>
+            <p className="text-xs text-gray-400">24시간 접수</p>
           </CardContent>
         </Card>
 
-        <Card className="text-center">
+        <Card className="bg-gray-800/70 border-gray-600/50 text-center">
           <CardContent className="p-6">
-            <MessageCircle className="h-8 w-8 text-purple-600 mx-auto mb-3" />
-            <h3 className="font-medium mb-2">카카오톡 상담</h3>
-            <p className="text-sm text-gray-600 mb-2">@케어링크</p>
-            <p className="text-xs text-gray-500">평일 09:00 - 22:00</p>
+            <MessageCircle className="h-8 w-8 text-purple-400 mx-auto mb-3" />
+            <h3 className="font-medium mb-2 text-white">카카오톡 상담</h3>
+            <p className="text-sm text-gray-300 mb-2">@AI아바타플랫폼</p>
+            <p className="text-xs text-gray-400">평일 09:00 - 22:00</p>
           </CardContent>
         </Card>
       </div>
@@ -248,14 +249,14 @@ export default function SupportPage() {
       {activeTab === "contact" ? (
         /* 문의하기 탭 */
         <div className="space-y-6">
-          <Card>
+          <Card className="bg-gray-800/70 border-gray-600/50">
             <CardHeader>
-              <CardTitle>1:1 문의</CardTitle>
+              <CardTitle className="text-white">1:1 문의</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* 제목 */}
               <div className="space-y-2">
-                <Label htmlFor="subject">제목 *</Label>
+                <Label htmlFor="subject" className="text-white">제목 *</Label>
                 <Input
                   id="subject"
                   placeholder="문의 제목을 입력해주세요"
@@ -266,7 +267,7 @@ export default function SupportPage() {
 
               {/* 카테고리 */}
               <div className="space-y-2">
-                <Label htmlFor="category">카테고리 *</Label>
+                <Label htmlFor="category" className="text-white">카테고리 *</Label>
                 <Select
                   value={ticket.category}
                   onValueChange={(value) =>
@@ -278,8 +279,8 @@ export default function SupportPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="account">계정/로그인</SelectItem>
-                    <SelectItem value="service">서비스 이용</SelectItem>
-                    <SelectItem value="payment">결제</SelectItem>
+                    <SelectItem value="service">AI 아바타 이용</SelectItem>
+                    <SelectItem value="payment">구매/결제</SelectItem>
                     <SelectItem value="cancel">취소/환불</SelectItem>
                     <SelectItem value="technical">기술적 문제</SelectItem>
                     <SelectItem value="other">기타</SelectItem>
@@ -289,7 +290,7 @@ export default function SupportPage() {
 
               {/* 긴급도 */}
               <div className="space-y-2">
-                <Label htmlFor="urgency">긴급도</Label>
+                <Label htmlFor="urgency" className="text-white">긴급도</Label>
                 <Select
                   value={ticket.urgency}
                   onValueChange={(value) => handleInputChange("urgency", value)}
@@ -308,7 +309,7 @@ export default function SupportPage() {
 
               {/* 내용 */}
               <div className="space-y-2">
-                <Label htmlFor="message">내용 *</Label>
+                <Label htmlFor="message" className="text-white">내용 *</Label>
                 <Textarea
                   id="message"
                   placeholder="문의 내용을 자세히 적어주세요&#10;&#10;• 발생한 문제의 상황&#10;• 오류 메시지 (있는 경우)&#10;• 이용 중인 기기 및 브라우저 정보"
@@ -316,7 +317,7 @@ export default function SupportPage() {
                   value={ticket.message}
                   onChange={(e) => handleInputChange("message", e.target.value)}
                 />
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-400">
                   개인정보(주민등록번호, 카드번호 등)는 입력하지 마세요.
                 </p>
               </div>
@@ -385,15 +386,15 @@ export default function SupportPage() {
           </div>
 
           {/* FAQ 목록 */}
-          <Card>
+          <Card className="bg-gray-800/70 border-gray-600/50">
             <CardHeader>
-              <CardTitle>자주 묻는 질문</CardTitle>
+              <CardTitle className="text-white">자주 묻는 질문</CardTitle>
             </CardHeader>
             <CardContent>
               {filteredFAQ.length === 0 ? (
                 <div className="text-center py-8">
                   <HelpCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">검색 결과가 없습니다.</p>
+                  <p className="text-gray-400">검색 결과가 없습니다.</p>
                   <p className="text-sm text-gray-500 mt-1">
                     다른 키워드로 검색하거나 1:1 문의를 이용해주세요.
                   </p>
@@ -404,14 +405,14 @@ export default function SupportPage() {
                     <AccordionItem key={item.id} value={item.id}>
                       <AccordionTrigger className="text-left">
                         <div className="flex items-start gap-3">
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="default" className="text-xs">
                             {item.category}
                           </Badge>
                           <span className="flex-1">{item.question}</span>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent>
-                        <div className="pl-14 text-gray-700">{item.answer}</div>
+                        <div className="pl-14 text-gray-300">{item.answer}</div>
                       </AccordionContent>
                     </AccordionItem>
                   ))}
@@ -421,14 +422,14 @@ export default function SupportPage() {
           </Card>
 
           {/* 추가 도움말 */}
-          <Card>
+          <Card className="bg-gray-800/70 border-gray-600/50">
             <CardContent className="p-6">
               <div className="text-center">
-                <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
-                <h3 className="font-medium text-gray-800 mb-2">
+                <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-4" />
+                <h3 className="font-medium text-white mb-2">
                   원하는 답변을 찾지 못하셨나요?
                 </h3>
-                <p className="text-gray-600 mb-4">
+                <p className="text-gray-400 mb-4">
                   1:1 문의를 통해 더 자세한 도움을 받아보세요.
                 </p>
                 <Button onClick={() => setActiveTab("contact")}>
@@ -442,28 +443,28 @@ export default function SupportPage() {
       )}
 
       {/* 추가 링크 */}
-      <Card className="mt-8">
+      <Card className="bg-gray-800/70 border-gray-600/50 mt-8">
         <CardContent className="p-6">
-          <h3 className="font-medium text-gray-800 mb-4">더 많은 도움말</h3>
+          <h3 className="font-medium text-white mb-4">더 많은 도움말</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Button variant="outline" className="justify-start h-auto p-4">
+            <Button variant="default" className="justify-start h-auto p-4">
               <div className="text-left">
-                <div className="font-medium mb-1">이용 가이드</div>
-                <div className="text-sm text-gray-600">
-                  서비스 이용 방법을 자세히 알아보세요
+                <div className="font-medium mb-1 text-white">이용 가이드</div>
+                <div className="text-sm text-gray-400">
+                  AI 아바타 이용 방법을 자세히 알아보세요
                 </div>
               </div>
               <ExternalLink className="h-4 w-4 ml-auto" />
             </Button>
 
             <Button
-              variant="outline"
+              variant="default"
               className="justify-start h-auto p-4"
               onClick={() => setLocation("/")}
             >
               <div className="text-left">
-                <div className="font-medium mb-1">공지사항</div>
-                <div className="text-sm text-gray-600">
+                <div className="font-medium mb-1 text-white">공지사항</div>
+                <div className="text-sm text-gray-400">
                   최신 소식과 업데이트를 확인하세요
                 </div>
               </div>
@@ -473,5 +474,6 @@ export default function SupportPage() {
         </CardContent>
       </Card>
     </div>
+     </div>
   );
 }

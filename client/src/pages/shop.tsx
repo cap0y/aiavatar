@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingBag, Search, Filter, ArrowUpDown } from "lucide-react";
 import { productAPI } from "@/lib/api";
+import BottomNavigation from "@/components/bottom-navigation";
 
 // 상품 타입에 인증 여부 필드 추가
 interface Product {
@@ -31,8 +32,8 @@ const stripHtml = (html: string): string => {
 // 이미지 URL 처리 함수
 const getImageUrl = (image: any): string => {
   try {
-    // 이미지가 없는 경우 기본 이미지 반환
-    if (!image) return "/images/placeholder-product.png";
+    // 이미지가 없는 경우 첫 번째 기본 이미지 반환
+    if (!image) return "/images/2dmodel/1.png";
     
     // 이미지가 문자열인 경우
     if (typeof image === 'string') {
@@ -79,16 +80,16 @@ const getImageUrl = (image: any): string => {
       if (image.image) return image.image;
     }
     
-    // 기본 이미지
-    return "/images/placeholder-product.png";
+    // 기본 이미지 (실제 존재하는 이미지)
+    return "/images/2dmodel/1.png";
   } catch (error) {
-    console.error("이미지 URL 처리 오류:", error);
-    return "/images/placeholder-product.png";
+    console.warn("이미지 URL 처리 오류, 기본 이미지 사용:", error);
+    return "/images/2dmodel/1.png";
   }
 };
 
-// 상품 카테고리 목록 (AI 아바타 세상)
-const CATEGORIES = [
+// 상품 카테고리 목록 - 실제 데이터베이스와 동일하게 유지
+const DEFAULT_CATEGORIES = [
   "전체",
   "애니메이션 스타일",
   "사실적 스타일", 
@@ -179,37 +180,16 @@ export default function ShopPage({ onProductClick, initialCategory }: ShopPagePr
           }
           return categoryNames;
         }
-        return CATEGORIES; // 오류 시 기본 카테고리 사용
+        return DEFAULT_CATEGORIES; // 오류 시 기본 카테고리 사용
       } catch (error) {
         console.error("카테고리 로드 오류:", error);
-        return CATEGORIES; // 오류 시 기본 카테고리 사용
+        return DEFAULT_CATEGORIES; // 오류 시 기본 카테고리 사용
       }
     },
   });
 
-  // 중복 제거된 카테고리 목록 생성 함수
-  const getUniqueCategories = () => {
-    const categories = categoriesData || CATEGORIES;
-
-    // 디버깅 출력
-    console.log("카테고리 데이터:", JSON.stringify(categories));
-
-    // 각 항목이 객체인 경우 문자열로 변환
-    const processedCategories = categories.map((category: any) => {
-      // 카테고리가 객체인 경우 name 속성 사용
-      if (typeof category === "object" && category !== null) {
-        return category.name || "기타";
-      }
-      // 이미 문자열이면 그대로 반환
-      return category;
-    });
-
-    // 중복 제거
-    return processedCategories.filter(
-      (category: string, index: number, array: string[]) =>
-        array.indexOf(category) === index,
-    );
-  };
+  // 실제 카테고리 목록 사용
+  const categories = categoriesData || DEFAULT_CATEGORIES;
 
   // API 파라미터 생성
   const getQueryParams = () => {
@@ -249,33 +229,24 @@ export default function ShopPage({ onProductClick, initialCategory }: ShopPagePr
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["products", selectedCategory, sortBy, searchTerm],
     queryFn: async () => {
-      try {
-        console.log("상품 데이터 요청 시작:", getQueryParams());
-        const response = await productAPI.getProducts(getQueryParams());
-        console.log("상품 API 응답:", response);
+      console.log("상품 데이터 요청 시작:", getQueryParams());
+      const response = await productAPI.getProducts(getQueryParams());
+      console.log("상품 API 응답:", response);
 
-        // 응답이 배열인 경우 (API가 상품 목록을 직접 반환)
-        if (Array.isArray(response)) {
-          console.log("응답이 배열 형태임:", response.length);
-          return response;
-        }
-        // 응답이 객체인 경우 (API가 { products: [...] } 형태로 반환)
-        else if (
-          response &&
-          response.products &&
-          Array.isArray(response.products)
-        ) {
-          console.log("응답이 객체 형태임:", response.products.length);
-          return response.products;
-        }
-        // 응답이 비어있거나 예상치 못한 형태인 경우 빈 배열 반환
-        console.log("응답이 예상과 다름, 빈 배열 반환");
-        return [];
-      } catch (error) {
-        console.error("상품 로드 오류:", error);
-        // 오류 발생 시에도 빈 배열 반환
-        return [];
+      // 응답이 배열인 경우 (API가 상품 목록을 직접 반환)
+      if (Array.isArray(response)) {
+        console.log("서버에서 상품 데이터 받음:", response.length);
+        return response;
       }
+      // 응답이 객체인 경우 (API가 { products: [...] } 형태로 반환)
+      else if (response && response.products && Array.isArray(response.products)) {
+        console.log("서버에서 상품 데이터 받음 (객체):", response.products.length);
+        return response.products;
+      }
+      
+      // 데이터가 없으면 빈 배열 반환
+      console.log("서버 데이터가 비어있음");
+      return [];
     },
   });
 
@@ -289,8 +260,8 @@ export default function ShopPage({ onProductClick, initialCategory }: ShopPagePr
       return;
     }
     
-    // 2. 직접 페이지 이동 (독립 페이지에서)
-    window.location.href = `/product/${product.id}`;
+    // 2. 직접 페이지 이동 (헤더 + 사이드바 + 네비게이션 모두 포함)
+    setLocation(`/product/${product.id}`);
   };
 
   // 검색이나 필터 변경 시 상품 목록 갱신
@@ -299,43 +270,46 @@ export default function ShopPage({ onProductClick, initialCategory }: ShopPagePr
   }, [selectedCategory, sortBy, searchTerm, refetch]);
 
   return (
-    <div className="h-full bg-gray-800 text-white overflow-y-auto">
-      <div className="container mx-auto px-4 py-6">
-        {/* 카테고리 탭 목록 - 상단에 표시 */}
-        <div className="mb-6 overflow-x-auto">
-          <div className="flex space-x-2 pb-2">
-            {getUniqueCategories().map((category: string) => (
-              <Button
-                key={category}
-                variant={selectedCategory === category ? "default" : "outline"}
-                className={`whitespace-nowrap ${
-                  selectedCategory === category
-                    ? "bg-blue-600 hover:bg-blue-700 text-white"
-                    : "bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600"
-                }`}
-                onClick={() => handleCategoryChange(category)}
-              >
-                {category}
-              </Button>
-            ))}
+    <div className="h-full bg-white dark:bg-[#030303] text-gray-900 dark:text-white overflow-y-auto transition-colors">
+      <div className="container mx-auto px-3 py-4 pb-24">
+        {/* 헤더 영역 */}
+        <div className="mb-4">
+          {/* 상점 타이틀 */}
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
+              <ShoppingBag className="h-5 w-5 text-white" />
+            </div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">AI 아바타 쇼핑몰</h1>
           </div>
-        </div>
-
-        {/* 검색 및 필터 */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="상품명, 태그 검색..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-            />
-          </div>
-          <div className="flex gap-2">
+          
+          {/* 설명 텍스트 */}
+          <p className="text-gray-600 dark:text-gray-300 mb-4 text-sm">
+            당신만의 AI 아바타를 만나보세요. 다양한 스타일의 고품질 아바타를 제공합니다.
+          </p>
+          
+          {/* 검색창과 필터 버튼들 */}
+          <div className="flex gap-2 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
+              <Input
+                placeholder="상품명, 태그 검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-10 bg-white dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] text-gray-900 dark:text-white placeholder-gray-400 rounded-lg"
+              />
+            </div>
             <Button
-              variant="outline"
-              className="flex items-center gap-1 bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+              variant="default"
+              size="sm"
+              className="flex items-center gap-1 bg-gray-200 dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-[#272729] px-3"
+            >
+              <Filter className="h-4 w-4" />
+              전체
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              className="flex items-center gap-1 bg-gray-200 dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-[#272729] px-3"
               onClick={() =>
                 setSortBy(
                   sortBy === "latest"
@@ -356,42 +330,63 @@ export default function ShopPage({ onProductClick, initialCategory }: ShopPagePr
           </div>
         </div>
 
+        {/* 카테고리 태그들 */}
+        <div className="mb-4">
+          <div className="flex flex-wrap gap-2">
+            {categories.map((category: string) => (
+              <Button
+                key={category}
+                variant={selectedCategory === category ? "default" : "outline"}
+                size="sm"
+                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                  selectedCategory === category
+                    ? "bg-purple-600 text-white hover:bg-purple-700 border-purple-600"
+                    : "bg-gray-200 dark:bg-[#1A1A1B] border-gray-300 dark:border-[#272729] text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-[#272729] hover:text-gray-900 dark:hover:text-white"
+                }`}
+                onClick={() => handleCategoryChange(category)}
+              >
+                {category}
+              </Button>
+            ))}
+          </div>
+        </div>
+
         {/* 상품 목록 */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            {[...Array(10)].map((_, i) => (
               <div
                 key={i}
-                className="bg-gray-700 rounded-lg p-4 animate-pulse"
+                className="bg-gray-200 dark:bg-[#1A1A1B] rounded-lg p-3 animate-pulse"
               >
-                <div className="bg-gray-600 h-48 rounded mb-4"></div>
-                <div className="bg-gray-600 h-4 rounded mb-2"></div>
-                <div className="bg-gray-600 h-4 rounded w-3/4"></div>
+                <div className="bg-gray-300 dark:bg-[#272729] h-40 rounded mb-3"></div>
+                <div className="bg-gray-300 dark:bg-[#272729] h-3 rounded mb-2"></div>
+                <div className="bg-gray-300 dark:bg-[#272729] h-3 rounded w-3/4"></div>
               </div>
             ))}
           </div>
         ) : error ? (
-          <div className="text-center py-12">
+          <div className="text-center py-8">
             <p className="text-red-400">상품을 불러오는 중 오류가 발생했습니다.</p>
             <Button
               onClick={() => refetch()}
-              className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+              className="mt-3 bg-blue-600 hover:bg-blue-700 text-white"
             >
               다시 시도
             </Button>
           </div>
         ) : !data || data.length === 0 ? (
-          <div className="text-center py-12">
-            <ShoppingBag className="h-16 w-16 text-gray-500 mx-auto mb-4" />
+          <div className="text-center py-8">
+            <ShoppingBag className="h-12 w-12 text-gray-500 mx-auto mb-3" />
             <p className="text-gray-400 text-lg">해당 카테고리에 상품이 없습니다.</p>
-            <p className="text-gray-500 mt-2">다른 카테고리를 선택해보세요.</p>
+            <p className="text-gray-500 mt-1">다른 카테고리를 선택해보세요.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {data.map((product: Product) => (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            {data.map((product: Product, index: number) => (
               <div
-                key={product.id}
-                className="bg-gray-700 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-600 hover:border-gray-500"
+                key={`${product.id}-${index}`}
+                className="bg-white dark:bg-[#0B0B0B] rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-[#1A1A1B] hover:border-gray-300 dark:hover:border-[#272729]"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -404,10 +399,32 @@ export default function ShopPage({ onProductClick, initialCategory }: ShopPagePr
                   <img
                     src={getImageUrl(product.images)}
                     alt={product.title}
-                    className="w-full h-48 object-cover rounded-t-lg"
+                    className="w-full h-40 object-cover rounded-t-lg"
                     onError={(e) => {
-                      console.log("이미지 로드 실패:", product.title, product.images);
                       const target = e.target as HTMLImageElement;
+                      // 이미 placeholder 이미지인 경우 무한 루프 방지
+                      if (target.src.includes('placeholder-product.png')) {
+                        console.warn("Placeholder 이미지도 로드 실패:", product.title);
+                        // 기본 회색 배경으로 대체
+                        target.style.backgroundColor = '#374151';
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent) {
+                          parent.style.backgroundColor = '#374151';
+                          parent.innerHTML = `
+                            <div class="w-full h-40 bg-gray-600 rounded-t-lg flex items-center justify-center">
+                              <div class="text-gray-400 text-center">
+                                <i class="fas fa-image text-3xl mb-2"></i>
+                                <p class="text-sm">이미지 없음</p>
+                              </div>
+                            </div>
+                          `;
+                        }
+                        return;
+                      }
+                      
+                      // 처음 오류 시에만 로그 출력
+                      console.warn("이미지 로드 실패, placeholder로 교체:", product.title);
                       target.src = "/images/placeholder-product.png";
                     }}
                   />
@@ -438,42 +455,42 @@ export default function ShopPage({ onProductClick, initialCategory }: ShopPagePr
                 </div>
 
                 {/* 상품 정보 */}
-                <div className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-semibold text-white line-clamp-2 flex-1 mr-2">
+                <div className="p-2">
+                  <div className="flex items-start justify-between mb-1">
+                    <h3 className="font-semibold text-gray-900 dark:text-white text-xs line-clamp-2 flex-1 mr-1">
                       {product.title}
                     </h3>
                     <Badge
-                      variant="outline"
-                      className="text-xs shrink-0 border-gray-500 text-gray-300"
+                      variant="default"
+                      className="text-xs shrink-0 border-gray-300 dark:border-gray-500 text-gray-700 dark:text-gray-300 px-1 py-0"
                     >
                       {getCategoryName(product)}
                     </Badge>
                   </div>
 
-                  <p className="text-gray-400 text-sm mb-3 line-clamp-2">
+                  <p className="text-gray-600 dark:text-gray-400 text-xs mb-1 line-clamp-1">
                     {stripHtml(product.description || "")}
                   </p>
 
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mt-1">
                     <div className="flex flex-col">
                       {product.discountPrice ? (
                         <>
-                          <span className="text-gray-500 line-through text-sm">
+                          <span className="text-gray-500 dark:text-gray-600 line-through text-xs">
                             {product.price.toLocaleString()}원
                           </span>
-                          <span className="text-white font-bold">
+                          <span className="text-gray-900 dark:text-white font-bold text-xs">
                             {product.discountPrice.toLocaleString()}원
                           </span>
                         </>
                       ) : (
-                        <span className="text-white font-bold">
+                        <span className="text-gray-900 dark:text-white font-bold text-xs">
                           {product.price.toLocaleString()}원
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center text-sm text-gray-400">
+                    <div className="flex items-center text-xs text-gray-600 dark:text-gray-400">
                       {product.rating && (
                         <>
                           <span className="text-yellow-400">★</span>
@@ -490,6 +507,8 @@ export default function ShopPage({ onProductClick, initialCategory }: ShopPagePr
           </div>
         )}
       </div>
+      
+      <BottomNavigation />
     </div>
   );
 }

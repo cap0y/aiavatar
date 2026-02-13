@@ -1,7 +1,13 @@
 import { io, Socket } from 'socket.io-client';
 
 // 소켓 서버 URL (환경 변수에서 가져오거나 기본값 사용)
-export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || '';
+// 개발 환경에서는 자동으로 localhost:5001 사용
+const isDevelopment = import.meta.env.DEV;
+const defaultSocketUrl = isDevelopment 
+  ? 'http://localhost:5001' 
+  : window.location.origin;
+
+export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || defaultSocketUrl;
 // API URL
 const API_URL = import.meta.env.VITE_API_BASE_URL || SOCKET_URL;
 
@@ -418,6 +424,118 @@ const proceedWithSocketConnection = (
       .catch(reject);
   }, 3000);
 };
+
+// ============================================
+// WebRTC 시그널링 함수들
+// ============================================
+
+// 음성/영상 채널 참여
+export const joinVoiceChannel = (channelId: string, userName: string, photoURL?: string) => {
+  if (!socket) {
+    restoreSocketSession();
+  }
+  
+  if (socket && socket.connected) {
+    console.log(`🎤 음성/영상 채널 참여: ${channelId}`);
+    socket.emit('join_voice_channel', { channelId, userName, photoURL });
+    return true;
+  }
+  
+  console.log('소켓 연결이 없어 채널에 참여할 수 없습니다.');
+  return false;
+};
+
+// 음성/영상 채널 나가기
+export const leaveVoiceChannel = (channelId: string) => {
+  if (socket && socket.connected) {
+    console.log(`👋 음성/영상 채널 나가기: ${channelId}`);
+    socket.emit('leave_voice_channel', { channelId });
+    return true;
+  }
+  return false;
+};
+
+// WebRTC Offer 전송
+export const sendWebRTCOffer = (channelId: string, targetUserId: string, offer: RTCSessionDescriptionInit) => {
+  if (socket && socket.connected) {
+    console.log(`📤 WebRTC Offer 전송: ${targetUserId}`);
+    socket.emit('webrtc_offer', { channelId, targetUserId, offer });
+    return true;
+  }
+  return false;
+};
+
+// WebRTC Answer 전송
+export const sendWebRTCAnswer = (channelId: string, targetUserId: string, answer: RTCSessionDescriptionInit) => {
+  if (socket && socket.connected) {
+    console.log(`📥 WebRTC Answer 전송: ${targetUserId}`);
+    socket.emit('webrtc_answer', { channelId, targetUserId, answer });
+    return true;
+  }
+  return false;
+};
+
+// ICE Candidate 전송
+export const sendICECandidate = (channelId: string, targetUserId: string, candidate: RTCIceCandidateInit) => {
+  if (socket && socket.connected) {
+    socket.emit('webrtc_ice_candidate', { channelId, targetUserId, candidate });
+    return true;
+  }
+  return false;
+};
+
+// WebRTC 이벤트 리스너 등록
+export const onChannelParticipants = (callback: (data: { channelId: string; participants: string[] }) => void) => {
+  if (socket) {
+    socket.on('channel_participants', callback);
+  }
+};
+
+export const onUserJoinedChannel = (callback: (data: { userId: string; userName: string; photoURL?: string }) => void) => {
+  if (socket) {
+    socket.on('user_joined_channel', callback);
+  }
+};
+
+export const onUserLeftChannel = (callback: (data: { userId: string }) => void) => {
+  if (socket) {
+    socket.on('user_left_channel', callback);
+  }
+};
+
+export const onWebRTCOffer = (callback: (data: { channelId: string; fromUserId: string; offer: RTCSessionDescriptionInit }) => void) => {
+  if (socket) {
+    socket.on('webrtc_offer', callback);
+  }
+};
+
+export const onWebRTCAnswer = (callback: (data: { channelId: string; fromUserId: string; answer: RTCSessionDescriptionInit }) => void) => {
+  if (socket) {
+    socket.on('webrtc_answer', callback);
+  }
+};
+
+export const onWebRTCICECandidate = (callback: (data: { channelId: string; fromUserId: string; candidate: RTCIceCandidateInit }) => void) => {
+  if (socket) {
+    socket.on('webrtc_ice_candidate', callback);
+  }
+};
+
+// WebRTC 이벤트 리스너 제거
+export const offWebRTCEvents = () => {
+  if (socket) {
+    socket.off('channel_participants');
+    socket.off('user_joined_channel');
+    socket.off('user_left_channel');
+    socket.off('webrtc_offer');
+    socket.off('webrtc_answer');
+    socket.off('webrtc_ice_candidate');
+  }
+};
+
+// ============================================
+// 기존 채팅 함수들
+// ============================================
 
 // 채팅방 생성
 export const createChatRoom = async (userId: string, targetId: string): Promise<any> => {
