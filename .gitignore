@@ -12,5 +12,4 @@ vite.config.ts.*
 .local/
 .next/
 backup/
-public/personal-avatars/
 public/audio/

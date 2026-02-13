@@ -1,0 +1,73 @@
+{
+  "Version": 3,
+  "FileReferences": {
+    "Moc": "miara_pro_t03.moc3",
+    "Textures": [
+      "miara_pro_t03.4096/texture_00.png"
+    ],
+    "Physics": "miara_pro_t03.physics3.json",
+    "DisplayInfo": "miara_pro_t03.cdi3.json",
+    "Motions": {
+      "Idle": [
+        {
+          "File": "motion/Scene1.motion3.json"
+        }
+      ],
+      "Tap": [
+        {
+          "File": "motion/Scene2.motion3.json"
+        }
+      ],
+      "Flic": [
+        {
+          "File": "motion/Scene3.motion3.json"
+        }
+      ]
+    },
+    "Expressions": [
+      {
+        "Name": "neutral",
+        "File": "expressions/neutral.exp3.json"
+      },
+      {
+        "Name": "joy",
+        "File": "expressions/joy.exp3.json"
+      },
+      {
+        "Name": "sadness",
+        "File": "expressions/sadness.exp3.json"
+      },
+      {
+        "Name": "anger",
+        "File": "expressions/anger.exp3.json"
+      },
+      {
+        "Name": "surprise",
+        "File": "expressions/surprise.exp3.json"
+      },
+      {
+        "Name": "smirk",
+        "File": "expressions/smirk.exp3.json"
+      }
+    ]
+  },
+  "Groups": [
+    {
+      "Target": "Parameter",
+      "Name": "LipSync",
+      "Ids": [
+        "ParamMouthOpenY",
+        "ParamA"
+      ]
+    },
+    {
+      "Target": "Parameter",
+      "Name": "EyeBlink",
+      "Ids": [
+        "ParamEyeLOpen",
+        "ParamEyeROpen"
+      ]
+    }
+  ],
+  "HitAreas": []
+}
