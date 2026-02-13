@@ -1,0 +1,21 @@
+{
+  "Type": "Live2D Expression",
+  "Parameters": [
+    {
+      "Id": "ParamEyeLOpen",
+      "Value": 1.0
+    },
+    {
+      "Id": "ParamEyeROpen",
+      "Value": 1.0
+    },
+    {
+      "Id": "ParamMouthForm",
+      "Value": 0.5
+    },
+    {
+      "Id": "ParamMouthOpenY",
+      "Value": 1.0
+    }
+  ]
+}
