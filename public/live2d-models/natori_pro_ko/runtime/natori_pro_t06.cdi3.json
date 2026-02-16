@@ -1,0 +1,711 @@
+{
+	"Version": 3,
+	"Parameters": [
+		{
+			"Id": "ParamAngleX",
+			"GroupId": "",
+			"Name": "각도 X"
+		},
+		{
+			"Id": "ParamAngleY",
+			"GroupId": "",
+			"Name": "각도 Y"
+		},
+		{
+			"Id": "ParamAngleZ",
+			"GroupId": "",
+			"Name": "각도 Z"
+		},
+		{
+			"Id": "ParamEyeLOpen",
+			"GroupId": "ParamGroupExpression",
+			"Name": "왼쪽 눈 개폐"
+		},
+		{
+			"Id": "ParamEyeLSmile",
+			"GroupId": "ParamGroupExpression",
+			"Name": "왼쪽 눈 웃는 얼굴"
+		},
+		{
+			"Id": "ParamEyeLForm",
+			"GroupId": "ParamGroupExpression",
+			"Name": "왼쪽 눈 변형"
+		},
+		{
+			"Id": "ParamEyeROpen",
+			"GroupId": "ParamGroupExpression",
+			"Name": "오른쪽 눈 개폐"
+		},
+		{
+			"Id": "ParamEyeRSmile",
+			"GroupId": "ParamGroupExpression",
+			"Name": "오른쪽 눈 웃는 얼굴"
+		},
+		{
+			"Id": "ParamEyeRForm",
+			"GroupId": "ParamGroupExpression",
+			"Name": "오른쪽 눈 변형"
+		},
+		{
+			"Id": "ParamEyeBallX",
+			"GroupId": "ParamGroupExpression",
+			"Name": "눈알 X"
+		},
+		{
+			"Id": "ParamEyeBallY",
+			"GroupId": "ParamGroupExpression",
+			"Name": "눈알 Y"
+		},
+		{
+			"Id": "ParamEyeBallForm",
+			"GroupId": "ParamGroupExpression",
+			"Name": "눈알 수축"
+		},
+		{
+			"Id": "ParamBrowLY",
+			"GroupId": "ParamGroupExpression",
+			"Name": "왼쪽 눈썹 위아래"
+		},
+		{
+			"Id": "ParamBrowRY",
+			"GroupId": "ParamGroupExpression",
+			"Name": "오른쪽 눈썹 위아래"
+		},
+		{
+			"Id": "ParamBrowLX",
+			"GroupId": "ParamGroupExpression",
+			"Name": "왼쪽 눈썹 좌우"
+		},
+		{
+			"Id": "ParamBrowRX",
+			"GroupId": "ParamGroupExpression",
+			"Name": "오른쪽 눈썹 좌우"
+		},
+		{
+			"Id": "ParamBrowLAngle",
+			"GroupId": "ParamGroupExpression",
+			"Name": "왼쪽 눈썹 각도"
+		},
+		{
+			"Id": "ParamBrowRAngle",
+			"GroupId": "ParamGroupExpression",
+			"Name": "오른쪽 눈썹 각도"
+		},
+		{
+			"Id": "ParamBrowLForm",
+			"GroupId": "ParamGroupExpression",
+			"Name": "왼쪽 눈썹 변형"
+		},
+		{
+			"Id": "ParamBrowLForm2",
+			"GroupId": "ParamGroupExpression",
+			"Name": "왼쪽 눈썹 변형 2"
+		},
+		{
+			"Id": "ParamBrowRForm",
+			"GroupId": "ParamGroupExpression",
+			"Name": "오른쪽 눈썹 변형"
+		},
+		{
+			"Id": "ParamBrowRForm2",
+			"GroupId": "ParamGroupExpression",
+			"Name": "오른쪽 눈썹 변형 2"
+		},
+		{
+			"Id": "ParamMouthForm",
+			"GroupId": "ParamGroupExpression",
+			"Name": "입 변형"
+		},
+		{
+			"Id": "ParamMouthOpenY",
+			"GroupId": "ParamGroupExpression",
+			"Name": "입 개폐"
+		},
+		{
+			"Id": "ParamMouthForm2",
+			"GroupId": "ParamGroupExpression",
+			"Name": "입 변형 2"
+		},
+		{
+			"Id": "ParamTeethOn",
+			"GroupId": "ParamGroupExpression",
+			"Name": "치아의 표시"
+		},
+		{
+			"Id": "ParamCheek",
+			"GroupId": "ParamGroupExpression",
+			"Name": "홍조"
+		},
+		{
+			"Id": "ParamGlassUD",
+			"GroupId": "ParamGroupExpression",
+			"Name": "안경 상하"
+		},
+		{
+			"Id": "ParamGrassWhite",
+			"GroupId": "ParamGroupExpression",
+			"Name": "안경 흰 부분"
+		},
+		{
+			"Id": "ParamGrassHighlight",
+			"GroupId": "ParamGroupExpression",
+			"Name": "안경 하이라이트 표시"
+		},
+		{
+			"Id": "ParamGrassHighlightMove",
+			"GroupId": "ParamGroupExpression",
+			"Name": "안경 하이라이트 이동"
+		},
+		{
+			"Id": "ParamBodyAngleX",
+			"GroupId": "ParamGroupBody",
+			"Name": "몸의 회전 X"
+		},
+		{
+			"Id": "ParamBodyAngleY",
+			"GroupId": "ParamGroupBody",
+			"Name": "몸의 회전 Y"
+		},
+		{
+			"Id": "ParamBodyAngleZ",
+			"GroupId": "ParamGroupBody",
+			"Name": "몸의 회전 Z"
+		},
+		{
+			"Id": "ParamWaistAngleZ",
+			"GroupId": "ParamGroupBody",
+			"Name": "허리 회전 Z"
+		},
+		{
+			"Id": "ParamBodyPosition",
+			"GroupId": "ParamGroupBody",
+			"Name": "몸의 앞뒤"
+		},
+		{
+			"Id": "ParamBreath",
+			"GroupId": "ParamGroupBody",
+			"Name": "호흡"
+		},
+		{
+			"Id": "ParamLeftShoulderUp",
+			"GroupId": "ParamGroupBody",
+			"Name": "왼쪽 어깨의 위아래"
+		},
+		{
+			"Id": "ParamRightShoulderUp",
+			"GroupId": "ParamGroupBody",
+			"Name": "오른쪽 어깨의 위아래"
+		},
+		{
+			"Id": "ParamAllX",
+			"GroupId": "ParamGroup",
+			"Name": "전체이동 X"
+		},
+		{
+			"Id": "ParamAllY",
+			"GroupId": "ParamGroup",
+			"Name": "전체이동 Y"
+		},
+		{
+			"Id": "ParamAllRotate",
+			"GroupId": "ParamGroup",
+			"Name": "전체 회전"
+		},
+		{
+			"Id": "ParamHairFront",
+			"GroupId": "ParamGroupSway",
+			"Name": "머리 흔들림 앞"
+		},
+		{
+			"Id": "ParamHairSide",
+			"GroupId": "ParamGroupSway",
+			"Name": "머리 흔들림 가로"
+		},
+		{
+			"Id": "ParamHairBack",
+			"GroupId": "ParamGroupSway",
+			"Name": "머리 흔들림 뒤"
+		},
+		{
+			"Id": "ParamHairFrontFuwa",
+			"GroupId": "ParamGroupSway",
+			"Name": "앞머리 볼륨"
+		},
+		{
+			"Id": "ParamHairSideFuwa",
+			"GroupId": "ParamGroupSway",
+			"Name": "옆머리 볼륨"
+		},
+		{
+			"Id": "ParamHairBackFuwa",
+			"GroupId": "ParamGroupSway",
+			"Name": "뒷머리 볼륨"
+		},
+		{
+			"Id": "ParamJacket",
+			"GroupId": "ParamGroupSway",
+			"Name": "재킷 연미의 흔들림"
+		},
+		{
+			"Id": "ParamChainWaist",
+			"GroupId": "ParamGroupSway",
+			"Name": "체인 A의 흔들림"
+		},
+		{
+			"Id": "ParamWatchSwingA1",
+			"GroupId": "ParamGroupSway",
+			"Name": "시계 A 흔들림1"
+		},
+		{
+			"Id": "ParamWatchSwingA2",
+			"GroupId": "ParamGroupSway",
+			"Name": "시계 A 흔들림2"
+		},
+		{
+			"Id": "ParamWatchBChain",
+			"GroupId": "ParamGroupSway",
+			"Name": "시계 B 체인 흔들림"
+		},
+		{
+			"Id": "ParamWatchAX",
+			"GroupId": "ParamGroup8",
+			"Name": "시계 A 가로회전"
+		},
+		{
+			"Id": "ParamWatchBSwitch",
+			"GroupId": "ParamGroup9",
+			"Name": "시계 B 스위치"
+		},
+		{
+			"Id": "ParamWatchBOpen",
+			"GroupId": "ParamGroup9",
+			"Name": "시계B 뚜껑 개폐"
+		},
+		{
+			"Id": "ParamWatchBOpen2",
+			"GroupId": "ParamGroup9",
+			"Name": "시계 B 안쪽 개폐"
+		},
+		{
+			"Id": "ParamWatchBX",
+			"GroupId": "ParamGroup9",
+			"Name": "시계 B 가로회전"
+		},
+		{
+			"Id": "ParamWatchBRoll",
+			"GroupId": "ParamGroup9",
+			"Name": "시계 B 회전"
+		},
+		{
+			"Id": "ParamWatchBLR",
+			"GroupId": "ParamGroup9",
+			"Name": "시계 B 좌우"
+		},
+		{
+			"Id": "ParamWatchBUD",
+			"GroupId": "ParamGroup9",
+			"Name": "시계 B 상하"
+		},
+		{
+			"Id": "ParamArmAL01",
+			"GroupId": "ParamGroup3",
+			"Name": "왼팔 A 어깨"
+		},
+		{
+			"Id": "ParamArmAL02",
+			"GroupId": "ParamGroup3",
+			"Name": "왼쪽 어깨 A 팔꿈치 회전"
+		},
+		{
+			"Id": "ParamArmAL03",
+			"GroupId": "ParamGroup3",
+			"Name": "왼팔 A 손목"
+		},
+		{
+			"Id": "ParamArmAL04",
+			"GroupId": "ParamGroup3",
+			"Name": "왼팔 A 앞팔 앞뒤"
+		},
+		{
+			"Id": "ParamArmAR01",
+			"GroupId": "ParamGroup2",
+			"Name": "오른팔 A 어깨의 회전"
+		},
+		{
+			"Id": "ParamArmAR02",
+			"GroupId": "ParamGroup2",
+			"Name": "오른팔 A 팔꿈치 회전"
+		},
+		{
+			"Id": "ParamArmAR03",
+			"GroupId": "ParamGroup2",
+			"Name": "오른팔 A 손목회전"
+		},
+		{
+			"Id": "ParamArmAR04",
+			"GroupId": "ParamGroup2",
+			"Name": "오른팔 A 전완의 전후"
+		},
+		{
+			"Id": "ParamArmBR01",
+			"GroupId": "ParamGroup4",
+			"Name": "오른팔 B 어깨 회전"
+		},
+		{
+			"Id": "ParamArmBR02",
+			"GroupId": "ParamGroup4",
+			"Name": "오른팔 B 팔꿈치의 회전"
+		},
+		{
+			"Id": "ParamArmBR03",
+			"GroupId": "ParamGroup4",
+			"Name": "오른팔 B 손목 회전"
+		},
+		{
+			"Id": "ParamArmBRHand01",
+			"GroupId": "ParamGroup4",
+			"Name": "오른손01 표시"
+		},
+		{
+			"Id": "ParamArmBRHand01Roll",
+			"GroupId": "ParamGroup4",
+			"Name": "오른손 01 손가락 굽히기"
+		},
+		{
+			"Id": "ParamArmBRHand05",
+			"GroupId": "ParamGroup4",
+			"Name": "오른손 05 표시"
+		},
+		{
+			"Id": "ParamArmBRHand05Roll1",
+			"GroupId": "ParamGroup4",
+			"Name": "오른손 05 손가락 굽히기 1"
+		},
+		{
+			"Id": "ParamArmBRHand05Roll2",
+			"GroupId": "ParamGroup4",
+			"Name": "오른손 05 손가락 굽히기 2"
+		},
+		{
+			"Id": "ParamArmBRHand05Roll3",
+			"GroupId": "ParamGroup4",
+			"Name": "오른손 05 손가락 굽히기 3"
+		},
+		{
+			"Id": "ParamArmCR01",
+			"GroupId": "ParamGroup5",
+			"Name": "왼팔 C 어깨회전"
+		},
+		{
+			"Id": "ParamArmCR02",
+			"GroupId": "ParamGroup5",
+			"Name": "왼팔 C 팔꿈치의 회전"
+		},
+		{
+			"Id": "ParamArmCR03",
+			"GroupId": "ParamGroup5",
+			"Name": "왼팔 C 손목회전"
+		},
+		{
+			"Id": "ParamArmCLHandRoll1",
+			"GroupId": "ParamGroup5",
+			"Name": "왼손 C 손가락 굽히기 1"
+		},
+		{
+			"Id": "ParamArmDL01",
+			"GroupId": "ParamGroup6",
+			"Name": "왼팔 D 어깨회전"
+		},
+		{
+			"Id": "ParamArmDL02",
+			"GroupId": "ParamGroup6",
+			"Name": "왼팔 D 팔꿈치 회전"
+		},
+		{
+			"Id": "ParamArmDL03",
+			"GroupId": "ParamGroup6",
+			"Name": "왼팔 D 손목회전"
+		},
+		{
+			"Id": "ParamArmDLHand03Roll",
+			"GroupId": "ParamGroup6",
+			"Name": "왼손 03 손가락 굽히기"
+		},
+		{
+			"Id": "ParamArmER01",
+			"GroupId": "ParamGroup7",
+			"Name": "오른팔 E 어깨회전"
+		},
+		{
+			"Id": "ParamArmER02",
+			"GroupId": "ParamGroup7",
+			"Name": "오른팔 E 팔꿈치 회전"
+		},
+		{
+			"Id": "ParamArmER03",
+			"GroupId": "ParamGroup7",
+			"Name": "오른팔 E 손목회전"
+		},
+		{
+			"Id": "ParamArmER04",
+			"GroupId": "ParamGroup7",
+			"Name": "오른팔 E 상완의 길이"
+		},
+		{
+			"Id": "ParamArmERHand04",
+			"GroupId": "ParamGroup7",
+			"Name": "오른손 04 표시"
+		},
+		{
+			"Id": "ParamArmERHand04Roll1",
+			"GroupId": "ParamGroup7",
+			"Name": "오른손 04 손가락 굽히기 1"
+		},
+		{
+			"Id": "ParamArmERHand04Roll2",
+			"GroupId": "ParamGroup7",
+			"Name": "오른손 04 손가락 굽히기 2"
+		},
+		{
+			"Id": "ParamArmERHand06",
+			"GroupId": "ParamGroup7",
+			"Name": "오른손 06 표시"
+		},
+		{
+			"Id": "ParamArmERHand06Roll1",
+			"GroupId": "ParamGroup7",
+			"Name": "오른손 06 손가락 굽히기 1"
+		},
+		{
+			"Id": "ParamArmERHand06Roll2",
+			"GroupId": "ParamGroup7",
+			"Name": "오른손 06 손가락 굽히기 2"
+		}
+	],
+	"ParameterGroups": [
+		{
+			"Id": "ParamGroupExpression",
+			"GroupId": "",
+			"Name": "표정"
+		},
+		{
+			"Id": "ParamGroupBody",
+			"GroupId": "",
+			"Name": "몸"
+		},
+		{
+			"Id": "ParamGroup",
+			"GroupId": "",
+			"Name": "전체이동"
+		},
+		{
+			"Id": "ParamGroupSway",
+			"GroupId": "",
+			"Name": "흔들림"
+		},
+		{
+			"Id": "ParamGroup8",
+			"GroupId": "",
+			"Name": "회중시계 A"
+		},
+		{
+			"Id": "ParamGroup9",
+			"GroupId": "",
+			"Name": "회중시계 B"
+		},
+		{
+			"Id": "ParamGroup3",
+			"GroupId": "",
+			"Name": "왼팔 A"
+		},
+		{
+			"Id": "ParamGroup2",
+			"GroupId": "",
+			"Name": "오른팔 A"
+		},
+		{
+			"Id": "ParamGroup4",
+			"GroupId": "",
+			"Name": "오른팔 B"
+		},
+		{
+			"Id": "ParamGroup5",
+			"GroupId": "",
+			"Name": "왼팔 C"
+		},
+		{
+			"Id": "ParamGroup6",
+			"GroupId": "",
+			"Name": "왼팔D"
+		},
+		{
+			"Id": "ParamGroup7",
+			"GroupId": "",
+			"Name": "오른팔 E"
+		}
+	],
+	"Parts": [
+		{
+			"Id": "PartCredit",
+			"Name": "크레딧"
+		},
+		{
+			"Id": "PartCore",
+			"Name": "CORE"
+		},
+		{
+			"Id": "PartGlass",
+			"Name": "안경"
+		},
+		{
+			"Id": "PartWatchA",
+			"Name": "회중시계_A"
+		},
+		{
+			"Id": "PartWatchB",
+			"Name": "회중시계_B"
+		},
+		{
+			"Id": "PartHairFront",
+			"Name": "앞머리"
+		},
+		{
+			"Id": "PartHead",
+			"Name": "머리"
+		},
+		{
+			"Id": "PartUpperBody",
+			"Name": "상반신"
+		},
+		{
+			"Id": "PartHairBack",
+			"Name": "뒷머리"
+		},
+		{
+			"Id": "PartLowerBody",
+			"Name": "하반신"
+		},
+		{
+			"Id": "PartArmAL",
+			"Name": "왼팔 A"
+		},
+		{
+			"Id": "PartArmAR",
+			"Name": "오른팔 A"
+		},
+		{
+			"Id": "PartArmBR",
+			"Name": "오른팔 B"
+		},
+		{
+			"Id": "PartArmCL",
+			"Name": "왼팔 C"
+		},
+		{
+			"Id": "PartArmDL",
+			"Name": "왼팔D"
+		},
+		{
+			"Id": "PartArmER",
+			"Name": "오른팔 E"
+		},
+		{
+			"Id": "PartEyeBlow",
+			"Name": "눈썹"
+		},
+		{
+			"Id": "PartEyeR",
+			"Name": "오른쪽 눈"
+		},
+		{
+			"Id": "PartEyeL",
+			"Name": "왼쪽 눈"
+		},
+		{
+			"Id": "PartHairLine",
+			"Name": "머리카락이 난 곳"
+		},
+		{
+			"Id": "PartHairShadow",
+			"Name": "그림자"
+		},
+		{
+			"Id": "PartNose",
+			"Name": "코"
+		},
+		{
+			"Id": "PartMouth",
+			"Name": "입"
+		},
+		{
+			"Id": "PartJacket",
+			"Name": "쟈켓"
+		},
+		{
+			"Id": "PartArmALFore",
+			"Name": "왼팔 A 전완"
+		},
+		{
+			"Id": "PartArmARFore",
+			"Name": "오른팔 A 팔뚝"
+		},
+		{
+			"Id": "PartHand11",
+			"Name": "장갑_1"
+		},
+		{
+			"Id": "PartHand51",
+			"Name": "장갑_5"
+		},
+		{
+			"Id": "PartHand21",
+			"Name": "장갑_2"
+		},
+		{
+			"Id": "PartHand31",
+			"Name": "장갑_3"
+		},
+		{
+			"Id": "PartHand41",
+			"Name": "장갑_4"
+		},
+		{
+			"Id": "PartHand61",
+			"Name": "장갑_6"
+		}
+	],
+	"CombinedParameters": [
+		[
+			"ParamAngleX",
+			"ParamAngleY"
+		],
+		[
+			"ParamEyeBallX",
+			"ParamEyeBallY"
+		],
+		[
+			"ParamMouthForm",
+			"ParamMouthOpenY"
+		],
+		[
+			"ParamBodyAngleX",
+			"ParamBodyAngleY"
+		],
+		[
+			"ParamLeftShoulderUp",
+			"ParamRightShoulderUp"
+		],
+		[
+			"ParamAllX",
+			"ParamAllY"
+		],
+		[
+			"ParamWatchSwingA1",
+			"ParamWatchSwingA2"
+		],
+		[
+			"ParamWatchBLR",
+			"ParamWatchBUD"
+		]
+	]
+}
