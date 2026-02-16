@@ -177,12 +177,23 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
   // 부드러운 보간을 위한 이전 값 ref
   const prevBodyRef = useRef<{
     bodyAngleX: number; bodyAngleY: number; bodyAngleZ: number;
-    armL: number; armR: number;
-  }>({ bodyAngleX: 0, bodyAngleY: 0, bodyAngleZ: 0, armL: 0, armR: 0 });
+    armL: number; armR: number; armLB: number; armRB: number;
+    handL: number; handR: number; handLB: number; handRB: number;
+    shoulder: number; leg: number;
+  }>({
+    bodyAngleX: 0, bodyAngleY: 0, bodyAngleZ: 0,
+    armL: 0, armR: 0, armLB: 0, armRB: 0,
+    handL: 0, handR: 0, handLB: 0, handRB: 0,
+    shoulder: 0, leg: 0,
+  });
 
   // 보간 유틸 (부드러운 전환)
   const lerp = (current: number, target: number, factor: number) =>
     current + (target - current) * factor;
+
+  // 값을 지정된 범위로 클램핑
+  const clamp = (value: number, min: number, max: number) =>
+    Math.max(min, Math.min(max, value));
 
   // ===== 얼굴 모션 캡처 데이터를 Live2D 모델에 적용 =====
   useEffect(() => {
@@ -238,23 +249,40 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
     try {
       const core = model.internalModel.coreModel;
       const prev = prevBodyRef.current;
-      const smoothing = 0.4; // 보간 팩터 (낮을수록 부드러움)
+      const smoothing = 0.35; // 보간 팩터 (낮을수록 부드러움)
 
-      // --- 몸통 회전 ---
-      // Kalidokit Spine은 라디안이므로 도(degree)로 변환 후 적절한 범위로 매핑
-      const bodyAngleX = lerp(prev.bodyAngleX, bodyPose.spine.x * 15, smoothing);
-      const bodyAngleY = lerp(prev.bodyAngleY, bodyPose.spine.y * 15, smoothing);
-      const bodyAngleZ = lerp(prev.bodyAngleZ, bodyPose.spine.z * 15, smoothing);
+      // ============================
+      // --- 1) 몸통 회전 ---
+      // Kalidokit Spine 값은 라디안 (-1 ~ 1 범위)
+      // ParamBodyAngleX/Y/Z 범위: 약 -10 ~ 10
+      // ============================
+      const bodyAngleX = lerp(prev.bodyAngleX, clamp(bodyPose.spine.x * 20, -10, 10), smoothing);
+      const bodyAngleY = lerp(prev.bodyAngleY, clamp(bodyPose.spine.y * 20, -10, 10), smoothing);
+      const bodyAngleZ = lerp(prev.bodyAngleZ, clamp(bodyPose.spine.z * 20, -10, 10), smoothing);
 
       core.setParameterValueById('ParamBodyAngleX', bodyAngleX);
       core.setParameterValueById('ParamBodyAngleY', bodyAngleY);
       core.setParameterValueById('ParamBodyAngleZ', bodyAngleZ);
 
-      // --- 팔 ---
-      // 상완 Y축 회전으로 팔 올림/내림 매핑 (라디안 → 0~1 범위)
-      // 팔을 내리면 ~0, 올리면 ~1
-      const leftArmRaw = Math.max(0, Math.min(1, (bodyPose.leftUpperArm.y + 1) / 2));
-      const rightArmRaw = Math.max(0, Math.min(1, (bodyPose.rightUpperArm.y + 1) / 2));
+      // ============================
+      // --- 2) 어깨 ---
+      // ParamShoulder: 어깨 움츠림 (0 ~ 1)
+      // 양 어깨의 Y축 평균으로 계산
+      // ============================
+      const shoulderRaw = clamp(
+        (Math.abs(bodyPose.leftUpperArm.z) + Math.abs(bodyPose.rightUpperArm.z)) / 2,
+        0, 1
+      );
+      const shoulder = lerp(prev.shoulder, shoulderRaw, smoothing);
+      core.setParameterValueById('ParamShoulder', shoulder);
+
+      // ============================
+      // --- 3) 팔 (상완 A / 하완 B) ---
+      // ParamArmLA/RA: 팔 올림/내림 (0 ~ 1, 0=내림, 1=올림)
+      // Kalidokit UpperArm.z: 팔을 올리면 값이 커짐
+      // ============================
+      const leftArmRaw = clamp(1.0 - (bodyPose.leftUpperArm.z + Math.PI / 2) / Math.PI, 0, 1);
+      const rightArmRaw = clamp(1.0 - (bodyPose.rightUpperArm.z + Math.PI / 2) / Math.PI, 0, 1);
 
       const armL = lerp(prev.armL, leftArmRaw, smoothing);
       const armR = lerp(prev.armR, rightArmRaw, smoothing);
@@ -262,24 +290,65 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
       core.setParameterValueById('ParamArmLA', armL);
       core.setParameterValueById('ParamArmRA', armR);
 
-      // 보조 팔 파라미터 (모델에 있는 경우)
-      const leftLowerArmAngle = Math.max(0, Math.min(1, (bodyPose.leftLowerArm.y + 1) / 2));
-      const rightLowerArmAngle = Math.max(0, Math.min(1, (bodyPose.rightLowerArm.y + 1) / 2));
-      core.setParameterValueById('ParamArmLB', leftLowerArmAngle);
-      core.setParameterValueById('ParamArmRB', rightLowerArmAngle);
+      // ParamArmLB/RB: 하완(팔꿈치 아래) (0 ~ 1)
+      const leftLowerArmRaw = clamp(Math.abs(bodyPose.leftLowerArm.y) / Math.PI, 0, 1);
+      const rightLowerArmRaw = clamp(Math.abs(bodyPose.rightLowerArm.y) / Math.PI, 0, 1);
 
-      // --- 손 위치 (포즈 기반) ---
-      core.setParameterValueById('ParamHandL', bodyPose.leftHand.y);
-      core.setParameterValueById('ParamHandR', bodyPose.rightHand.y);
+      const armLB = lerp(prev.armLB, leftLowerArmRaw, smoothing);
+      const armRB = lerp(prev.armRB, rightLowerArmRaw, smoothing);
+
+      core.setParameterValueById('ParamArmLB', armLB);
+      core.setParameterValueById('ParamArmRB', armRB);
+
+      // ============================
+      // --- 4) 손 위치 + 손 회전 ---
+      // ParamHandL/R: 손 위치 (0 ~ 1)
+      // ParamHandLB/RB: 손 회전 (-1 ~ 1)
+      // ============================
+      const handLRaw = clamp((bodyPose.leftHand.y + 1) / 2, 0, 1);
+      const handRRaw = clamp((bodyPose.rightHand.y + 1) / 2, 0, 1);
+
+      const handL = lerp(prev.handL, handLRaw, smoothing);
+      const handR = lerp(prev.handR, handRRaw, smoothing);
+
+      core.setParameterValueById('ParamHandL', handL);
+      core.setParameterValueById('ParamHandR', handR);
+
+      // 손 회전 (z축 = 손목 비틀기)
+      const handLBRaw = clamp(bodyPose.leftHand.z, -1, 1);
+      const handRBRaw = clamp(bodyPose.rightHand.z, -1, 1);
+
+      const handLB = lerp(prev.handLB, handLBRaw, smoothing);
+      const handRB = lerp(prev.handRB, handRBRaw, smoothing);
+
+      core.setParameterValueById('ParamHandLB', handLB);
+      core.setParameterValueById('ParamHandRB', handRB);
+
+      // ============================
+      // --- 5) 다리 ---
+      // ParamLeg: 다리 움직임 (0 ~ 1)
+      // 양다리 상완(허벅지) 각도의 평균
+      // ============================
+      const legRaw = clamp(
+        (Math.abs(bodyPose.leftUpperLeg.x) + Math.abs(bodyPose.rightUpperLeg.x)) / Math.PI,
+        0, 1
+      );
+      const leg = lerp(prev.leg, legRaw, smoothing);
+      core.setParameterValueById('ParamLeg', leg);
 
       // 이전 값 업데이트
-      prevBodyRef.current = { bodyAngleX, bodyAngleY, bodyAngleZ, armL, armR };
+      prevBodyRef.current = {
+        bodyAngleX, bodyAngleY, bodyAngleZ,
+        armL, armR, armLB, armRB,
+        handL, handR, handLB, handRB,
+        shoulder, leg,
+      };
     } catch (err) {
       // 파라미터가 없는 모델에서는 무시
     }
   }, [bodyPose, isMotionCaptureEnabled, trackingMode]);
 
-  // ===== 손 상세 모션 캡처 데이터를 Live2D 모델에 적용 =====
+  // ===== 손 상세 모션 캡처 (full-body 모드: HandLandmarker 결과) =====
   useEffect(() => {
     if (!isMotionCaptureEnabled || !handPose || !live2dModelRef.current) return;
     if (trackingMode !== 'full-body') return;
@@ -290,26 +359,23 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
     try {
       const core = model.internalModel.coreModel;
 
-      // 왼손 손가락 curl (모델에 파라미터가 있는 경우)
+      // HandLandmarker의 상세 손 데이터를 손 파라미터에 추가 매핑
+      // 손가락을 쥐면(curl 값 높음) → ParamHandL/R 값 증가
+      // 손가락을 펼치면 → ParamHandL/R 값 감소
       if (handPose.left) {
-        core.setParameterValueById('ParamHandLThumb', handPose.left.thumb);
-        core.setParameterValueById('ParamHandLIndex', handPose.left.index);
-        core.setParameterValueById('ParamHandLMiddle', handPose.left.middle);
-        core.setParameterValueById('ParamHandLRing', handPose.left.ring);
-        core.setParameterValueById('ParamHandLLittle', handPose.left.little);
-        // 손목 회전
-        core.setParameterValueById('ParamWristL', handPose.left.wrist.z);
+        // 전체 손가락 curl 평균 → 주먹 쥔 정도
+        const leftGrip = (handPose.left.thumb + handPose.left.index +
+          handPose.left.middle + handPose.left.ring + handPose.left.little) / 5;
+        core.setParameterValueById('ParamHandL', clamp(leftGrip, 0, 1));
+        // 손목 z축 회전 → 손 회전 B
+        core.setParameterValueById('ParamHandLB', clamp(handPose.left.wrist.z, -1, 1));
       }
 
-      // 오른손 손가락 curl
       if (handPose.right) {
-        core.setParameterValueById('ParamHandRThumb', handPose.right.thumb);
-        core.setParameterValueById('ParamHandRIndex', handPose.right.index);
-        core.setParameterValueById('ParamHandRMiddle', handPose.right.middle);
-        core.setParameterValueById('ParamHandRRing', handPose.right.ring);
-        core.setParameterValueById('ParamHandRLittle', handPose.right.little);
-        // 손목 회전
-        core.setParameterValueById('ParamWristR', handPose.right.wrist.z);
+        const rightGrip = (handPose.right.thumb + handPose.right.index +
+          handPose.right.middle + handPose.right.ring + handPose.right.little) / 5;
+        core.setParameterValueById('ParamHandR', clamp(rightGrip, 0, 1));
+        core.setParameterValueById('ParamHandRB', clamp(handPose.right.wrist.z, -1, 1));
       }
     } catch (err) {
       // 파라미터가 없는 모델에서는 무시
