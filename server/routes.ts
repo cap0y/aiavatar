@@ -23,89 +23,18 @@ import { db } from "./db.js";
 import bcrypt from "bcryptjs";
 import modelEditorRouter from "./routes/model-editor.js";
 import feedRouter from "./routes/feed.js";
+import { uploadToCloudinary } from "./cloudinary.js";
 
-// 이미지 업로드 디렉토리 설정
-const imageUploadDir = path.join(process.cwd(), "public", "images");
-if (!fs.existsSync(imageUploadDir)) {
-  fs.mkdirSync(imageUploadDir, { recursive: true });
-}
+// Cloudinary를 사용하므로 메모리 스토리지 사용
+const memoryStorage = multer.memoryStorage();
 
-// 프로필 이미지 전용 디렉토리 생성
-const profileImageUploadDir = path.join(imageUploadDir, "profile");
-if (!fs.existsSync(profileImageUploadDir)) {
-  fs.mkdirSync(profileImageUploadDir, { recursive: true });
-}
-
-// 상품 이미지 전용 디렉토리 생성
-const itemImageUploadDir = path.join(imageUploadDir, "item");
-if (!fs.existsSync(itemImageUploadDir)) {
-  fs.mkdirSync(itemImageUploadDir, { recursive: true });
-}
-
-// 채팅 이미지 전용 디렉토리 생성
-const chatImageUploadDir = path.join(imageUploadDir, "chat");
-if (!fs.existsSync(chatImageUploadDir)) {
-  fs.mkdirSync(chatImageUploadDir, { recursive: true });
-}
-
-// 작품 완료 파일 전용 디렉토리 생성
-const completionFileUploadDir = path.join(imageUploadDir, "completion");
-if (!fs.existsSync(completionFileUploadDir)) {
-  fs.mkdirSync(completionFileUploadDir, { recursive: true });
-}
-
-// 주문 상품 배송용 디지털 파일 디렉토리 생성
-const orderFileUploadDir = path.join(imageUploadDir, "order-files");
-if (!fs.existsSync(orderFileUploadDir)) {
-  fs.mkdirSync(orderFileUploadDir, { recursive: true });
-}
-
-// Multer 설정
-const storage_multer = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // 요청 경로에 따라 저장 폴더 결정
-    if (req.path === "/api/upload/product-image") {
-      cb(null, itemImageUploadDir);
-    } else if (req.path === "/api/upload") {
-      cb(null, profileImageUploadDir);
-    } else if (req.path === "/api/upload/chat-image") {
-      cb(null, chatImageUploadDir);
-    } else if (req.path === "/api/upload/completion-file") {
-      cb(null, completionFileUploadDir);
-    } else if (req.path === "/api/upload/order-file") {
-      cb(null, orderFileUploadDir);
-    } else {
-      cb(null, imageUploadDir);
-    }
-  },
-  filename: (req, file, cb) => {
-    // 고유한 파일명 생성 (타임스탬프 + 랜덤문자 + 확장자)
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-
-    // completion-file 또는 order-file의 경우 원본 파일명 보존
-    if (
-      req.path === "/api/upload/completion-file" ||
-      req.path === "/api/upload/order-file"
-    ) {
-      const safeFilename = file.originalname.replace(
-        /[^a-zA-Z0-9가-힣._-]/g,
-        "_",
-      );
-      cb(null, `${uniqueSuffix}-${safeFilename}`);
-    } else {
-      cb(null, `image-${uniqueSuffix}${ext}`);
-    }
-  },
-});
-
+// 이미지 업로드용 Multer (메모리 → Cloudinary)
 const upload = multer({
-  storage: storage_multer,
+  storage: memoryStorage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB 제한
+    fileSize: 10 * 1024 * 1024, // 10MB 제한
   },
   fileFilter: (req, file, cb) => {
-    // 이미지 파일만 허용
     if (file.mimetype.startsWith("image/")) {
       cb(null, true);
     } else {
@@ -114,38 +43,21 @@ const upload = multer({
   },
 });
 
-// 작품 완료 파일 전용 Multer (다양한 파일 형식 허용)
+// 작품 완료 / 주문 파일 전용 Multer (다양한 파일 형식 허용)
 const uploadCompletionFile = multer({
-  storage: storage_multer,
+  storage: memoryStorage,
   limits: {
     fileSize: 100 * 1024 * 1024, // 100MB 제한
   },
   fileFilter: (req, file, cb) => {
-    // 허용된 MIME 타입 목록
     const allowedMimeTypes = [
-      // 압축 파일
-      "application/zip",
-      "application/x-zip-compressed",
-      "application/x-rar-compressed",
-      "application/x-7z-compressed",
-      "application/x-tar",
-      "application/gzip",
-      // 이미지
-      "image/png",
-      "image/jpeg",
-      "image/jpg",
-      "image/gif",
-      "image/webp",
-      // 비디오
-      "video/mp4",
-      "video/quicktime",
-      "video/x-msvideo",
-      // 디자인 파일
-      "application/pdf",
-      "application/x-photoshop",
-      "image/vnd.adobe.photoshop",
-      "application/postscript",
-      // 기타
+      "application/zip", "application/x-zip-compressed",
+      "application/x-rar-compressed", "application/x-7z-compressed",
+      "application/x-tar", "application/gzip",
+      "image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp",
+      "video/mp4", "video/quicktime", "video/x-msvideo",
+      "application/pdf", "application/x-photoshop",
+      "image/vnd.adobe.photoshop", "application/postscript",
       "application/octet-stream",
     ];
 
@@ -163,71 +75,20 @@ const uploadCompletionFile = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<void> {
-  // 정적 파일 서빙 설정 (images 폴더)
-  app.use(
-    "/images",
-    (req, res, next) => {
-      // CORS 헤더 추가
-      res.header("Access-Control-Allow-Origin", "*");
-      res.header("Access-Control-Allow-Methods", "GET");
-      res.header("Access-Control-Allow-Headers", "Content-Type");
-      next();
-    },
-    express.static(imageUploadDir),
-  );
-
-  // 피드 미디어 폴더 정적 파일 서빙
-  const feedMediaDir = path.join(process.cwd(), "public", "feed-media");
-  app.use(
-    "/feed-media",
-    (req, res, next) => {
-      res.header("Access-Control-Allow-Origin", "*");
-      res.header("Access-Control-Allow-Methods", "GET");
-      res.header("Access-Control-Allow-Headers", "Content-Type");
-      next();
-    },
-    express.static(feedMediaDir),
-  );
-
-  // /aiavatar/feed-media/* 경로를 Windows 서버로 프록시 (HTTPS 환경에서 Mixed Content 방지)
-  app.use("/aiavatar/feed-media", async (req, res, next) => {
-    try {
-      // 요청 경로에서 파일명 추출
-      const filePath = req.path.startsWith('/') ? req.path.substring(1) : req.path;
-      const proxyUrl = `http://115.160.0.166:3008/aiavatar/feed-media/${filePath}`;
-      
-      console.log(`🔄 피드 미디어 프록시: ${req.path} → ${proxyUrl}`);
-      
-      const response = await axios.get(proxyUrl, {
-        responseType: 'stream',
-        timeout: 30000,
-        validateStatus: (status) => status < 500, // 4xx는 에러로 처리하지 않음
-      });
-      
-      // Content-Type 설정
-      if (response.headers['content-type']) {
-        res.setHeader('Content-Type', response.headers['content-type']);
-      }
-      
-      // CORS 헤더 설정
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Cache-Control', 'public, max-age=31536000');
-      
-      // 상태 코드 전달
-      res.status(response.status);
-      
-      // 스트림으로 응답 전송
-      response.data.pipe(res);
-    } catch (error: any) {
-      console.error(`❌ 피드 미디어 프록시 실패: ${req.path}`, error.message);
-      if (!res.headersSent) {
-        res.status(error.response?.status || 500).json({ 
-          error: 'Failed to proxy media file',
-          message: error.message 
-        });
-      }
-    }
-  });
+  // 정적 파일 서빙 (로컬 public 폴더 - 기존 호환용)
+  const imageUploadDir = path.join(process.cwd(), "public", "images");
+  if (fs.existsSync(imageUploadDir)) {
+    app.use(
+      "/images",
+      (req, res, next) => {
+        res.header("Access-Control-Allow-Origin", "*");
+        res.header("Access-Control-Allow-Methods", "GET");
+        res.header("Access-Control-Allow-Headers", "Content-Type");
+        next();
+      },
+      express.static(imageUploadDir),
+    );
+  }
 
   // 결제 라우트 등록
   registerPaymentRoutes(app);
@@ -271,10 +132,12 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
-  // 이미지 업로드 API
+  // ==================== Cloudinary 이미지 업로드 API ====================
+
+  // 프로필 이미지 업로드 → Cloudinary
   app.post("/api/upload", upload.single("image"), async (req, res) => {
     try {
-      console.log("🖼️ 프로필 이미지 업로드 요청 받음");
+      console.log("🖼️ 프로필 이미지 업로드 요청 받음 (Cloudinary)");
 
       if (!req.file) {
         return res
@@ -282,20 +145,16 @@ export async function registerRoutes(app: Express): Promise<void> {
           .json({ error: "이미지가 업로드되지 않았습니다." });
       }
 
-      // 이미지 URL 생성 (쇼핑몰과 동일한 형식)
-      const imageUrl = `/images/profile/${req.file.filename}`;
+      const result = await uploadToCloudinary(req.file.buffer, "profile");
 
-      console.log("🖼️ 프로필 이미지 업로드 성공:", {
+      console.log("✅ 프로필 이미지 Cloudinary 업로드 성공:", {
         originalName: req.file.originalname,
-        filename: req.file.filename,
-        size: req.file.size,
-        mimetype: req.file.mimetype,
-        url: imageUrl,
+        url: result.url,
       });
 
       res.json({
         success: true,
-        imageUrl,
+        imageUrl: result.url,
       });
     } catch (error) {
       console.error("🚫 이미지 업로드 오류:", error);
@@ -303,13 +162,13 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
-  // 상품 이미지 전용 업로드 API
+  // 상품 이미지 업로드 → Cloudinary
   app.post(
     "/api/upload/product-image",
     upload.single("image"),
     async (req, res) => {
       try {
-        console.log("🖼️ 상품 이미지 업로드 요청 받음");
+        console.log("🖼️ 상품 이미지 업로드 요청 받음 (Cloudinary)");
 
         if (!req.file) {
           return res
@@ -317,20 +176,16 @@ export async function registerRoutes(app: Express): Promise<void> {
             .json({ error: "이미지가 업로드되지 않았습니다." });
         }
 
-        // 이미지 URL 생성
-        const imageUrl = `/images/item/${req.file.filename}`;
+        const result = await uploadToCloudinary(req.file.buffer, "products");
 
-        console.log("🖼️ 상품 이미지 업로드 성공:", {
+        console.log("✅ 상품 이미지 Cloudinary 업로드 성공:", {
           originalName: req.file.originalname,
-          filename: req.file.filename,
-          size: req.file.size,
-          mimetype: req.file.mimetype,
-          url: imageUrl,
+          url: result.url,
         });
 
         return res.json({
           success: true,
-          imageUrl: imageUrl,
+          imageUrl: result.url,
         });
       } catch (error) {
         console.error("🚫 상품 이미지 업로드 오류:", error);
@@ -341,13 +196,13 @@ export async function registerRoutes(app: Express): Promise<void> {
     },
   );
 
-  // 채팅 이미지 업로드 API
+  // 채팅 이미지 업로드 → Cloudinary
   app.post(
     "/api/upload/chat-image",
     upload.single("image"),
     async (req, res) => {
       try {
-        console.log("🖼️ 채팅 이미지 업로드 요청 받음");
+        console.log("🖼️ 채팅 이미지 업로드 요청 받음 (Cloudinary)");
 
         if (!req.file) {
           return res
@@ -355,34 +210,19 @@ export async function registerRoutes(app: Express): Promise<void> {
             .json({ error: "이미지가 업로드되지 않았습니다." });
         }
 
-        // 채팅방 ID를 쿼리 파라미터로 받음 (선택적)
         const roomId = req.query.roomId || "general";
 
-        // 채팅방별 디렉토리 생성
-        const roomDir = path.join(chatImageUploadDir, roomId.toString());
-        if (!fs.existsSync(roomDir)) {
-          fs.mkdirSync(roomDir, { recursive: true });
-        }
+        const result = await uploadToCloudinary(req.file.buffer, `chat/${roomId}`);
 
-        // 이미지 파일 이동
-        const newFilePath = path.join(roomDir, req.file.filename);
-        fs.renameSync(req.file.path, newFilePath);
-
-        // 이미지 URL 생성
-        const imageUrl = `/images/chat/${roomId}/${req.file.filename}`;
-
-        console.log("🖼️ 채팅 이미지 업로드 성공:", {
+        console.log("✅ 채팅 이미지 Cloudinary 업로드 성공:", {
           roomId,
           originalName: req.file.originalname,
-          filename: req.file.filename,
-          size: req.file.size,
-          mimetype: req.file.mimetype,
-          url: imageUrl,
+          url: result.url,
         });
 
         return res.json({
           success: true,
-          url: imageUrl,
+          url: result.url,
         });
       } catch (error) {
         console.error("🚫 채팅 이미지 업로드 오류:", error);
@@ -393,13 +233,13 @@ export async function registerRoutes(app: Express): Promise<void> {
     },
   );
 
-  // 작품 완료 파일 업로드 API
+  // 작품 완료 파일 업로드 → Cloudinary
   app.post(
     "/api/upload/completion-file",
     uploadCompletionFile.single("file"),
     async (req, res) => {
       try {
-        console.log("📦 작품 완료 파일 업로드 요청 받음");
+        console.log("📦 작품 완료 파일 업로드 요청 받음 (Cloudinary)");
 
         if (!req.file) {
           return res
@@ -407,20 +247,25 @@ export async function registerRoutes(app: Express): Promise<void> {
             .json({ error: "파일이 업로드되지 않았습니다." });
         }
 
-        // 파일 URL 생성
-        const fileUrl = `/images/completion/${req.file.filename}`;
+        // 파일 타입에 따라 리소스 유형 결정
+        const resourceType = req.file.mimetype.startsWith("video/")
+          ? "video" as const
+          : req.file.mimetype.startsWith("image/")
+            ? "image" as const
+            : "raw" as const;
 
-        console.log("📦 작품 완료 파일 업로드 성공:", {
+        const result = await uploadToCloudinary(req.file.buffer, "completion", {
+          resourceType,
+        });
+
+        console.log("✅ 작품 완료 파일 Cloudinary 업로드 성공:", {
           originalName: req.file.originalname,
-          filename: req.file.filename,
-          size: req.file.size,
-          mimetype: req.file.mimetype,
-          url: fileUrl,
+          url: result.url,
         });
 
         return res.json({
           success: true,
-          fileUrl: fileUrl,
+          fileUrl: result.url,
         });
       } catch (error) {
         console.error("🚫 작품 완료 파일 업로드 오류:", error);
@@ -431,13 +276,13 @@ export async function registerRoutes(app: Express): Promise<void> {
     },
   );
 
-  // 주문 상품 배송용 디지털 파일 업로드 API
+  // 주문 상품 배송용 디지털 파일 업로드 → Cloudinary
   app.post(
     "/api/upload/order-file",
     uploadCompletionFile.single("file"),
     async (req, res) => {
       try {
-        console.log("📦 주문 배송 파일 업로드 요청 받음");
+        console.log("📦 주문 배송 파일 업로드 요청 받음 (Cloudinary)");
 
         if (!req.file) {
           return res
@@ -445,20 +290,24 @@ export async function registerRoutes(app: Express): Promise<void> {
             .json({ error: "파일이 업로드되지 않았습니다." });
         }
 
-        // 파일 URL 생성
-        const fileUrl = `/images/order-files/${req.file.filename}`;
+        const resourceType = req.file.mimetype.startsWith("video/")
+          ? "video" as const
+          : req.file.mimetype.startsWith("image/")
+            ? "image" as const
+            : "raw" as const;
 
-        console.log("📦 주문 배송 파일 업로드 성공:", {
+        const result = await uploadToCloudinary(req.file.buffer, "order-files", {
+          resourceType,
+        });
+
+        console.log("✅ 주문 배송 파일 Cloudinary 업로드 성공:", {
           originalName: req.file.originalname,
-          filename: req.file.filename,
-          size: req.file.size,
-          mimetype: req.file.mimetype,
-          url: fileUrl,
+          url: result.url,
         });
 
         return res.json({
           success: true,
-          fileUrl: fileUrl,
+          fileUrl: result.url,
           fileName: req.file.originalname,
         });
       } catch (error) {
@@ -1043,10 +892,10 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       console.log("🖼️ 프로필 사진 업데이트:", {
         userId,
-        photoURL: photoURL?.substring(0, 50) + "...",
+        photoURL: photoURL ? photoURL.substring(0, 50) + "..." : "(삭제)",
       });
 
-      if (!photoURL) {
+      if (photoURL === undefined || photoURL === null) {
         return res.status(400).json({ error: "프로필 사진 URL이 필요합니다." });
       }
 
@@ -1061,8 +910,9 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
       }
 
-      // DB에 photoURL 업데이트
-      await db.update(users).set({ photoURL }).where(eq(users.id, userId));
+      // DB에 photoURL 업데이트 (빈 문자열이면 null로 저장)
+      const photoValue = photoURL || null;
+      await db.update(users).set({ photoURL: photoValue }).where(eq(users.id, userId));
 
       console.log("✅ 프로필 사진 DB 업데이트 완료:", userId);
 

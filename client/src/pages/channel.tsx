@@ -92,6 +92,9 @@ const ChannelPage: React.FC<ChannelPageProps> = ({ userId: propUserId }) => {
   const [newMessage, setNewMessage] = useState("");
   const [isPrivateMessage, setIsPrivateMessage] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const imageInputRef = React.useRef<HTMLInputElement>(null);
 
   // 정보 수정 상태
   const [showEditInfoModal, setShowEditInfoModal] = useState(false);
@@ -250,25 +253,55 @@ const ChannelPage: React.FC<ChannelPageProps> = ({ userId: propUserId }) => {
     }
   };
 
+  // 이미지 선택 핸들러
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast({ title: "파일 크기 초과", description: "10MB 이하의 이미지만 업로드 가능합니다.", variant: "destructive" });
+        return;
+      }
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
+
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !user) return;
+    if ((!newMessage.trim() && !selectedImage) || !user) return;
 
     setIsSendingMessage(true);
     try {
+      // FormData로 전송 (이미지 포함 가능)
+      const formData = new FormData();
+      formData.append("message", newMessage);
+      formData.append("isPrivate", String(isPrivateMessage));
+      if (selectedImage) {
+        formData.append("image", selectedImage);
+      }
+
       const response = await axios.post(
         `/api/feed/channels/${userId}/messages`,
+        formData,
         {
-          message: newMessage,
-          isPrivate: isPrivateMessage,
-        },
-        {
-          headers: { "X-User-ID": user.uid },
+          headers: {
+            "X-User-ID": user.uid,
+            "Content-Type": "multipart/form-data",
+          },
         },
       );
 
       setMessages((prev) => [response.data, ...prev]);
       setNewMessage("");
       setIsPrivateMessage(false);
+      handleRemoveImage();
 
       toast({
         title: "메시지 전송 완료",
@@ -369,6 +402,7 @@ const ChannelPage: React.FC<ChannelPageProps> = ({ userId: propUserId }) => {
       await axios.delete(`/api/feed/posts/${postToDelete}`, {
         headers: {
           "X-User-ID": user.uid,
+          "X-User-Type": user.userType || "",
         },
       });
 
@@ -553,6 +587,7 @@ const ChannelPage: React.FC<ChannelPageProps> = ({ userId: propUserId }) => {
         headers: {
           "Content-Type": "multipart/form-data",
           "X-User-ID": user?.uid || "",
+          "X-User-Type": user?.userType || "",
         },
       });
 
@@ -847,10 +882,10 @@ const ChannelPage: React.FC<ChannelPageProps> = ({ userId: propUserId }) => {
                                   {post.commentCount}
                                 </span>
                               </div>
-                              {/* 수정/삭제 버튼 - 본인 게시물에만 표시 */}
+                              {/* 수정/삭제 버튼 - 본인 게시물 또는 관리자에게 표시 */}
                               {user &&
                                 channelInfo &&
-                                user.uid === channelInfo.userId && (
+                                (user.uid === channelInfo.userId || user.userType === 'admin') && (
                                   <div className="flex gap-2 justify-center">
                                     <Button
                                       variant="outline"
@@ -1005,9 +1040,21 @@ const ChannelPage: React.FC<ChannelPageProps> = ({ userId: propUserId }) => {
                               </Button>
                             )}
                         </div>
-                        <p className="text-gray-300 text-sm whitespace-pre-wrap">
-                          {message.message}
-                        </p>
+                        {message.imageUrl && (
+                          <div className="mt-2 mb-1">
+                            <img
+                              src={message.imageUrl}
+                              alt="첨부 이미지"
+                              className="max-w-xs max-h-60 rounded-lg object-cover cursor-pointer hover:opacity-90 transition"
+                              onClick={() => window.open(message.imageUrl, '_blank')}
+                            />
+                          </div>
+                        )}
+                        {message.message && message.message !== '[이미지]' && (
+                          <p className="text-gray-300 text-sm whitespace-pre-wrap">
+                            {message.message}
+                          </p>
+                        )}
                       </Card>
                     ))}
                   </div>

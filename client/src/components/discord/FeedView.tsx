@@ -49,68 +49,33 @@ interface FeedViewProps {
   sortBy?: 'latest' | 'popular' | 'subscribed' | 'trending';
 }
 
-// 이전 도메인을 새 IP 주소로 변환하는 함수
+// 이미지 URL 변환 함수 (Cloudinary URL은 그대로 반환, 레거시 URL도 호환)
 const convertImageUrl = (url: string | null | undefined): string => {
   if (!url) return '';
   
   // data URL은 그대로 반환
   if (url.startsWith('data:')) return url;
   
+  // Cloudinary URL은 그대로 반환 (CDN이므로 변환 불필요)
+  if (url.includes('res.cloudinary.com')) return url;
+  
   // 이미 상대 경로면 그대로 반환
   if (url.startsWith('/')) return url;
   
   try {
-    // 현재 페이지의 프로토콜 감지
-    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
-    const isLocalhost = typeof window !== 'undefined' && 
-      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-    
-    // 프로필 이미지 URL 변환: https://aiavatar.decomsoft.com/images/profile/... → /images/profile/...
-    if (url.includes('aiavatar.decomsoft.com/images/profile') || url.includes('decomsoft.com/images/profile')) {
+    // 프로필 이미지 URL 변환
+    if (url.includes('decomsoft.com/images/profile') || url.includes('aiavatar.decomsoft.com/images/profile')) {
       const path = url.replace(/https?:\/\/[^\/]+/, '');
       return path;
     }
     
-    // 피드 미디어 URL 변환
-    if (url.includes('decomsoft.com/aiavatar/feed-media') || url.includes('/aiavatar/feed-media')) {
+    // 레거시 피드 미디어 URL 변환 (이전 Windows CDN 서버의 데이터 호환)
+    if (url.includes('/aiavatar/feed-media') || url.includes('decomsoft.com')) {
       const urlObj = new URL(url);
       const path = urlObj.pathname + urlObj.search;
-      
-      // 경로가 /aiavatar/feed-media/ 형태로 시작하는지 확인
-      if (path.startsWith('/aiavatar/feed-media')) {
-        // HTTPS 환경이면 Mixed Content를 피하기 위해 현재 도메인 사용
-        // 로컬호스트면 IP 직접 사용
-        if (isHttps && !isLocalhost) {
-          // 프로덕션 HTTPS 환경: 현재 도메인을 통해 프록시 (서버에서 프록시 설정 필요)
-          // 또는 상대 경로로 변환하여 서버에서 처리하도록 함
-          return path; // 상대 경로로 반환하여 서버에서 처리
-        } else {
-          // 로컬 개발 환경: IP 직접 사용
-          return `http://115.160.0.166:3008${path}`;
-        }
-      }
-      // 기존 경로를 /aiavatar/feed-media/로 변환
-      const filename = path.split('/').pop() || '';
-      const newPath = `/aiavatar/feed-media/${filename}`;
-      if (isHttps && !isLocalhost) {
-        return newPath; // 상대 경로로 반환
-      } else {
-        return `http://115.160.0.166:3008${newPath}`;
-      }
-    }
-    
-    // 기타 decomsoft.com 도메인을 새 IP로 변환
-    if (url.includes('decomsoft.com')) {
-      const urlObj = new URL(url);
-      const path = urlObj.pathname + urlObj.search;
-      if (isHttps && !isLocalhost) {
-        return path; // 상대 경로로 반환
-      } else {
-        return `http://115.160.0.166:3008${path}`;
-      }
+      return path;
     }
   } catch (e) {
-    // URL 파싱 실패시 원본 반환
     console.warn('이미지 URL 변환 실패:', url, e);
   }
   

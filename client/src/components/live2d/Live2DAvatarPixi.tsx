@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as PIXI from 'pixi.js';
 import { Live2DModel } from 'pixi-live2d-display';
 import { useSpeechAndAnimation } from '@/hooks/useSpeechAndAnimation';
-import { useFaceTracking } from '@/hooks/useFaceTracking';
+import { useMotionCapture, type TrackingMode } from '@/hooks/useMotionCapture';
 
 // PIXI를 글로벌로 설정 (pixi-live2d-display 필요)
 if (typeof window !== 'undefined') {
@@ -157,13 +157,34 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
   const [windowPosition, setWindowPosition] = useState({ x: 20, y: 80 });
   const [isTTSReady, setIsTTSReady] = useState(false); // TTS 준비 상태 추가
   const [isMotionCaptureEnabled, setIsMotionCaptureEnabled] = useState(false); // 모션 캡처 활성화
+  const [trackingMode, setTrackingMode] = useState<TrackingMode>('face'); // 추적 모드
+  const [showModeSelector, setShowModeSelector] = useState(false); // 모드 선택 메뉴
 
   // TTS와 입 움직임 애니메이션
   const { speak, stopSpeaking, isSpeaking, cleanup } = useSpeechAndAnimation(live2dModelRef.current);
 
-  // 얼굴 추적 (웹캠 모션 캡처)
-  const { facePose, isReady: isFaceTrackingReady, error: faceTrackingError, videoRef } = useFaceTracking(isMotionCaptureEnabled);
-  // 모션 캡처 데이터를 Live2D 모델에 적용
+  // 전신 모션 캡처 (얼굴 + 신체 + 손)
+  const {
+    facePose,
+    bodyPose,
+    handPose,
+    isReady: isTrackingReady,
+    error: trackingError,
+    initStatus,
+    videoRef,
+  } = useMotionCapture(isMotionCaptureEnabled, trackingMode);
+
+  // 부드러운 보간을 위한 이전 값 ref
+  const prevBodyRef = useRef<{
+    bodyAngleX: number; bodyAngleY: number; bodyAngleZ: number;
+    armL: number; armR: number;
+  }>({ bodyAngleX: 0, bodyAngleY: 0, bodyAngleZ: 0, armL: 0, armR: 0 });
+
+  // 보간 유틸 (부드러운 전환)
+  const lerp = (current: number, target: number, factor: number) =>
+    current + (target - current) * factor;
+
+  // ===== 얼굴 모션 캡처 데이터를 Live2D 모델에 적용 =====
   useEffect(() => {
     if (!isMotionCaptureEnabled || !facePose || !live2dModelRef.current) return;
 
@@ -171,23 +192,129 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
     if (!model.internalModel) return;
 
     try {
+      const core = model.internalModel.coreModel;
+
       // 머리 회전
-      model.internalModel.coreModel.setParameterValueById('ParamAngleX', facePose.head.x * 30);
-      model.internalModel.coreModel.setParameterValueById('ParamAngleY', facePose.head.y * 30);
-      model.internalModel.coreModel.setParameterValueById('ParamAngleZ', facePose.head.z * 30);
+      core.setParameterValueById('ParamAngleX', facePose.head.x * 30);
+      core.setParameterValueById('ParamAngleY', facePose.head.y * 30);
+      core.setParameterValueById('ParamAngleZ', facePose.head.z * 30);
 
       // 눈 깜빡임
-      model.internalModel.coreModel.setParameterValueById('ParamEyeLOpen', facePose.eye.l);
-      model.internalModel.coreModel.setParameterValueById('ParamEyeROpen', facePose.eye.r);
+      core.setParameterValueById('ParamEyeLOpen', facePose.eye.l);
+      core.setParameterValueById('ParamEyeROpen', facePose.eye.r);
 
-      // 입 모양 (말하는 중이 아닐 때만)
+      // 눈동자
+      core.setParameterValueById('ParamEyeBallX', facePose.pupil.x);
+      core.setParameterValueById('ParamEyeBallY', facePose.pupil.y);
+
+      // 눈썹
+      core.setParameterValueById('ParamBrowLY', facePose.brow);
+      core.setParameterValueById('ParamBrowRY', facePose.brow);
+
+      // 입 모양 (TTS 말하는 중이 아닐 때만)
       if (!isSpeaking) {
-        model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', facePose.mouth.y);
+        core.setParameterValueById('ParamMouthOpenY', facePose.mouth.y);
+        core.setParameterValueById('ParamMouthForm', facePose.mouth.x);
+        // 모음 형태
+        core.setParameterValueById('ParamMouthA', facePose.mouth.shape.A);
+        core.setParameterValueById('ParamMouthI', facePose.mouth.shape.I);
+        core.setParameterValueById('ParamMouthU', facePose.mouth.shape.U);
+        core.setParameterValueById('ParamMouthE', facePose.mouth.shape.E);
+        core.setParameterValueById('ParamMouthO', facePose.mouth.shape.O);
       }
     } catch (err) {
-      console.warn('모션 캡처 적용 실패:', err);
+      // 파라미터가 없는 모델에서는 무시
     }
   }, [facePose, isMotionCaptureEnabled, isSpeaking]);
+
+  // ===== 신체 모션 캡처 데이터를 Live2D 모델에 적용 =====
+  useEffect(() => {
+    if (!isMotionCaptureEnabled || !bodyPose || !live2dModelRef.current) return;
+    if (trackingMode === 'face') return;
+
+    const model = live2dModelRef.current as any;
+    if (!model.internalModel) return;
+
+    try {
+      const core = model.internalModel.coreModel;
+      const prev = prevBodyRef.current;
+      const smoothing = 0.4; // 보간 팩터 (낮을수록 부드러움)
+
+      // --- 몸통 회전 ---
+      // Kalidokit Spine은 라디안이므로 도(degree)로 변환 후 적절한 범위로 매핑
+      const bodyAngleX = lerp(prev.bodyAngleX, bodyPose.spine.x * 15, smoothing);
+      const bodyAngleY = lerp(prev.bodyAngleY, bodyPose.spine.y * 15, smoothing);
+      const bodyAngleZ = lerp(prev.bodyAngleZ, bodyPose.spine.z * 15, smoothing);
+
+      core.setParameterValueById('ParamBodyAngleX', bodyAngleX);
+      core.setParameterValueById('ParamBodyAngleY', bodyAngleY);
+      core.setParameterValueById('ParamBodyAngleZ', bodyAngleZ);
+
+      // --- 팔 ---
+      // 상완 Y축 회전으로 팔 올림/내림 매핑 (라디안 → 0~1 범위)
+      // 팔을 내리면 ~0, 올리면 ~1
+      const leftArmRaw = Math.max(0, Math.min(1, (bodyPose.leftUpperArm.y + 1) / 2));
+      const rightArmRaw = Math.max(0, Math.min(1, (bodyPose.rightUpperArm.y + 1) / 2));
+
+      const armL = lerp(prev.armL, leftArmRaw, smoothing);
+      const armR = lerp(prev.armR, rightArmRaw, smoothing);
+
+      core.setParameterValueById('ParamArmLA', armL);
+      core.setParameterValueById('ParamArmRA', armR);
+
+      // 보조 팔 파라미터 (모델에 있는 경우)
+      const leftLowerArmAngle = Math.max(0, Math.min(1, (bodyPose.leftLowerArm.y + 1) / 2));
+      const rightLowerArmAngle = Math.max(0, Math.min(1, (bodyPose.rightLowerArm.y + 1) / 2));
+      core.setParameterValueById('ParamArmLB', leftLowerArmAngle);
+      core.setParameterValueById('ParamArmRB', rightLowerArmAngle);
+
+      // --- 손 위치 (포즈 기반) ---
+      core.setParameterValueById('ParamHandL', bodyPose.leftHand.y);
+      core.setParameterValueById('ParamHandR', bodyPose.rightHand.y);
+
+      // 이전 값 업데이트
+      prevBodyRef.current = { bodyAngleX, bodyAngleY, bodyAngleZ, armL, armR };
+    } catch (err) {
+      // 파라미터가 없는 모델에서는 무시
+    }
+  }, [bodyPose, isMotionCaptureEnabled, trackingMode]);
+
+  // ===== 손 상세 모션 캡처 데이터를 Live2D 모델에 적용 =====
+  useEffect(() => {
+    if (!isMotionCaptureEnabled || !handPose || !live2dModelRef.current) return;
+    if (trackingMode !== 'full-body') return;
+
+    const model = live2dModelRef.current as any;
+    if (!model.internalModel) return;
+
+    try {
+      const core = model.internalModel.coreModel;
+
+      // 왼손 손가락 curl (모델에 파라미터가 있는 경우)
+      if (handPose.left) {
+        core.setParameterValueById('ParamHandLThumb', handPose.left.thumb);
+        core.setParameterValueById('ParamHandLIndex', handPose.left.index);
+        core.setParameterValueById('ParamHandLMiddle', handPose.left.middle);
+        core.setParameterValueById('ParamHandLRing', handPose.left.ring);
+        core.setParameterValueById('ParamHandLLittle', handPose.left.little);
+        // 손목 회전
+        core.setParameterValueById('ParamWristL', handPose.left.wrist.z);
+      }
+
+      // 오른손 손가락 curl
+      if (handPose.right) {
+        core.setParameterValueById('ParamHandRThumb', handPose.right.thumb);
+        core.setParameterValueById('ParamHandRIndex', handPose.right.index);
+        core.setParameterValueById('ParamHandRMiddle', handPose.right.middle);
+        core.setParameterValueById('ParamHandRRing', handPose.right.ring);
+        core.setParameterValueById('ParamHandRLittle', handPose.right.little);
+        // 손목 회전
+        core.setParameterValueById('ParamWristR', handPose.right.wrist.z);
+      }
+    } catch (err) {
+      // 파라미터가 없는 모델에서는 무시
+    }
+  }, [handPose, isMotionCaptureEnabled, trackingMode]);
   //   console.log('🎭 Live2DAvatarPixi 렌더링:', { selectedModel, isLoading, error, isInitializing, lastInitializedModel, isSpeaking });
 
   // 감정을 Live2D 모델에 적용하는 함수 (Expression + Motion 시스템)
@@ -1324,17 +1451,69 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
         </div>
       )}
 
-      {/* 모션 캡처 토글 버튼 */}
-      <button
-        onClick={() => setIsMotionCaptureEnabled(!isMotionCaptureEnabled)}
-        className={`absolute bottom-4 right-4 px-4 py-2 rounded-lg text-white text-sm font-medium transition-all shadow-lg ${isMotionCaptureEnabled
-          ? 'bg-blue-600 hover:bg-blue-700'
-          : 'bg-gray-600 hover:bg-gray-700'
+      {/* ===== 모션 캡처 컨트롤 영역 ===== */}
+      <div className="absolute bottom-4 right-4 flex flex-col items-end gap-2" style={{ pointerEvents: 'all', zIndex: 1001 }}>
+
+        {/* 모드 선택 드롭다운 (활성 시에만 표시) */}
+        {isMotionCaptureEnabled && showModeSelector && (
+          <div className="bg-gray-800 bg-opacity-95 rounded-lg shadow-xl border border-gray-600 overflow-hidden">
+            <div className="px-3 py-2 text-xs text-gray-400 border-b border-gray-700 font-medium">
+              추적 모드 선택
+            </div>
+            {([
+              { mode: 'face' as TrackingMode, icon: '😀', label: '얼굴만', desc: '머리·눈·입 (가벼움)' },
+              { mode: 'upper-body' as TrackingMode, icon: '🦴', label: '상반신', desc: '얼굴 + 몸통·팔 (보통)' },
+              { mode: 'full-body' as TrackingMode, icon: '🏃', label: '전신', desc: '얼굴 + 몸·팔·다리·손 (무거움)' },
+            ]).map(({ mode: m, icon, label, desc }) => (
+              <button
+                key={m}
+                onClick={() => {
+                  setTrackingMode(m);
+                  setShowModeSelector(false);
+                }}
+                className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${
+                  trackingMode === m
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                <span className="text-base">{icon}</span>
+                <div>
+                  <div className="font-medium">{label}</div>
+                  <div className="text-xs opacity-70">{desc}</div>
+                </div>
+                {trackingMode === m && <span className="ml-auto text-xs">✓</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* 모드 선택 버튼 (활성 시에만) */}
+        {isMotionCaptureEnabled && (
+          <button
+            onClick={() => setShowModeSelector(!showModeSelector)}
+            className="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium transition-all shadow-lg"
+          >
+            {trackingMode === 'face' ? '😀 얼굴' : trackingMode === 'upper-body' ? '🦴 상반신' : '🏃 전신'}
+            <span className="ml-1">▾</span>
+          </button>
+        )}
+
+        {/* 메인 모션 캡처 토글 버튼 */}
+        <button
+          onClick={() => {
+            setIsMotionCaptureEnabled(!isMotionCaptureEnabled);
+            setShowModeSelector(false);
+          }}
+          className={`px-4 py-2 rounded-lg text-white text-sm font-medium transition-all shadow-lg ${
+            isMotionCaptureEnabled
+              ? 'bg-blue-600 hover:bg-blue-700'
+              : 'bg-gray-600 hover:bg-gray-700'
           }`}
-        style={{ pointerEvents: 'all', zIndex: 1001 }}
-      >
-        {isMotionCaptureEnabled ? '📹 모션 캡처 ON' : '📹 모션 캡처'}
-      </button>
+        >
+          {isMotionCaptureEnabled ? '📹 모션 캡처 ON' : '📹 모션 캡처'}
+        </button>
+      </div>
 
       {/* 웹캠 비디오 (숨김) */}
       {isMotionCaptureEnabled && videoRef && (
@@ -1348,15 +1527,27 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
       )}
 
       {/* 추적 상태 표시 */}
-      {isMotionCaptureEnabled && isFaceTrackingReady && (
-        <div className="absolute top-2 left-2 bg-blue-600 bg-opacity-90 text-white text-xs px-3 py-1 rounded-full">
-          ✅ 추적 중
+      {isMotionCaptureEnabled && initStatus && (
+        <div className="absolute top-2 left-2 bg-yellow-600 bg-opacity-90 text-white text-xs px-3 py-1 rounded-full animate-pulse">
+          ⏳ {initStatus}
         </div>
       )}
 
-      {faceTrackingError && isMotionCaptureEnabled && (
+      {isMotionCaptureEnabled && isTrackingReady && !initStatus && (
+        <div className="absolute top-2 left-2 bg-blue-600 bg-opacity-90 text-white text-xs px-3 py-1 rounded-full flex items-center gap-2">
+          <span>✅ {trackingMode === 'face' ? '얼굴' : trackingMode === 'upper-body' ? '상반신' : '전신'} 추적 중</span>
+          {bodyPose && (
+            <span className="opacity-70">| 신체 ✓</span>
+          )}
+          {handPose && (handPose.left || handPose.right) && (
+            <span className="opacity-70">| 손 ✓</span>
+          )}
+        </div>
+      )}
+
+      {trackingError && isMotionCaptureEnabled && (
         <div className="absolute top-2 left-2 bg-red-600 bg-opacity-90 text-white text-xs px-3 py-1 rounded-full">
-          ❌ {faceTrackingError}
+          ❌ {trackingError}
         </div>
       )}
 

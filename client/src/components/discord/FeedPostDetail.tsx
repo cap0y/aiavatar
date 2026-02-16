@@ -59,68 +59,33 @@ interface FeedPostDetailProps {
   postId: number;
 }
 
-// 이전 도메인을 새 IP 주소로 변환하는 함수
+// 이미지 URL 변환 함수 (Cloudinary URL은 그대로 반환, 레거시 URL도 호환)
 const convertImageUrl = (url: string | null | undefined): string => {
   if (!url) return '';
   
   // data URL은 그대로 반환
   if (url.startsWith('data:')) return url;
   
+  // Cloudinary URL은 그대로 반환 (CDN이므로 변환 불필요)
+  if (url.includes('res.cloudinary.com')) return url;
+  
   // 이미 상대 경로면 그대로 반환
   if (url.startsWith('/')) return url;
   
   try {
-    // 현재 페이지의 프로토콜 감지
-    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
-    const isLocalhost = typeof window !== 'undefined' && 
-      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-    
-    // 프로필 이미지 URL 변환: https://aiavatar.decomsoft.com/images/profile/... → /images/profile/...
-    if (url.includes('aiavatar.decomsoft.com/images/profile') || url.includes('decomsoft.com/images/profile')) {
+    // 프로필 이미지 URL 변환
+    if (url.includes('decomsoft.com/images/profile') || url.includes('aiavatar.decomsoft.com/images/profile')) {
       const path = url.replace(/https?:\/\/[^\/]+/, '');
       return path;
     }
     
-    // 피드 미디어 URL 변환
-    if (url.includes('decomsoft.com/aiavatar/feed-media') || url.includes('/aiavatar/feed-media')) {
+    // 레거시 피드 미디어 URL 변환 (이전 Windows CDN 서버의 데이터 호환)
+    if (url.includes('/aiavatar/feed-media') || url.includes('decomsoft.com')) {
       const urlObj = new URL(url);
       const path = urlObj.pathname + urlObj.search;
-      
-      // 경로가 /aiavatar/feed-media/ 형태로 시작하는지 확인
-      if (path.startsWith('/aiavatar/feed-media')) {
-        // HTTPS 환경이면 Mixed Content를 피하기 위해 현재 도메인 사용
-        // 로컬호스트면 IP 직접 사용
-        if (isHttps && !isLocalhost) {
-          // 프로덕션 HTTPS 환경: 현재 도메인을 통해 프록시 (서버에서 프록시 설정 필요)
-          // 또는 상대 경로로 변환하여 서버에서 처리하도록 함
-          return path; // 상대 경로로 반환하여 서버에서 처리
-        } else {
-          // 로컬 개발 환경: IP 직접 사용
-          return `http://115.160.0.166:3008${path}`;
-        }
-      }
-      // 기존 경로를 /aiavatar/feed-media/로 변환
-      const filename = path.split('/').pop() || '';
-      const newPath = `/aiavatar/feed-media/${filename}`;
-      if (isHttps && !isLocalhost) {
-        return newPath; // 상대 경로로 반환
-      } else {
-        return `http://115.160.0.166:3008${newPath}`;
-      }
-    }
-    
-    // 기타 decomsoft.com 도메인을 새 IP로 변환
-    if (url.includes('decomsoft.com')) {
-      const urlObj = new URL(url);
-      const path = urlObj.pathname + urlObj.search;
-      if (isHttps && !isLocalhost) {
-        return path; // 상대 경로로 반환
-      } else {
-        return `http://115.160.0.166:3008${path}`;
-      }
+      return path;
     }
   } catch (e) {
-    // URL 파싱 실패시 원본 반환
     console.warn('이미지 URL 변환 실패:', url, e);
   }
   
@@ -153,8 +118,8 @@ const FeedPostDetail: React.FC<FeedPostDetailProps> = ({ postId }) => {
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [editYoutubeUrl, setEditYoutubeUrl] = useState("");
-  const [editMedia, setEditMedia] = useState<File | null>(null);
-  const [editMediaPreview, setEditMediaPreview] = useState<string | null>(null);
+  const [editMedia, setEditMedia] = useState<File[]>([]);
+  const [editMediaPreviews, setEditMediaPreviews] = useState<string[]>([]);
 
   // 사이드바 데이터
   const [popularChannels, setPopularChannels] = useState<any[]>([]);
@@ -338,33 +303,58 @@ const FeedPostDetail: React.FC<FeedPostDetailProps> = ({ postId }) => {
     setEditTitle(post.title);
     setEditContent(post.content || "");
     setEditYoutubeUrl(post.youtubeUrl || "");
-    setEditMediaPreview(post.mediaUrl);
+    // 기존 이미지들을 미리보기로 설정
+    const existingImages =
+      post.mediaUrls && post.mediaUrls.length > 0
+        ? post.mediaUrls
+        : post.mediaUrl
+          ? [post.mediaUrl]
+          : [];
+    setEditMediaPreviews(existingImages);
+    setEditMedia([]);
     setShowEditModal(true);
   };
 
-  // 미디어 파일 선택
+  // 미디어 파일 선택 (다중 파일 지원)
   const handleEditMediaSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    // 파일 크기 확인 (50MB)
-    if (file.size > 50 * 1024 * 1024) {
+    // 최대 10개 파일 제한
+    if (files.length > 10) {
       toast({
-        title: "파일 크기 초과",
-        description: "파일 크기는 50MB를 초과할 수 없습니다.",
+        title: "파일 개수 초과",
+        description: "최대 10개의 파일만 업로드할 수 있습니다.",
         variant: "destructive",
       });
       return;
     }
 
-    setEditMedia(file);
+    // 각 파일 크기 체크 (50MB)
+    const oversizedFiles = files.filter((file) => file.size > 50 * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
+      toast({
+        title: "파일 크기 초과",
+        description: "각 파일 크기는 50MB를 초과할 수 없습니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setEditMedia(files);
 
     // 미리보기 생성
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setEditMediaPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    const previews: string[] = [];
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        previews.push(reader.result as string);
+        if (previews.length === files.length) {
+          setEditMediaPreviews(previews);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   // 게시물 수정 제출
@@ -390,18 +380,22 @@ const FeedPostDetail: React.FC<FeedPostDetailProps> = ({ postId }) => {
         formData.append("mediaType", "youtube");
       }
 
-      if (editMedia) {
-        formData.append("media", editMedia);
-        formData.append(
-          "mediaType",
-          editMedia.type.startsWith("video") ? "video" : "image",
+      // 다중 파일 추가
+      if (editMedia.length > 0) {
+        editMedia.forEach((file) => {
+          formData.append("media", file);
+        });
+        const hasVideo = editMedia.some((file) =>
+          file.type.startsWith("video"),
         );
+        formData.append("mediaType", hasVideo ? "video" : "image");
       }
 
       await axios.put(`/api/feed/posts/${postId}`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
           "X-User-ID": user?.uid || "",
+          "X-User-Type": user?.userType || "",
         },
       });
 
@@ -496,6 +490,7 @@ const FeedPostDetail: React.FC<FeedPostDetailProps> = ({ postId }) => {
       await axios.delete(`/api/feed/posts/${postId}/comments/${commentId}`, {
         headers: {
           "X-User-ID": user.uid,
+          "X-User-Type": user.userType || "",
         },
       });
 
@@ -638,7 +633,7 @@ const FeedPostDetail: React.FC<FeedPostDetailProps> = ({ postId }) => {
                   <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex-1">
                     {post.title}
                   </h1>
-                  {user && user.uid === post.userId && (
+                  {user && (user.uid === post.userId || user.userType === 'admin') && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1071,7 +1066,7 @@ const FeedPostDetail: React.FC<FeedPostDetailProps> = ({ postId }) => {
                                 </Button>
 
                                 {/* 삭제 버튼 */}
-                                {user && comment.userId === user.uid && (
+                                {user && (comment.userId === user.uid || user.userType === 'admin') && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -1194,7 +1189,7 @@ const FeedPostDetail: React.FC<FeedPostDetailProps> = ({ postId }) => {
                                       </Button>
 
                                       {/* 삭제 버튼 */}
-                                      {user && reply.userId === user.uid && (
+                                      {user && (reply.userId === user.uid || user.userType === 'admin') && (
                                         <Button
                                           variant="ghost"
                                           size="sm"
@@ -1580,6 +1575,7 @@ const FeedPostDetail: React.FC<FeedPostDetailProps> = ({ postId }) => {
                 id="edit-media-upload"
                 type="file"
                 accept="image/*,video/*"
+                multiple
                 onChange={handleEditMediaSelect}
                 className="hidden"
               />
@@ -1593,51 +1589,87 @@ const FeedPostDetail: React.FC<FeedPostDetailProps> = ({ postId }) => {
                 }
               >
                 <i className="fas fa-upload mr-2"></i>
-                파일 선택
+                {editMedia.length > 0 ? "파일 다시 선택" : "새 파일 선택"}
               </Button>
 
-              {editMedia && (
-                <div className="mt-2 flex items-center gap-2 text-sm text-gray-400">
-                  <i className="fas fa-file-alt"></i>
-                  <span>{editMedia.name}</span>
-                  <span className="text-gray-600">
-                    ({(editMedia.size / 1024 / 1024).toFixed(2)} MB)
-                  </span>
+              {editMedia.length > 0 && (
+                <div className="mt-2 text-sm text-gray-400">
+                  <p className="mb-2">
+                    <i className="fas fa-images mr-2"></i>
+                    {editMedia.length}개 새 파일 선택됨
+                  </p>
+                  <div className="space-y-1">
+                    {editMedia.map((file, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 text-xs"
+                      >
+                        <i className="fas fa-file-alt"></i>
+                        <span className="truncate flex-1">{file.name}</span>
+                        <span className="text-gray-600">
+                          ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {/* 미디어 미리보기 */}
-              {editMediaPreview && (
+              {/* 미디어 미리보기 (다중 이미지 그리드) */}
+              {editMediaPreviews.length > 0 && (
                 <div className="mt-3 relative">
-                  {editMedia?.type.startsWith("video") ||
-                  post?.mediaType === "video" ? (
-                    <video
-                      src={editMediaPreview}
-                      className="w-full max-h-80 object-contain rounded-lg"
-                      controls
-                    />
-                  ) : editMediaPreview.includes("youtube") ? (
-                    <div className="text-gray-400 text-sm">
-                      유튜브 비디오 임베드
-                    </div>
-                  ) : (
-                    <img
-                      src={editMediaPreview}
-                      alt="Preview"
-                      className="w-full max-h-80 object-contain rounded-lg"
-                    />
+                  <p className="text-sm text-gray-400 mb-2">
+                    {editMedia.length > 0
+                      ? "새로 선택한 이미지:"
+                      : "기존 이미지:"}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {editMediaPreviews.map((preview, idx) => (
+                      <div key={idx} className="relative group">
+                        {preview.match(/\.(mp4|webm|mov)$/i) ||
+                        editMedia[idx]?.type?.startsWith("video") ? (
+                          <video
+                            src={preview}
+                            className="w-full h-48 object-cover rounded-lg"
+                            controls
+                          />
+                        ) : preview.includes("youtube") ? (
+                          <div className="w-full h-48 flex items-center justify-center bg-gray-700 rounded-lg text-gray-400 text-sm">
+                            유튜브 비디오
+                          </div>
+                        ) : (
+                          <img
+                            src={preview}
+                            alt={`Preview ${idx + 1}`}
+                            className="w-full h-48 object-cover rounded-lg"
+                          />
+                        )}
+                        <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
+                          {idx + 1}/{editMediaPreviews.length}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {editMedia.length > 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="mt-2 w-full"
+                      onClick={() => {
+                        setEditMedia([]);
+                        // 기존 이미지로 복원
+                        const existingImages =
+                          post?.mediaUrls && post.mediaUrls.length > 0
+                            ? post.mediaUrls
+                            : post?.mediaUrl
+                              ? [post.mediaUrl]
+                              : [];
+                        setEditMediaPreviews(existingImages);
+                      }}
+                    >
+                      <i className="fas fa-times mr-2"></i>새 파일 선택 취소
+                    </Button>
                   )}
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="absolute top-2 right-2"
-                    onClick={() => {
-                      setEditMedia(null);
-                      setEditMediaPreview(null);
-                    }}
-                  >
-                    <i className="fas fa-times"></i>
-                  </Button>
                 </div>
               )}
             </div>

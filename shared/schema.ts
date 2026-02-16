@@ -448,6 +448,7 @@ export const channelMessages = pgTable("channel_messages", {
   channelUserId: varchar("channel_user_id").notNull(), // 채널 소유자
   senderUserId: varchar("sender_user_id").notNull(), // 메시지 작성자
   message: text("message").notNull(),
+  imageUrl: text("image_url"), // 이미지 URL (Cloudinary)
   isPrivate: boolean("is_private").default(false), // 비공개 메시지 여부
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });

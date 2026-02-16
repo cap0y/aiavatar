@@ -4,6 +4,9 @@ export function normalizeImageUrl(inputUrl?: string): string {
   // data URL 은 그대로 사용
   if (inputUrl.startsWith('data:')) return inputUrl;
 
+  // Cloudinary URL은 그대로 사용 (CDN이므로 프록시 불필요)
+  if (inputUrl.includes('res.cloudinary.com')) return inputUrl;
+
   // 상대 경로 처리
   if (inputUrl.startsWith('/')) {
     const path = inputUrl.startsWith('/api/') ? inputUrl.substring(4) : inputUrl;
