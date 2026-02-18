@@ -48,8 +48,8 @@ export default defineConfig({
   build: {
     outDir: '../dist/public',
     emptyOutDir: true,
-    // 소스맵 생성으로 디버깅 개선
-    sourcemap: true,
+    // 프로덕션에서는 소스맵 비활성화 (빌드 크기 절감)
+    sourcemap: false,
     rollupOptions: {
       external: (id) => {
         // pixi-live2d가 PIXI를 찾을 수 있도록 외부 의존성으로 처리하지 않음

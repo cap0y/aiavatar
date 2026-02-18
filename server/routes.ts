@@ -75,6 +75,11 @@ const uploadCompletionFile = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<void> {
+  // ==================== Health Check (Railway) ====================
+  app.get("/api/health", (_req, res) => {
+    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   // 정적 파일 서빙 (로컬 public 폴더 - 기존 호환용)
   const imageUploadDir = path.join(process.cwd(), "public", "images");
   if (fs.existsSync(imageUploadDir)) {

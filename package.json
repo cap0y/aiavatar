@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "clean": "node scripts/clean.mjs",
     "clean:all": "node scripts/clean.mjs --all",
