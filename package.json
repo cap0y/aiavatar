@@ -12,7 +12,7 @@
     "dev:server": "tsx server/index.ts",
     "build": "npm run clean && vite build && npm run build:server",
     "start": "node dist/server/index.js",
-    "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --sourcemap --outfile=dist/server/index.js --external:pg-native --external:*.node",
+    "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server/index.js",
     "preview": "vite preview",
     "start:server": "node dist/server/index.js",
     "check": "tsc",
