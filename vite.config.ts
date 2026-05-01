@@ -19,16 +19,33 @@ export default defineConfig({
     cors: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3001', // 백엔드 API 서버로 프록시
+        target: 'http://localhost:5001', // 백엔드 API 서버 포트 (5001)
         changeOrigin: true,
         secure: false,
         ws: true,
-        timeout: 10000,
-        // 연결 풀 관리
+        timeout: 120000,
+        proxyTimeout: 120000,
         agent: false,
         headers: {
           'Connection': 'keep-alive',
         },
+      },
+      '/audio': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+      },
+      '/libs': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+      },
+      '/live2d-models': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+      },
+      '/client-ws': {
+        target: 'ws://localhost:5001',
+        ws: true,
+        changeOrigin: true,
       },
     },
     // HMR 연결 관리 강화
