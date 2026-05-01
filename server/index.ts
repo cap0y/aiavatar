@@ -30,6 +30,11 @@ console.log('🔑 환경변수 로드 확인:', {
 
 const app = express();
 
+// ✅ 헬스체크 - 최상단 등록 (DB/Firebase 초기화 전에도 응답 가능)
+app.get("/api/health", (_req, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 // CORS 설정
 app.use(cors());
 
@@ -194,7 +199,13 @@ const startServer = async () => {
     
     // VTuber WebSocket 서버 설정
     console.log("🤖 VTuber WebSocket 서버 초기화 중...");
-    const vtuberServer = new VTuberServer(httpServer);
+    let vtuberServer: VTuberServer | null = null;
+    try {
+      vtuberServer = new VTuberServer(httpServer);
+      console.log("✅ VTuber WebSocket 서버 초기화 완료");
+    } catch (e) {
+      console.error("❌ VTuber 서버 초기화 실패 (서버는 계속 실행):", e);
+    }
     
     // 이미지 및 기타 정적 파일 서빙
     app.use('/images', express.static(imagesPath));
