@@ -1,9 +1,9 @@
 import WebSocket, { WebSocketServer } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 import { Server as HTTPServer } from 'http';
+import OpenAI from 'openai';
 import fs from 'fs/promises';
 import path from 'path';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import {
   VTuberMessage,
   WebSocketMessage,
@@ -18,6 +18,7 @@ import {
 export class VTuberServer {
   private wss: WebSocketServer;
   private clients: Map<string, ClientConnection> = new Map();
+  private openai: OpenAI | null = null;
   private config: VTuberConfig;
   private modelConfigs: Live2DModelConfig[] = [];
   
@@ -26,7 +27,7 @@ export class VTuberServer {
       noServer: true
     });
     
-    // ?섎룞?쇰줈 upgrade ?대깽??泥섎━ (/client-ws 寃쎈줈留?
+    // 수동으로 upgrade 이벤트 처리 (/client-ws 경로만)
     server.on('upgrade', (request, socket, head) => {
       const pathname = new URL(request.url!, `http://${request.headers.host}`).pathname;
       
@@ -35,68 +36,93 @@ export class VTuberServer {
           this.wss.emit('connection', ws, request);
         });
       }
-      // Socket.io 寃쎈줈??嫄대뱶由ъ? ?딆쓬
+      // Socket.io 경로는 건드리지 않음
     });
     
     this.config = this.getDefaultConfig();
+    this.setupOpenAI();
     this.setupWebSocketHandlers();
     this.loadModelConfigs();
     this.startHeartbeat();
     
-    console.log('?쨼 VTuber WebSocket ?쒕쾭媛 /client-ws 寃쎈줈?먯꽌 以鍮꾨릺?덉뒿?덈떎.');
+    console.log('🤖 VTuber WebSocket 서버가 /client-ws 경로에서 준비되었습니다.');
   }
 
   private getDefaultConfig(): VTuberConfig {
     return {
-      system_prompt: `?뱀떊? 移쒓렐?섍퀬 ?쒕컻??AI ?꾨컮??낅땲?? 
-?ㅼ쓬怨?媛숈? ?깃꺽??媛吏怨??덉뒿?덈떎:
-- 諛앷퀬 湲띿젙?곸씤 ?깃꺽
-- ?ъ슜?먯? 移쒓렐?섍쾶 ???- 媛먯젙 ?쒗쁽???띾???- 沅곴툑??寃껋씠 留롪퀬 ?멸린?ъ씠 媛뺥븿
+      system_prompt: `당신은 친근하고 활발한 AI 아바타입니다. 
+다음과 같은 성격을 가지고 있습니다:
+- 밝고 긍정적인 성격
+- 사용자와 친근하게 대화
+- 감정 표현이 풍부함
+- 궁금한 것이 많고 호기심이 강함
 
-?묐떟?????ㅼ쓬 媛먯젙 ?쒓렇 以??섎굹瑜??ы븿?댁＜?몄슂:
+응답할 때 다음 감정 태그 중 하나를 포함해주세요:
 [neutral], [joy], [anger], [sadness], [surprise], [fear]
 
-吏㏐퀬 媛꾧껐?섍쾶 ??듯빐二쇱꽭?? 2-3臾몄옣 ?대궡濡??듬??섏꽭??
+짧고 간결하게 대답해주세요. 2-3문장 이내로 답변하세요.
 
-?덉떆: "[joy] ?덈뀞?섏꽭?? ?ㅻ뒛 湲곕텇???뺣쭚 醫뗭븘??"`,
-      character_name: "AI ?꾨컮?",
-      character_description: "移쒓렐?섍퀬 ?쒕컻??AI ?꾨컮? 罹먮┃??,
-      personality: "諛앷퀬 湲띿젙?곸씠硫??멸린?ъ씠 留롮쓬",
+예시: "[joy] 안녕하세요! 오늘 기분이 정말 좋아요!"`,
+      character_name: "AI 아바타",
+      character_description: "친근하고 활발한 AI 아바타 캐릭터",
+      personality: "밝고 긍정적이며 호기심이 많음",
       live2d_model: "",
       model: "gpt-4o-mini",
-      max_tokens: 150,  // 鍮좊Ⅸ ?묐떟???꾪빐 以꾩엫
+      max_tokens: 150,  // 빠른 응답을 위해 줄임
       temperature: 0.7,
       emotion_keywords: {
-        "湲곗겏": "joy",
-        "?됰났": "joy",
-        "醫뗭븘": "joy",
-        "?껋쓬": "joy",
-        "?붾궓": "anger",
-        "?붽?": "anger",
-        "吏쒖쬆": "anger",
-        "?ы뵒": "sadness",
-        "?ы띁": "sadness",
-        "?곗슱": "sadness",
-        "???: "surprise",
-        "源쒖쭩": "surprise",
-        "?": "surprise",
-        "臾댁꽌": "fear",
-        "嫄깆젙": "fear",
-        "?됰쾾": "neutral",
-        "洹몃깷": "neutral"
+        "기쁨": "joy",
+        "행복": "joy",
+        "좋아": "joy",
+        "웃음": "joy",
+        "화남": "anger",
+        "화가": "anger",
+        "짜증": "anger",
+        "슬픔": "sadness",
+        "슬퍼": "sadness",
+        "우울": "sadness",
+        "놀람": "surprise",
+        "깜짝": "surprise",
+        "와": "surprise",
+        "무서": "fear",
+        "걱정": "fear",
+        "평범": "neutral",
+        "그냥": "neutral"
       }
     };
   }
 
+  private async setupOpenAI() {
+    const apiKey = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY;
+    console.log('🔍 OpenAI API 키 확인:', {
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY ? `있음 (${process.env.OPENAI_API_KEY.substring(0, 20)}...)` : '없음',
+      VITE_OPENAI_API_KEY: process.env.VITE_OPENAI_API_KEY ? `있음 (${process.env.VITE_OPENAI_API_KEY.substring(0, 20)}...)` : '없음',
+      선택된키: apiKey ? `${apiKey.substring(0, 20)}...` : '없음'
+    });
+    
+    if (apiKey && apiKey.length > 20) {
+      try {
+        this.openai = new OpenAI({
+          apiKey: apiKey
+        });
+        console.log('✅ OpenAI API 설정 완료');
+      } catch (error) {
+        console.error('❌ OpenAI API 초기화 오류:', error);
+      }
+    } else {
+      console.warn('⚠️ OpenAI API 키가 설정되지 않았거나 유효하지 않습니다.');
+      console.warn('💡 .env 파일에 OPENAI_API_KEY=your_api_key_here 를 추가해주세요.');
+    }
+  }
 
   private async loadModelConfigs() {
     try {
       const modelDictPath = path.join(process.cwd(), 'public', 'model_dict.json');
       const data = await fs.readFile(modelDictPath, 'utf-8');
       this.modelConfigs = JSON.parse(data);
-      console.log(`?뱤 ${this.modelConfigs.length}媛쒖쓽 Live2D 紐⑤뜽 ?ㅼ젙??濡쒕뱶?덉뒿?덈떎.`);
+      console.log(`📊 ${this.modelConfigs.length}개의 Live2D 모델 설정을 로드했습니다.`);
     } catch (error) {
-      console.error('??Live2D 紐⑤뜽 ?ㅼ젙 濡쒕뱶 ?ㅽ뙣:', error);
+      console.error('❌ Live2D 모델 설정 로드 실패:', error);
       this.modelConfigs = [];
     }
   }
@@ -116,9 +142,9 @@ export class VTuberServer {
       };
 
       this.clients.set(clientId, client);
-      console.log(`?뵕 ???대씪?댁뼵???곌껐: ${clientId} (珥?${this.clients.size}紐?`);
+      console.log(`🔗 새 클라이언트 연결: ${clientId} (총 ${this.clients.size}명)`);
 
-      // ?곌껐 吏곹썑 諛붾줈 珥덇린 ?ㅼ젙 ?꾩넚 (吏???놁쓬)
+      // 연결 직후 바로 초기 설정 전송 (지연 없음)
       setImmediate(() => {
         if (this.clients.has(clientId)) {
           this.sendInitialConfig(client);
@@ -130,33 +156,33 @@ export class VTuberServer {
           const message: WebSocketMessage = JSON.parse(data.toString());
           await this.handleMessage(client, message);
         } catch (error) {
-          console.error('硫붿떆吏 泥섎━ ?ㅻ쪟:', error);
-          this.sendError(client, '硫붿떆吏 泥섎━ 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+          console.error('메시지 처리 오류:', error);
+          this.sendError(client, '메시지 처리 중 오류가 발생했습니다.');
         }
       });
 
       ws.on('close', (code: number, reason: Buffer) => {
         const reasonStr = reason?.toString() || 'No reason';
-        console.log(`?몝 ?대씪?댁뼵???곌껐 醫낅즺: ${clientId} (肄붾뱶: ${code}, ?ъ쑀: ${reasonStr})`);
+        console.log(`👋 클라이언트 연결 종료: ${clientId} (코드: ${code}, 사유: ${reasonStr})`);
         this.clients.delete(clientId);
       });
 
       ws.on('error', (error) => {
-        console.error(`??WebSocket ?ㅻ쪟 (${clientId}):`, error);
-        // ?ㅻ쪟 諛쒖깮 ???대씪?댁뼵?몄뿉寃??뚮━怨??뺣━
+        console.error(`❌ WebSocket 오류 (${clientId}):`, error);
+        // 오류 발생 시 클라이언트에게 알리고 정리
         try {
           if (client.ws.readyState === WebSocket.OPEN) {
-            this.sendError(client, 'WebSocket ?곌껐 ?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+            this.sendError(client, 'WebSocket 연결 오류가 발생했습니다.');
           }
         } catch (e) {
-          // ?대? ?곌껐???딆뼱吏?寃쎌슦
+          // 이미 연결이 끊어진 경우
         }
         
-        // ?좎떆 ???대씪?댁뼵???뺣━
+        // 잠시 후 클라이언트 정리
         setTimeout(() => {
           if (this.clients.has(clientId)) {
             this.clients.delete(clientId);
-            console.log(`?㏏ ?ㅻ쪟濡??명븳 ?대씪?댁뼵???뺣━: ${clientId}`);
+            console.log(`🧹 오류로 인한 클라이언트 정리: ${clientId}`);
           }
         }, 1000);
       });
@@ -170,7 +196,7 @@ export class VTuberServer {
 
   private async sendInitialConfig(client: ClientConnection) {
     try {
-      // 媛꾨떒??珥덇린??硫붿떆吏 (?꾩닔 ?뺣낫留?
+      // 간단한 초기화 메시지 (필수 정보만)
       const configMessage = {
         type: 'init-config',
         currentModel: client.currentModel,
@@ -180,26 +206,26 @@ export class VTuberServer {
         timestamp: Date.now()
       };
 
-      console.log(`?뱾 媛꾨떒??珥덇린 ?ㅼ젙 ?꾩넚 (${client.id}):`, {
+      console.log(`📤 간단한 초기 설정 전송 (${client.id}):`, {
         model: client.currentModel,
         status: 'ready'
       });
       
       this.sendMessage(client, configMessage);
       
-      // ?곌껐 ?뺤씤 硫붿떆吏
+      // 연결 확인 메시지
       setTimeout(() => {
         if (this.clients.has(client.id)) {
           this.sendMessage(client, {
             type: 'system',
-            content: '?쨼 AI ?꾨컮? ?쒕쾭???곌껐?섏뿀?듬땲??',
+            content: '🤖 AI 아바타 서버에 연결되었습니다!',
             timestamp: Date.now()
           });
         }
       }, 500);
       
     } catch (error) {
-      console.error(`珥덇린 ?ㅼ젙 ?꾩넚 ?ㅻ쪟 (${client.id}):`, error);
+      console.error(`초기 설정 전송 오류 (${client.id}):`, error);
     }
   }
 
@@ -209,21 +235,12 @@ export class VTuberServer {
   }
 
   private async handleMessage(client: ClientConnection, message: WebSocketMessage) {
-    console.log(`?벂 硫붿떆吏 ?섏떊 (${client.id}):`, message.type);
+    console.log(`📨 메시지 수신 (${client.id}):`, message.type);
 
-    // 媛쒖꽦 ?뺣낫媛 ?덉쑝硫??대씪?댁뼵???곌껐?????    if (message.personality) {
+    // 개성 정보가 있으면 클라이언트 연결에 저장
+    if (message.personality) {
       client.personality = message.personality;
-      console.log(`?렚 ?대씪?댁뼵??媛쒖꽦 ?ㅼ젙 (${client.id}):`, message.personality);
-    }
-
-    // ?쒕??섏씠 API ???뺣낫媛 ?덉쑝硫??대씪?댁뼵???곌껐?????    if (message.geminiApiKey !== undefined) {
-      client.geminiApiKey = message.geminiApiKey;
-      console.log(`?뵎 ?쒕??섏씠 API ???섏떊 (${client.id}): ${message.geminiApiKey ? `?덉쓬(${String(message.geminiApiKey).substring(0, 10)}...)` : '?놁쓬(鍮덇컪)'}`);
-    }
-
-    // ?쒕??섏씠 紐⑤뜽 ?좏깮 ?뺣낫媛 ?덉쑝硫????    if (message.geminiModel !== undefined) {
-      client.geminiModel = message.geminiModel;
-      console.log(`?쨼 ?쒕??섏씠 紐⑤뜽 ?섏떊 (${client.id}): ${message.geminiModel || '(?놁쓬)'}`);
+      console.log(`🎭 클라이언트 개성 설정 (${client.id}):`, message.personality);
     }
 
     switch (message.type) {
@@ -258,24 +275,16 @@ export class VTuberServer {
         break;
 
       default:
-        console.log(`?좑툘  ?????녿뒗 硫붿떆吏 ??? ${message.type}`);
+        console.log(`⚠️  알 수 없는 메시지 타입: ${message.type}`);
     }
   }
 
   private async handleTextInput(client: ClientConnection, text: string) {
     if (!text.trim()) return;
 
-    // ?대? ?묐떟 ?앹꽦 以묒씠硫??먯뿉 ?곸옱?섍퀬 ?湲?    if (client.isBusy) {
-      if (!client.pendingQueue) client.pendingQueue = [];
-      client.pendingQueue.push(text);
-      console.log(`???먯뿉 ?곸옱 (${client.id}): "${text}" (?湲?${client.pendingQueue.length}媛?`);
-      return;
-    }
+    console.log(`💬 텍스트 입력 (${client.id}): ${text}`);
 
-    client.isBusy = true;
-    console.log(`?뮠 ?띿뒪???낅젰 (${client.id}): ${text}`);
-
-    // ?ъ슜??硫붿떆吏瑜??덉뒪?좊━??異붽?
+    // 사용자 메시지를 히스토리에 추가
     const userMessage: ConversationMessage = {
       id: uuidv4(),
       role: 'user',
@@ -284,35 +293,36 @@ export class VTuberServer {
     };
     client.conversationHistory.push(userMessage);
 
-    // ????쒖옉 ?좏샇 ?꾩넚
+    // 대화 시작 신호 전송
     this.sendMessage(client, { 
       type: 'conversation-started', 
       timestamp: Date.now() 
     });
 
     try {
-      // AI ?묐떟 ?앹꽦
+      // AI 응답 생성
       const aiResponse = await this.generateAIResponse(client, text);
       
-      // TTS ?ㅻ뵒???앹꽦
+      // TTS 오디오 생성
       let audioUrl = '';
       let volumes: number[] = [];
       
-      if (client.geminiApiKey && aiResponse.text) {
+      if (this.openai && aiResponse.text) {
         try {
-          const ttsResult = await this.generateTTS(aiResponse.text, client.geminiApiKey, client.personality);
+          const ttsResult = await this.generateTTS(aiResponse.text, client.personality);
           audioUrl = ttsResult.audioUrl;
           volumes = ttsResult.volumes;
-          console.log('?렦 Gemini TTS ?앹꽦 ?꾨즺:', {
-            audioUrl: audioUrl ? 'URL ?앹꽦?? : '?앹꽦 ?ㅽ뙣',
+          console.log('🎵 TTS 오디오 생성 완료:', {
+            audioUrl: audioUrl ? 'URL 생성됨' : '생성 실패',
             volumesCount: volumes.length
           });
         } catch (error) {
-          console.error('?슟 Gemini TTS ?앹꽦 ?ㅻ쪟 (釉뚮씪?곗? TTS ?대갚):', error);
+          console.error('🚫 TTS 생성 오류:', error);
+          // TTS 실패해도 텍스트는 전송
         }
       }
       
-      // AI ?묐떟???덉뒪?좊━??異붽?
+      // AI 응답을 히스토리에 추가
       const assistantMessage: ConversationMessage = {
         id: uuidv4(),
         role: 'assistant',
@@ -322,9 +332,10 @@ export class VTuberServer {
       };
       client.conversationHistory.push(assistantMessage);
 
-      // 媛먯젙 蹂寃?      client.currentEmotion = aiResponse.emotion;
+      // 감정 변경
+      client.currentEmotion = aiResponse.emotion;
 
-      // ?묐떟 ?꾩넚 (TTS ?곗씠???ы븿)
+      // 응답 전송 (TTS 데이터 포함)
       this.sendMessage(client, {
         type: 'llm-response',
         text: aiResponse.text,
@@ -335,123 +346,91 @@ export class VTuberServer {
         volumes: volumes
       });
 
-      // ????꾨즺 ?좏샇
+      // 대화 완료 신호
       this.sendMessage(client, {
         type: 'conversation-ended',
         timestamp: Date.now()
       });
 
     } catch (error) {
-      console.error('AI ?묐떟 ?앹꽦 ?ㅻ쪟:', error);
-      this.sendError(client, 'AI ?묐떟 ?앹꽦 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
-    } finally {
-      // 泥섎━ ?꾨즺 ???먯뿉 ?ㅼ쓬 ??ぉ???덉쑝硫?泥섎━
-      client.isBusy = false;
-      if (client.pendingQueue && client.pendingQueue.length > 0) {
-        const next = client.pendingQueue.shift()!;
-        console.log(`?띰툘  ???ㅼ쓬 泥섎━ (${client.id}): "${next}"`);
-        setImmediate(() => this.handleTextInput(client, next));
-      }
+      console.error('AI 응답 생성 오류:', error);
+      this.sendError(client, 'AI 응답 생성 중 오류가 발생했습니다.');
     }
   }
 
   private async generateAIResponse(client: ClientConnection, userInput: string): Promise<AIResponse> {
-    let systemPrompt = this.config.system_prompt;
-    if (client.personality) {
-      systemPrompt = `${this.config.system_prompt}
+    if (!this.openai) {
+      // OpenAI가 설정되지 않은 경우 기본 응답
+      const emotion = this.analyzeEmotion(userInput);
+      return {
+        text: `[${emotion}] 죄송해요, AI 기능을 사용하려면 OpenAI API 키가 필요해요. 하지만 여전히 Live2D 아바타와 상호작용할 수 있어요!`,
+        emotion: emotion,
+        confidence: 0.5
+      };
+    }
 
-[罹먮┃??媛쒖꽦 ?ㅼ젙]
-?뱀떊? ?ㅼ쓬怨?媛숈? 媛쒖꽦??媛吏?罹먮┃?곗엯?덈떎:
+    try {
+      // 개성이 설정되어 있으면 시스템 프롬프트에 추가
+      let systemPrompt = this.config.system_prompt;
+      if (client.personality) {
+        systemPrompt = `${this.config.system_prompt}
+
+[캐릭터 개성 설정]
+당신은 다음과 같은 개성을 가진 캐릭터입니다:
 ${client.personality}
 
-?꾩쓽 媛쒖꽦??留욎떠????뷀븯怨??묐떟?댁＜?몄슂.`;
-      console.log(`?렚 媛쒖꽦???ы븿???쒖뒪???꾨＼?꾪듃 ?ъ슜:`, client.personality);
-    }
-
-    // 1. ?쒕??섏씠 API ?ㅺ? ?덈뒗 寃쎌슦 ?곗꽑?곸쑝濡??ъ슜
-    if (client.geminiApiKey && client.geminiApiKey.trim().length > 0) {
-      const selectedGeminiModel = client.geminiModel && client.geminiModel.trim()
-        ? client.geminiModel.trim()
-        : "gemini-1.5-flash";
-      try {
-        console.log(`???쒕??섏씠 API瑜??ъ슜?섏뿬 ?묐떟 ?앹꽦 ?쒕룄 (${client.id}): ${selectedGeminiModel}`);
-        const genAI = new GoogleGenerativeAI(client.geminiApiKey);
-
-        // systemInstruction? getGenerativeModel???꾨떖?댁빞 ??(startChat???ｌ쑝硫?400 ?먮윭)
-        const model = genAI.getGenerativeModel({
-          model: selectedGeminiModel,
-          systemInstruction: {
-            role: 'user',
-            parts: [{ text: systemPrompt }]
-          }
-        });
-
-        // ????덉뒪?좊━ 以鍮?- Gemini??諛섎뱶??user ??model 援먮? ?쒖꽌
-        const recentHistory = client.conversationHistory.slice(-8);
-        const rawPaired: { role: 'user' | 'model'; parts: { text: string }[] }[] = [];
-        for (const msg of recentHistory) {
-          if (msg.role === 'system') continue;
-          rawPaired.push({
-            role: msg.role === 'user' ? 'user' : 'model',
-            parts: [{ text: msg.content }]
-          });
-        }
-
-        // ?꾩옱 ?낅젰? sendMessage濡??꾨떖?섎?濡??덉뒪?좊━?먯꽌 ?쒓굅
-        const historyWithoutCurrent = rawPaired.slice(0, -1);
-
-        // 泥???ぉ??'model'?대㈃ ?욎뿉???쒓굅 (諛섎뱶??user濡??쒖옉?댁빞 ??
-        while (historyWithoutCurrent.length > 0 && historyWithoutCurrent[0].role === 'model') {
-          historyWithoutCurrent.shift();
-        }
-
-        // user-model 援먮? 蹂댁옣 (?곗냽 ?숈씪 role ?쒓굅)
-        const pairedHistory: { role: 'user' | 'model'; parts: { text: string }[] }[] = [];
-        for (const msg of historyWithoutCurrent) {
-          const lastRole = pairedHistory.length > 0 ? pairedHistory[pairedHistory.length - 1].role : null;
-          if (msg.role !== lastRole) pairedHistory.push(msg);
-        }
-
-        const chat = model.startChat({
-          history: pairedHistory,
-          generationConfig: {
-            maxOutputTokens: this.config.max_tokens,
-            temperature: this.config.temperature,
-          },
-        });
-
-        const result = await chat.sendMessage(userInput);
-        const responseText = result.response.text() || '?묐떟???앹꽦?????놁뿀?듬땲??';
-        const emotion = this.extractEmotion(responseText);
-
-        return {
-          text: responseText,
-          emotion: emotion,
-          confidence: 0.8,
-          metadata: {
-            model: selectedGeminiModel,
-            provider: "google"
-          }
-        };
-      } catch (error) {
-        return {
-          text: '?쒕??섏씠 API ?몄텧 以??ㅻ쪟媛 諛쒖깮?덉뼱?? ?ㅺ? ?щ컮瑜몄? ?뺤씤?댁＜?몄슂!',
-          emotion: 'neutral',
-          confidence: 0.3
-        };
+위의 개성에 맞춰서 대화하고 응답해주세요.`;
+        console.log(`🎭 개성이 포함된 시스템 프롬프트 사용:`, client.personality);
       }
-    }
 
-    // 2. ?쒕??섏씠 ?ㅺ? ?놁쑝硫??덈궡 硫붿떆吏 諛섑솚
-    return {
-      text: '二꾩넚?댁슂, ??뷀븯?ㅻ㈃ ?쒕??섏씠(Google) API ?ㅺ? ?꾩슂?댁슂. ?꾨컮? 媛쒖꽦 ?ㅼ젙?먯꽌 Gemini API ?ㅻ? ?낅젰?댁＜?몄슂!',
-      emotion: 'neutral',
-      confidence: 0.5
-    };
+      // 대화 히스토리 준비 (최근 3개 메시지만 - 빠른 응답)
+      const recentHistory = client.conversationHistory.slice(-3);
+      const messages = [
+        {
+          role: 'system' as const,
+          content: systemPrompt
+        },
+        ...recentHistory.map(msg => ({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content
+        }))
+      ];
+
+      // OpenAI API 호출
+      const completion = await this.openai.chat.completions.create({
+        model: this.config.model,
+        messages: messages,
+        max_tokens: this.config.max_tokens,
+        temperature: this.config.temperature,
+        stream: false
+      });
+
+      const responseText = completion.choices[0]?.message?.content || '응답을 생성할 수 없었습니다.';
+      const emotion = this.extractEmotion(responseText);
+      
+      return {
+        text: responseText,
+        emotion: emotion,
+        confidence: 0.8,
+        metadata: {
+          tokens_used: completion.usage?.total_tokens || 0,
+          model: completion.model
+        }
+      };
+
+    } catch (error) {
+      console.error('OpenAI API 오류:', error);
+      const emotion = this.analyzeEmotion(userInput);
+      return {
+        text: `[${emotion}] 죄송해요, 잠시 응답하는데 문제가 있어요. 다시 시도해주세요!`,
+        emotion: emotion,
+        confidence: 0.3
+      };
+    }
   }
 
   private extractEmotion(text: string): string {
-    // ?띿뒪?몄뿉??媛먯젙 ?쒓렇 異붿텧 [emotion] ?뺥깭
+    // 텍스트에서 감정 태그 추출 [emotion] 형태
     const emotionRegex = /\[(\w+)\]/g;
     const matches = text.match(emotionRegex);
     
@@ -465,7 +444,7 @@ ${client.personality}
   }
 
   private analyzeEmotion(text: string): string {
-    // 媛먯젙 ?ㅼ썙??遺꾩꽍
+    // 감정 키워드 분석
     const lowerText = text.toLowerCase();
     
     for (const [keyword, emotion] of Object.entries(this.config.emotion_keywords)) {
@@ -474,112 +453,138 @@ ${client.personality}
       }
     }
 
-    // 湲곕낯媛?    return 'neutral';
+    // 기본값
+    return 'neutral';
   }
 
-  private selectGeminiVoice(personality?: string): string {
-    if (!personality) return 'Kore'; // 湲곕낯: ?⑦샇?섍퀬 紐낇솗???ъ꽦 紐⑹냼由?
+  private selectVoiceFromPersonality(personality?: string): "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer" {
+    if (!personality) return "nova"; // 기본값: 여성 목소리
+    
     const lowerPersonality = personality.toLowerCase();
-
-    const maleKeywords = ['?⑥옄', '?⑥꽦', '?⑥옄紐⑹냼由?, '?⑥꽦??, '源딆? 紐⑹냼由?, '???];
-    const femaleKeywords = ['?ъ옄', '?ъ꽦', '?ъ옄紐⑹냼由?, '?ъ꽦??, '諛앹? 紐⑹냼由?, '怨좎쓬'];
-    const youngKeywords = ['?대┛', '?좎븘', '洹?ъ슫', '?꾩씠', '?뚮?', '?뚮뀈'];
-    const warmKeywords = ['?곕쑜', '?⑦솕', '遺?쒕윭??, '移쒓렐'];
-    const energyKeywords = ['?쒕컻', '?먮꼫吏', '?좊굹', '?κ꺼', '?낅퉬??];
-
-    if (youngKeywords.some(k => lowerPersonality.includes(k))) return 'Leda';      // 諛앷퀬 ?대┛ 紐⑹냼由?    if (energyKeywords.some(k => lowerPersonality.includes(k))) return 'Puck';     // ?좊굹??紐⑹냼由?    if (warmKeywords.some(k => lowerPersonality.includes(k))) return 'Sulafat';    // ?곕쑜??紐⑹냼由?    if (maleKeywords.some(k => lowerPersonality.includes(k))) return 'Fenrir';     // ?⑥꽦??紐⑹냼由?    if (femaleKeywords.some(k => lowerPersonality.includes(k))) return 'Aoede';    // ?ъ꽦 紐⑹냼由?
-    return 'Kore'; // 湲곕낯媛?  }
-
-  // PCM raw ?곗씠?곕? WAV ?뚯씪 Buffer濡?蹂??  private pcmToWav(pcmBuffer: Buffer, sampleRate = 24000, channels = 1, bitsPerSample = 16): Buffer {
-    const byteRate = sampleRate * channels * (bitsPerSample / 8);
-    const blockAlign = channels * (bitsPerSample / 8);
-    const dataSize = pcmBuffer.length;
-    const headerSize = 44;
-    const wav = Buffer.alloc(headerSize + dataSize);
-
-    wav.write('RIFF', 0, 'ascii');
-    wav.writeUInt32LE(36 + dataSize, 4);
-    wav.write('WAVE', 8, 'ascii');
-    wav.write('fmt ', 12, 'ascii');
-    wav.writeUInt32LE(16, 16);
-    wav.writeUInt16LE(1, 20);            // PCM
-    wav.writeUInt16LE(channels, 22);
-    wav.writeUInt32LE(sampleRate, 24);
-    wav.writeUInt32LE(byteRate, 28);
-    wav.writeUInt16LE(blockAlign, 32);
-    wav.writeUInt16LE(bitsPerSample, 34);
-    wav.write('data', 36, 'ascii');
-    wav.writeUInt32LE(dataSize, 40);
-    pcmBuffer.copy(wav, 44);
-
-    return wav;
+    
+    // 남성 관련 키워드
+    const maleKeywords = ['남자', '남성', '남자목소리', '남성적', '남자 목소리', '깊은 목소리', '저음'];
+    // 여성 관련 키워드
+    const femaleKeywords = ['여자', '여성', '여자목소리', '여성적', '여자 목소리', '밝은 목소리', '고음'];
+    
+    // 남성 키워드 확인
+    if (maleKeywords.some(keyword => lowerPersonality.includes(keyword))) {
+      console.log('🎙️ 남성 목소리 선택: onyx');
+      return "onyx"; // 깊은 남성 목소리
+    }
+    
+    // 여성 키워드 확인
+    if (femaleKeywords.some(keyword => lowerPersonality.includes(keyword))) {
+      console.log('🎙️ 여성 목소리 선택: nova');
+      return "nova"; // 여성 목소리
+    }
+    
+    // 키워드가 없으면 기본값
+    console.log('🎙️ 기본 목소리 선택: nova');
+    return "nova";
   }
 
-  private async generateTTS(text: string, geminiApiKey: string, personality?: string): Promise<{ audioUrl: string; volumes: number[] }> {
-    const cleanText = text.replace(/\[[\w]+\]\s*/g, '').trim();
-    if (!cleanText) throw new Error('TTS???띿뒪?멸? ?놁뒿?덈떎');
-
-    const voiceName = this.selectGeminiVoice(personality);
-    console.log('?렦 Gemini TTS ?쒖옉:', { textLength: cleanText.length, voice: voiceName });
-
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: cleanText }] }],
-          generationConfig: {
-            responseModalities: ['AUDIO'],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: { voiceName }
-              }
-            }
-          }
-        })
-      }
-    );
-
-    if (!res.ok) {
-      const errBody = await res.text();
-      throw new Error(`Gemini TTS API ?ㅻ쪟 (${res.status}): ${errBody}`);
+  private async generateTTS(text: string, personality?: string): Promise<{ audioUrl: string; volumes: number[] }> {
+    if (!this.openai) {
+      throw new Error('OpenAI API가 설정되지 않았습니다');
     }
 
-    const json = await res.json() as any;
-    const base64Audio: string = json?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!base64Audio) throw new Error('Gemini TTS: ?ㅻ뵒???곗씠?곌? ?놁뒿?덈떎');
+    try {
+      // 감정 태그 제거
+      const cleanText = text.replace(/\[[\w]+\]\s*/g, '').trim();
+      
+      // 개성에 따라 목소리 선택
+      const selectedVoice = this.selectVoiceFromPersonality(personality);
+      
+      console.log('🎵 TTS 생성 시작:', {
+        originalText: text.substring(0, 50) + '...',
+        cleanText: cleanText.substring(0, 50) + '...',
+        textLength: cleanText.length,
+        personality: personality || '없음',
+        selectedVoice: selectedVoice
+      });
 
-    const pcmBuffer = Buffer.from(base64Audio, 'base64');
-    const wavBuffer = this.pcmToWav(pcmBuffer);
+      // OpenAI TTS API 호출 (opus 포맷 - 더 빠름)
+      const audioResponse = await this.openai.audio.speech.create({
+        model: "tts-1",  // tts-1-hd는 더 느림
+        voice: selectedVoice,   // 개성에 따라 선택된 목소리
+        input: cleanText,
+        response_format: "opus",  // opus는 mp3보다 빠르고 작음
+        speed: 1.1  // 약간 빠르게
+      });
 
-    const filename = `tts_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.wav`;
-    const audioDir = path.join(process.cwd(), 'public', 'audio');
-    await fs.mkdir(audioDir, { recursive: true });
-    const audioPath = path.join(audioDir, filename);
-    await fs.writeFile(audioPath, wavBuffer);
+      // 오디오 데이터를 Buffer로 변환
+      const buffer = Buffer.from(await audioResponse.arrayBuffer());
+      
+      // 임시 파일 생성 (public 폴더에 저장)
+      const filename = `tts_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.opus`;
+      const audioPath = path.join(process.cwd(), 'public', 'audio', filename);
+      
+      // audio 디렉토리가 없으면 생성
+      const audioDir = path.dirname(audioPath);
+      await fs.mkdir(audioDir, { recursive: true });
+      
+      // 파일 저장
+      await fs.writeFile(audioPath, buffer);
+      
+      // 파일이 실제로 생성되었는지 확인
+      try {
+        await fs.access(audioPath);
+        const stats = await fs.stat(audioPath);
+        console.log('✅ 파일 생성 확인:', {
+          path: audioPath,
+          size: stats.size,
+          exists: true
+        });
+      } catch (error) {
+        console.error('❌ 파일 생성 실패:', audioPath, error);
+        throw new Error('TTS 파일 생성 실패');
+      }
+      
+      // URL 생성
+      const audioUrl = `/audio/${filename}`;
+      
+      // 볼륨 데이터 생성 (간단한 더미 데이터, 실제로는 오디오 분석 필요)
+      const volumes = this.generateVolumeData(cleanText.length);
+      
+      console.log('🎵 TTS 생성 완료:', {
+        filename,
+        audioUrl,
+        absolutePath: audioPath,
+        fileSize: buffer.length,
+        volumesCount: volumes.length
+      });
 
-    console.log('??Gemini TTS WAV ???', { filename, size: wavBuffer.length });
+      // 5분 후 임시 파일 삭제 스케줄링
+      setTimeout(async () => {
+        try {
+          await fs.unlink(audioPath);
+          console.log('🗑️  임시 TTS 파일 삭제:', filename);
+        } catch (error) {
+          console.warn('⚠️ TTS 파일 삭제 실패:', filename, error);
+        }
+      }, 5 * 60 * 1000); // 5분
 
-    // 5遺????뚯씪 ?먮룞 ??젣
-    setTimeout(async () => {
-      try { await fs.unlink(audioPath); } catch { /* 臾댁떆 */ }
-    }, 5 * 60 * 1000);
+      return { audioUrl, volumes };
 
-    const volumes = this.generateVolumeData(cleanText.length);
-    return { audioUrl: `/audio/${filename}`, volumes };
+    } catch (error) {
+      console.error('🚫 OpenAI TTS API 오류:', error);
+      throw error;
+    }
   }
 
   private generateVolumeData(textLength: number): number[] {
-    // ?띿뒪??湲몄씠瑜?湲곕컲?쇰줈 蹂쇰ⅷ ?곗씠???앹꽦
-    // ?ㅼ젣濡쒕뒗 ?ㅻ뵒??遺꾩꽍???꾩슂?섏?留? ?꾩떆濡?媛꾨떒???⑦꽩 ?앹꽦
-    const duration = Math.max(textLength * 0.1, 2); // 理쒖냼 2珥?    const frameRate = 60; // 60fps
+    // 텍스트 길이를 기반으로 볼륨 데이터 생성
+    // 실제로는 오디오 분석이 필요하지만, 임시로 간단한 패턴 생성
+    const duration = Math.max(textLength * 0.1, 2); // 최소 2초
+    const frameRate = 60; // 60fps
     const totalFrames = Math.floor(duration * frameRate);
     
     const volumes: number[] = [];
     
     for (let i = 0; i < totalFrames; i++) {
-      // ?ъ씤??湲곕컲???먯뿰?ㅻ윭??蹂쇰ⅷ 蹂??      const progress = i / totalFrames;
+      // 사인파 기반의 자연스러운 볼륨 변화
+      const progress = i / totalFrames;
       const baseVolume = 0.3 + Math.sin(progress * Math.PI * 4) * 0.2;
       const randomVariation = (Math.random() - 0.5) * 0.1;
       const volume = Math.max(0, Math.min(1, baseVolume + randomVariation));
@@ -590,7 +595,7 @@ ${client.personality}
   }
 
   private async handleInterrupt(client: ClientConnection) {
-    console.log(`?좑툘  ???以묐떒 ?붿껌 (${client.id})`);
+    console.log(`⚠️  대화 중단 요청 (${client.id})`);
     
     this.sendMessage(client, {
       type: 'conversation-interrupted',
@@ -603,14 +608,14 @@ ${client.personality}
 
     const model = this.modelConfigs.find(m => m.name === modelName);
     if (!model) {
-      this.sendError(client, `紐⑤뜽 '${modelName}'??瑜? 李얠쓣 ???놁뒿?덈떎.`);
+      this.sendError(client, `모델 '${modelName}'을(를) 찾을 수 없습니다.`);
       return;
     }
 
     client.currentModel = modelName;
     client.currentEmotion = 'neutral';
 
-    console.log(`?봽 紐⑤뜽 蹂寃?(${client.id}): ${modelName}`);
+    console.log(`🔄 모델 변경 (${client.id}): ${modelName}`);
 
     this.sendMessage(client, {
       type: 'model-switched',
@@ -624,13 +629,13 @@ ${client.personality}
     try {
       if (client.ws.readyState === WebSocket.OPEN) {
         const messageStr = JSON.stringify(message);
-        console.log(`?뱾 硫붿떆吏 ?꾩넚 (${client.id}):`, message.type, messageStr.length, 'bytes');
+        console.log(`📤 메시지 전송 (${client.id}):`, message.type, messageStr.length, 'bytes');
         client.ws.send(messageStr);
       } else {
-        console.warn(`???대씪?댁뼵??${client.id} WebSocket???대젮?덉? ?딆뒿?덈떎. ?곹깭: ${client.ws.readyState}`);
+        console.warn(`❌ 클라이언트 ${client.id} WebSocket이 열려있지 않습니다. 상태: ${client.ws.readyState}`);
       }
     } catch (error) {
-      console.error(`??硫붿떆吏 ?꾩넚 ?ㅻ쪟 (${client.id}):`, error);
+      console.error(`❌ 메시지 전송 오류 (${client.id}):`, error);
     }
   }
 
@@ -645,31 +650,32 @@ ${client.personality}
   private startHeartbeat() {
     setInterval(() => {
       this.wss.clients.forEach((ws) => {
-        // 媛??대씪?댁뼵?몄쓽 ?앹〈 ?뺤씤
+        // 각 클라이언트의 생존 확인
         const client = Array.from(this.clients.values()).find(c => c.ws === ws);
         if (client) {
-          // ?곌껐 ?덉젙?깆쓣 ?꾪빐 ??꾩븘??議곌굔 ?꾪솕
+          // 연결 안정성을 위해 타임아웃 조건 완화
           if (!client.isAlive && client.ws.readyState !== WebSocket.OPEN) {
-            console.log(`?? ?대씪?댁뼵???곌껐 醫낅즺 (??꾩븘??: ${client.id}`);
+            console.log(`💀 클라이언트 연결 종료 (타임아웃): ${client.id}`);
             client.ws.terminate();
             this.clients.delete(client.id);
             return;
           }
           
-          // ping留??꾩넚?섍퀬 利됱떆 醫낅즺?섏? ?딆쓬
+          // ping만 전송하고 즉시 종료하지 않음
           if (client.ws.readyState === WebSocket.OPEN) {
             client.isAlive = false;
             client.ws.ping();
           }
         }
       });
-    }, 60000); // 60珥덈쭏??泥댄겕 (媛꾧꺽 利앷?)
+    }, 60000); // 60초마다 체크 (간격 증가)
   }
 
   public getStats() {
     return {
       connectedClients: this.clients.size,
       availableModels: this.modelConfigs.length,
+      openaiConfigured: !!this.openai,
       uptime: process.uptime()
     };
   }

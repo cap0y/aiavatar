@@ -1,4 +1,4 @@
-// VTuber ?쒕쾭 愿??????뺤쓽
+// VTuber 서버 관련 타입 정의
 
 export interface VTuberMessage {
   type: string;
@@ -22,8 +22,6 @@ export interface WebSocketMessage {
   audioUrl?: string;
   volumes?: number[];
   personality?: string;
-  geminiApiKey?: string;
-  geminiModel?: string;
 }
 
 export interface ClientConnection {
@@ -35,10 +33,7 @@ export interface ClientConnection {
   currentEmotion: string;
   conversationHistory: ConversationMessage[];
   personality?: string;
-  geminiApiKey?: string;
-  geminiModel?: string;
-  isBusy?: boolean;           // ?묐떟 ?앹꽦 以??щ? (?숈떆 ?붿껌 李⑤떒??
-  pendingQueue?: string[];    // 泥섎━ ?湲?以묒씤 ?띿뒪????}
+}
 
 export interface ConversationMessage {
   id: string;

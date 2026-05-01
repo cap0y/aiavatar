@@ -13,9 +13,10 @@ export interface UseVoiceActivityDetectionReturn {
 }
 
 export const useVoiceActivityDetection = (
-  silenceThreshold: number = 0.01, // 移⑤У ?꾧퀎媛?  silenceDuration: number = 2000,  // 移⑤У 吏???쒓컙 (ms)
-  minRecordingTime: number = 1000,  // 理쒖냼 ?뱀쓬 ?쒓컙 (ms)
-  isAvatarSpeaking: boolean = false // ?꾨컮?媛 留먰븯怨??덈뒗吏 ?щ?
+  silenceThreshold: number = 0.01, // 침묵 임계값
+  silenceDuration: number = 2000,  // 침묵 지속 시간 (ms)
+  minRecordingTime: number = 1000,  // 최소 녹음 시간 (ms)
+  isAvatarSpeaking: boolean = false // 아바타가 말하고 있는지 여부
 ): UseVoiceActivityDetectionReturn => {
   const [isListening, setIsListening] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -33,22 +34,23 @@ export const useVoiceActivityDetection = (
   const recordingStartTimeRef = useRef<number>(0);
   const vadIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
-  // ?ㅼ떆媛??곹깭 異붿쟻??Refs
+  // 실시간 상태 추적용 Refs
   const isListeningRef = useRef(false);
   const isRecordingRef = useRef(false);
 
-  // ?뚯꽦 ?덈꺼 遺꾩꽍 (媛쒖꽑??踰꾩쟾)
+  // 음성 레벨 분석 (개선된 버전)
   const analyzeAudioLevel = useCallback((): number => {
     if (!analyserRef.current) return 0;
 
     const bufferLength = analyserRef.current.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
-    analyserRef.current.getByteTimeDomainData(dataArray); // 二쇳뙆??????쒓컙 ?꾨찓???ъ슜
+    analyserRef.current.getByteTimeDomainData(dataArray); // 주파수 대신 시간 도메인 사용
 
-    // ?됯퇏 蹂쇰ⅷ 怨꾩궛
+    // 평균 볼륨 계산
     let sum = 0;
     for (let i = 0; i < bufferLength; i++) {
-      const amplitude = Math.abs(dataArray[i] - 128) / 128; // -1 ~ 1濡??뺢퇋??      sum += amplitude;
+      const amplitude = Math.abs(dataArray[i] - 128) / 128; // -1 ~ 1로 정규화
+      sum += amplitude;
     }
     const average = sum / bufferLength;
     setVoiceLevel(average);
@@ -57,11 +59,11 @@ export const useVoiceActivityDetection = (
     return average;
   }, []);
 
-  // 移⑤У 媛먯? 諛??먮룞 ?뱀쓬 以묒? (媛쒖꽑??踰꾩쟾)
+  // 침묵 감지 및 자동 녹음 중지 (개선된 버전)
   const handleVoiceActivity = useCallback(() => {
-    // ?꾨컮?媛 留먰븯??以묒씠硫??뚯꽦 ?낅젰 臾댁떆
+    // 아바타가 말하는 중이면 음성 입력 무시
     if (isAvatarSpeaking) {
-      // ?대? ?뱀쓬 以묒씠硫?以묒?
+      // 이미 녹음 중이면 중지
       if (isRecordingRef.current) {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
           mediaRecorderRef.current.stop();
@@ -70,25 +72,25 @@ export const useVoiceActivityDetection = (
         isRecordingRef.current = false;
       }
       
-      // 移⑤У ??대㉧??由ъ뀑
+      // 침묵 타이머도 리셋
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = null;
       }
       
-      return; // ?꾨컮?媛 留먰븯???숈븞? ?뚯꽦 媛먯? 嫄대꼫?
+      return; // 아바타가 말하는 동안은 음성 감지 건너뜀
     }
     
     const currentLevel = analyzeAudioLevel();
     
           if (currentLevel > silenceThreshold) {
-      // ?뚯꽦 媛먯???- 移⑤У ??대㉧ 由ъ뀑
+      // 음성 감지됨 - 침묵 타이머 리셋
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = null;
       }
       
-      // ?꾩쭅 ?뱀쓬 以묒씠 ?꾨땲硫??뱀쓬 ?쒖옉
+      // 아직 녹음 중이 아니면 녹음 시작
       if (isListeningRef.current && !isRecordingRef.current) {
         setIsRecording(true);
         isRecordingRef.current = true;
@@ -99,17 +101,17 @@ export const useVoiceActivityDetection = (
           try {
             mediaRecorderRef.current.start();
           } catch (error) {
-            console.error('?뱀쓬 ?쒖옉 ?ㅽ뙣:', error);
+            console.error('녹음 시작 실패:', error);
           }
         }
       }
     } else if (isRecordingRef.current && currentLevel <= silenceThreshold) {
-      // 移⑤У 媛먯???- 移⑤У ??대㉧ ?쒖옉
+      // 침묵 감지됨 - 침묵 타이머 시작
       if (!silenceTimerRef.current) {
         silenceTimerRef.current = setTimeout(() => {
           const recordingDuration = Date.now() - recordingStartTimeRef.current;
           
-          // 理쒖냼 ?뱀쓬 ?쒓컙 泥댄겕
+          // 최소 녹음 시간 체크
           if (recordingDuration >= minRecordingTime) {
             if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
               mediaRecorderRef.current.stop();
@@ -120,13 +122,13 @@ export const useVoiceActivityDetection = (
     }
   }, [silenceThreshold, silenceDuration, minRecordingTime, analyzeAudioLevel, isAvatarSpeaking]);
 
-  // 由ъ뒪???쒖옉
+  // 리스닝 시작
   const startListening = useCallback(async () => {
     try {
       setError(null);
       setIsProcessing(false);
       
-      // 留덉씠??沅뚰븳 ?붿껌 諛??ㅻ뵒???ㅽ듃由??띾뱷
+      // 마이크 권한 요청 및 오디오 스트림 획득
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
@@ -139,7 +141,7 @@ export const useVoiceActivityDetection = (
 
       streamRef.current = stream;
 
-      // AudioContext 諛?AnalyserNode ?ㅼ젙 (?뚯꽦 ?덈꺼 遺꾩꽍??
+      // AudioContext 및 AnalyserNode 설정 (음성 레벨 분석용)
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       const source = audioContextRef.current.createMediaStreamSource(stream);
       analyserRef.current = audioContextRef.current.createAnalyser();
@@ -148,7 +150,7 @@ export const useVoiceActivityDetection = (
       analyserRef.current.smoothingTimeConstant = 0.8;
       source.connect(analyserRef.current);
 
-      // MediaRecorder ?ㅼ젙
+      // MediaRecorder 설정
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus'
       });
@@ -165,37 +167,31 @@ export const useVoiceActivityDetection = (
         setIsProcessing(true);
 
         try {
-          // ?ㅻ뵒??釉붾∼ ?앹꽦
+          // 오디오 블롭 생성
           const audioBlob = new Blob(audioChunksRef.current, { 
             type: 'audio/webm;codecs=opus' 
           });
 
-          // FormData濡??쒕쾭???꾩넚 (Gemini API ???ы븿)
-          const geminiApiKey = localStorage.getItem('gemini_api_key_global') || '';
+          // FormData로 서버에 전송
           const formData = new FormData();
           formData.append('audio', audioBlob, 'voice-recording.webm');
-          formData.append('geminiApiKey', geminiApiKey);
 
-          // ?뚯꽦 ?몄떇 API ?몄텧
+          // 음성 인식 API 호출
           const response = await fetch('/api/speech/transcribe', {
             method: 'POST',
             body: formData
           });
 
           if (!response.ok) {
-            const errJson = await response.json().catch(() => ({}));
-            throw new Error(errJson.error || `?뚯꽦 ?몄떇 ?ㅽ뙣: ${response.status}`);
+            throw new Error(`음성 인식 실패: ${response.status}`);
           }
 
           const result = await response.json();
-          setTranscription(result.text || '?뚯꽦???몄떇?????놁뒿?덈떎.');
+          setTranscription(result.text || '음성을 인식할 수 없습니다.');
           
         } catch (err) {
-          console.error('?렎 ?뚯꽦 ?몄떇 ?ㅻ쪟:', err);
-          const msg = err instanceof Error ? err.message : '?뚯꽦 ?몄떇 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.';
-          setError(msg);
-          // ?먮윭 ?댁슜??transcription???ｌ뼱 UI???쒖떆
-          setTranscription(`[?몄떇 ?ㅽ뙣: ${msg}]`);
+          console.error('음성 인식 오류:', err);
+          setError(err instanceof Error ? err.message : '음성 인식 중 오류가 발생했습니다.');
         } finally {
           setIsProcessing(false);
         }
@@ -205,24 +201,24 @@ export const useVoiceActivityDetection = (
       setIsListening(true);
       isListeningRef.current = true;
 
-      // ?뚯꽦 ?쒕룞 媛먯? ?쒖옉 (100ms留덈떎 泥댄겕)
+      // 음성 활동 감지 시작 (100ms마다 체크)
       vadIntervalRef.current = setInterval(handleVoiceActivity, 100);
       
     } catch (err) {
-      console.error('由ъ뒪???쒖옉 ?ㅻ쪟:', err);
-      setError(err instanceof Error ? err.message : '留덉씠???묎렐 沅뚰븳???꾩슂?⑸땲??');
+      console.error('리스닝 시작 오류:', err);
+      setError(err instanceof Error ? err.message : '마이크 접근 권한이 필요합니다.');
       setIsProcessing(false);
     }
   }, [handleVoiceActivity]);
 
-  // 由ъ뒪??以묒?
+  // 리스닝 중지
   const stopListening = useCallback(async () => {
     setIsListening(false);
     setIsRecording(false);
     isListeningRef.current = false;
     isRecordingRef.current = false;
     
-    // ??대㉧???뺣━
+    // 타이머들 정리
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
@@ -233,18 +229,18 @@ export const useVoiceActivityDetection = (
       vadIntervalRef.current = null;
     }
 
-    // ?뱀쓬 以묒씠硫?以묒?
+    // 녹음 중이면 중지
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
     }
 
-    // ?ㅽ듃由??뺣━
+    // 스트림 정리
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
 
-    // AudioContext ?뺣━
+    // AudioContext 정리
     if (audioContextRef.current) {
       audioContextRef.current.close();
       audioContextRef.current = null;
@@ -254,7 +250,7 @@ export const useVoiceActivityDetection = (
     setVoiceLevel(0);
   }, []);
 
-  // 而댄룷?뚰듃 ?몃쭏?댄듃 ???뺣━
+  // 컴포넌트 언마운트 시 정리
   useEffect(() => {
     return () => {
       stopListening();

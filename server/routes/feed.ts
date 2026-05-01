@@ -15,14 +15,21 @@ import {
 import { eq, desc, sql, and, or, like } from "drizzle-orm";
 import multer from "multer";
 import path from "path";
-import { uploadToCloudinary } from "../cloudinary";
+import FormData from "form-data";
+import axios from "axios";
 
 const router = Router();
 
-// Cloudinary CDN 설정
-console.log("☁️ Feed 파일 업로드: Cloudinary 사용");
+// Windows 업로드 서버 설정
+const UPLOAD_API_URL = "http://115.160.0.166:3008/upload"; // PM2로 실행 중인 CDN 서버의 업로드 API (웹서버 없이 직접 접속)
+const MEDIA_BASE_URL = "http://115.160.0.166:3008/aiavatar/feed-media"; // PM2로 실행 중인 CDN 서버의 미디어 도메인 (웹서버 없이 직접 접속)
 
-// 메모리에 임시 저장 후 Cloudinary로 전송
+console.log("📁 Feed 파일 업로드 설정:", {
+  UPLOAD_API_URL,
+  MEDIA_BASE_URL,
+});
+
+// Replit 서버의 메모리에 임시 저장 (Windows 서버로 전송하기 위해)
 const storage = multer.memoryStorage();
 
 const upload = multer({
@@ -305,33 +312,48 @@ router.post("/posts", uploadMultiple, async (req, res) => {
     let mediaUrls: string[] = [];
     let firstMediaUrl = null;
 
-    // 다중 파일이 있으면 Cloudinary로 업로드
+    // 다중 파일이 있으면 Windows 서버로 전송
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {
       try {
-        console.log(`☁️ Cloudinary로 ${req.files.length}개 파일 업로드 중...`);
+        console.log(`📤 Windows 서버로 ${req.files.length}개 파일 전송 중...`);
 
+        // 각 파일을 업로드
         for (const file of req.files) {
           console.log("📤 파일 업로드 중:", {
             originalname: file.originalname,
             size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
           });
 
-          // 파일 타입에 따라 리소스 유형 결정
-          const resourceType = file.mimetype.startsWith("video/") ? "video" as const : "image" as const;
-
-          const result = await uploadToCloudinary(file.buffer, "feed-media", {
-            resourceType,
+          const formData = new FormData();
+          formData.append("file", file.buffer, {
+            filename: file.originalname,
+            contentType: file.mimetype,
           });
 
-          mediaUrls.push(result.url);
-          if (!firstMediaUrl) {
-            firstMediaUrl = result.url;
+          // Windows 업로드 서버로 전송
+          const uploadResponse = await axios.post(UPLOAD_API_URL, formData, {
+            headers: formData.getHeaders(),
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity,
+          });
+
+          if (uploadResponse.data && uploadResponse.data.url) {
+            mediaUrls.push(uploadResponse.data.url);
+            if (!firstMediaUrl) {
+              firstMediaUrl = uploadResponse.data.url;
+            }
+            console.log("✅ Windows 서버 업로드 성공:", {
+              filename: uploadResponse.data.filename,
+              url: uploadResponse.data.url,
+            });
+          } else {
+            throw new Error("업로드 응답에 URL이 없습니다.");
           }
         }
 
-        console.log(`✅ 총 ${mediaUrls.length}개 파일 Cloudinary 업로드 완료`);
+        console.log(`✅ 총 ${mediaUrls.length}개 파일 업로드 완료`);
       } catch (uploadError) {
-        console.error("❌ Cloudinary 업로드 실패:", uploadError);
+        console.error("❌ Windows 서버 업로드 실패:", uploadError);
         return res.status(500).json({
           error: "파일 업로드에 실패했습니다.",
           details:
@@ -367,7 +389,6 @@ router.post("/posts", uploadMultiple, async (req, res) => {
 router.put("/posts/:id", uploadMultiple, async (req, res) => {
   try {
     const userId = req.headers["x-user-id"] as string;
-    const userType = req.headers["x-user-type"] as string;
     const postId = parseInt(req.params.id);
 
     if (!userId) {
@@ -385,8 +406,7 @@ router.put("/posts/:id", uploadMultiple, async (req, res) => {
       return res.status(404).json({ error: "포스트를 찾을 수 없습니다." });
     }
 
-    // 관리자이거나 게시물 소유자만 수정 가능
-    if (post.userId !== userId && userType !== "admin") {
+    if (post.userId !== userId) {
       return res.status(403).json({ error: "권한이 없습니다." });
     }
 
@@ -399,34 +419,47 @@ router.put("/posts/:id", uploadMultiple, async (req, res) => {
     let mediaUrls = (post.mediaUrls as string[]) || []; // 기존 미디어 URLs 유지
     let firstMediaUrl = post.mediaUrl;
 
-    // 새 파일들이 있으면 Cloudinary로 업로드
+    // 새 파일들이 있으면 Windows 서버로 전송
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {
       try {
-        console.log(`☁️ Cloudinary로 ${req.files.length}개 파일 업로드 중...`);
+        console.log(`📤 Windows 서버로 ${req.files.length}개 파일 전송 중...`);
 
         const newMediaUrls: string[] = [];
 
+        // 각 파일을 업로드
         for (const file of req.files) {
           console.log("📤 파일 업로드 중:", {
             originalname: file.originalname,
             size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
           });
 
-          const resourceType = file.mimetype.startsWith("video/") ? "video" as const : "image" as const;
-
-          const result = await uploadToCloudinary(file.buffer, "feed-media", {
-            resourceType,
+          const formData = new FormData();
+          formData.append("file", file.buffer, {
+            filename: file.originalname,
+            contentType: file.mimetype,
           });
 
-          newMediaUrls.push(result.url);
+          const uploadResponse = await axios.post(UPLOAD_API_URL, formData, {
+            headers: formData.getHeaders(),
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity,
+          });
+
+          if (uploadResponse.data && uploadResponse.data.url) {
+            newMediaUrls.push(uploadResponse.data.url);
+            console.log("✅ Windows 서버 업로드 성공:", {
+              filename: uploadResponse.data.filename,
+              url: uploadResponse.data.url,
+            });
+          }
         }
 
         // 새로 업로드된 파일들로 교체
         mediaUrls = newMediaUrls;
         firstMediaUrl = newMediaUrls[0] || null;
-        console.log(`✅ 총 ${mediaUrls.length}개 파일 Cloudinary 업로드 완료`);
+        console.log(`✅ 총 ${mediaUrls.length}개 파일 업로드 완료`);
       } catch (uploadError) {
-        console.error("❌ Cloudinary 업로드 실패:", uploadError);
+        console.error("❌ Windows 서버 업로드 실패:", uploadError);
         return res.status(500).json({
           error: "파일 업로드에 실패했습니다.",
           details:
@@ -644,7 +677,6 @@ router.delete("/posts/:postId/comments/:commentId", async (req, res) => {
   try {
     const commentId = parseInt(req.params.commentId);
     const userId = req.headers["x-user-id"] as string;
-    const userType = req.headers["x-user-type"] as string;
 
     if (!userId) {
       return res.status(401).json({ error: "인증이 필요합니다." });
@@ -660,8 +692,8 @@ router.delete("/posts/:postId/comments/:commentId", async (req, res) => {
       return res.status(404).json({ error: "댓글을 찾을 수 없습니다." });
     }
 
-    // 권한 확인 (작성자 또는 관리자)
-    if (comment.userId !== userId && userType !== "admin") {
+    // 권한 확인 (작성자만)
+    if (comment.userId !== userId) {
       return res.status(403).json({ error: "권한이 없습니다." });
     }
 
@@ -1149,7 +1181,6 @@ router.get("/channels/:userId/messages", async (req, res) => {
         channelUserId: channelMessages.channelUserId,
         senderUserId: channelMessages.senderUserId,
         message: channelMessages.message,
-        imageUrl: channelMessages.imageUrl,
         isPrivate: channelMessages.isPrivate,
         createdAt: channelMessages.createdAt,
         senderName: users.displayName,
@@ -1180,19 +1211,8 @@ router.get("/channels/:userId/messages", async (req, res) => {
   }
 });
 
-// 채널에 메시지 작성 (이미지 업로드 지원)
-const channelMessageUpload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      return cb(null, true);
-    }
-    cb(new Error("이미지 파일만 업로드 가능합니다."));
-  },
-}).single("image");
-
-router.post("/channels/:userId/messages", channelMessageUpload, async (req, res) => {
+// 채널에 메시지 작성
+router.post("/channels/:userId/messages", async (req, res) => {
   try {
     const channelUserId = req.params.userId;
     const senderUserId = req.headers["x-user-id"] as string;
@@ -1202,20 +1222,8 @@ router.post("/channels/:userId/messages", channelMessageUpload, async (req, res)
       return res.status(401).json({ error: "로그인이 필요합니다." });
     }
 
-    if ((!message || !message.trim()) && !req.file) {
-      return res.status(400).json({ error: "메시지 내용이나 이미지가 필요합니다." });
-    }
-
-    // 이미지가 있으면 Cloudinary에 업로드
-    let imageUrl: string | null = null;
-    if (req.file) {
-      try {
-        const result = await uploadToCloudinary(req.file.buffer, "channel-messages");
-        imageUrl = result.url;
-        console.log("✅ 채널 메시지 이미지 Cloudinary 업로드 성공:", imageUrl);
-      } catch (uploadError) {
-        console.error("❌ 채널 메시지 이미지 업로드 실패:", uploadError);
-      }
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: "메시지 내용이 필요합니다." });
     }
 
     const [newMessage] = await db
@@ -1223,8 +1231,7 @@ router.post("/channels/:userId/messages", channelMessageUpload, async (req, res)
       .values({
         channelUserId,
         senderUserId,
-        message: (message || "").trim() || (imageUrl ? "[이미지]" : ""),
-        imageUrl,
+        message: message.trim(),
         isPrivate: isPrivate || false,
       })
       .returning();
@@ -1236,7 +1243,6 @@ router.post("/channels/:userId/messages", channelMessageUpload, async (req, res)
         channelUserId: channelMessages.channelUserId,
         senderUserId: channelMessages.senderUserId,
         message: channelMessages.message,
-        imageUrl: channelMessages.imageUrl,
         isPrivate: channelMessages.isPrivate,
         createdAt: channelMessages.createdAt,
         senderName: users.displayName,

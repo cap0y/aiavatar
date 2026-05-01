@@ -48,8 +48,6 @@ if (!fs.existsSync(publicPath)) {
 const audioPath = path.join(publicPath, 'audio');
 const imagesPath = path.join(publicPath, 'images');
 const personalAvatarsPath = path.join(publicPath, 'personal-avatars');
-const libsPath = path.join(publicPath, 'libs');
-const live2dModelsPath = path.join(publicPath, 'live2d-models');
 
 [audioPath, imagesPath, personalAvatarsPath].forEach(dir => {
   if (!fs.existsSync(dir)) {
@@ -199,32 +197,6 @@ const startServer = async () => {
     // 이미지 및 기타 정적 파일 서빙
     app.use('/images', express.static(imagesPath));
     app.use('/personal-avatars', express.static(personalAvatarsPath));
-
-    // Live2D 라이브러리 파일 직접 서빙 (Vite 빌드 출력에 의존하지 않음)
-    if (fs.existsSync(libsPath)) {
-      console.log("📦 /libs 정적 파일 서빙:", libsPath);
-      app.use('/libs', express.static(libsPath, {
-        setHeaders: (res, filePath) => {
-          if (filePath.endsWith('.js')) {
-            res.setHeader('Content-Type', 'application/javascript');
-          } else if (filePath.endsWith('.wasm')) {
-            res.setHeader('Content-Type', 'application/wasm');
-          }
-          res.setHeader('Cache-Control', 'public, max-age=86400');
-        }
-      }));
-    } else {
-      console.warn("⚠️ /libs 폴더 없음:", libsPath);
-    }
-
-    // Live2D 모델 파일 직접 서빙
-    if (fs.existsSync(live2dModelsPath)) {
-      app.use('/live2d-models', express.static(live2dModelsPath, {
-        setHeaders: (res) => {
-          res.setHeader('Cache-Control', 'public, max-age=86400');
-        }
-      }));
-    }
     
     // 클라이언트 빌드 파일 서빙 (정적 리소스용)
     if (fs.existsSync(distPath)) {
@@ -248,8 +220,6 @@ const startServer = async () => {
             req.path.startsWith('/audio') || 
             req.path.startsWith('/images') ||
             req.path.startsWith('/personal-avatars') ||
-            req.path.startsWith('/libs') ||
-            req.path.startsWith('/live2d-models') ||
             req.path.startsWith('/feed-media') ||
             req.path.startsWith('/client-ws')) {
           return next();

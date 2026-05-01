@@ -43,29 +43,31 @@ import { useVoiceActivityDetection } from "@/hooks/useVoiceActivityDetection";
 import FeedView from "@/components/discord/FeedView";
 import FeedPostDetail from "@/components/discord/FeedPostDetail";
 
-// 硫붿떆吏 ??낆뿉 ?대?吏 URL 異붽?
+// 메시지 타입에 이미지 URL 추가
 interface Message {
   id: number | string;
   content: string;
   sender: string;
   timestamp: string;
-  raw?: any; // Firestore ?먮낯 ?곗씠??(?꾩슂??
-  imageUrl?: string; // ?대?吏 URL ?꾨뱶 異붽?
+  raw?: any; // Firestore 원본 데이터 (필요시)
+  imageUrl?: string; // 이미지 URL 필드 추가
   senderName?: string;
   senderAvatar?: string;
   isBot?: boolean;
-  reactions?: { [emoji: string]: string[] }; // 諛섏쓳: { "?몟": ["userId1", "userId2"] }
-  replyTo?: string; // ?듦? ???硫붿떆吏 ID
-  isDeleted?: boolean; // ??젣??硫붿떆吏 ?щ?
+  reactions?: { [emoji: string]: string[] }; // 반응: { "👍": ["userId1", "userId2"] }
+  replyTo?: string; // 답글 대상 메시지 ID
+  isDeleted?: boolean; // 삭제된 메시지 여부
 }
 
-// 梨꾪똿 ?뚰듃???뺣낫 ???interface ChatPartner {
+// 채팅 파트너 정보 타입
+interface ChatPartner {
   id: number | string;
   name: string;
   imageUrl?: string;
 }
 
-// 梨꾪똿 紐⑸줉 ??ぉ ???interface ChatListItem {
+// 채팅 목록 항목 타입
+interface ChatListItem {
   id: number | string;
   senderId: number | string;
   senderName: string;
@@ -75,7 +77,7 @@ interface Message {
   unread: number;
 }
 
-// Firestore 梨꾪똿諛?????뺤쓽
+// Firestore 채팅방 타입 정의
 interface ChatRoom {
   id: string;
   participants: string[];
@@ -87,7 +89,7 @@ interface ChatRoom {
   createdAt?: any;
 }
 
-// Firestore 硫붿떆吏 ??낆뿉 ?대?吏 URL 異붽?
+// Firestore 메시지 타입에 이미지 URL 추가
 interface ChatMessage {
   id: string;
   content: string;
@@ -97,10 +99,10 @@ interface ChatMessage {
     nanoseconds: number;
   };
   read: boolean;
-  imageUrl?: string; // ?대?吏 URL ?꾨뱶 異붽?
-  replyTo?: string; // ?듦? ???硫붿떆吏 ID
-  reactions?: { [emoji: string]: string[] }; // 諛섏쓳 媛앹껜
-  isDeleted?: boolean; // ??젣 ?곹깭
+  imageUrl?: string; // 이미지 URL 필드 추가
+  replyTo?: string; // 답글 대상 메시지 ID
+  reactions?: { [emoji: string]: string[] }; // 반응 객체
+  isDeleted?: boolean; // 삭제 상태
 }
 
 interface MainContentProps {
@@ -133,13 +135,13 @@ const MainContent: React.FC<MainContentProps> = ({
     currentChannel || "general",
   );
   const [showChatList, setShowChatList] = useState(true);
-  const [chatList, setChatList] = useState<ChatListItem[]>([]); // 鍮?諛곗뿴濡??쒖옉
+  const [chatList, setChatList] = useState<ChatListItem[]>([]); // 빈 배열로 시작
   const [needAuth, setNeedAuth] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [channelMembers, setChannelMembers] = useState<Array<{uid: string; displayName: string; photoURL?: string}>>([]);
   const messageListenerRef = useRef<(() => void) | null>(null);
 
-  // Live2D 愿???곹깭
+  // Live2D 관련 상태
   const [live2dInstance, setLive2dInstance] = useState<Live2DModel | null>(
     null,
   );
@@ -156,143 +158,79 @@ const MainContent: React.FC<MainContentProps> = ({
   const [availableModels, setAvailableModels] = useState<string[]>([
     "mao",
     "ichika",
-  ]); // ?ъ슜 媛?ν븳 紐⑤뜽 紐⑸줉
-  const [isAvatarSpeaking, setIsAvatarSpeaking] = useState(false); // ?꾨컮? 留먰븯湲??곹깭
-
-  // llm-response ?? ?뚯꽦 ?ъ깮 ?꾨즺 ???쒖감 泥섎━
-  const responseQueueRef = useRef<Array<{
-    originalText: string;
-    cleanText: string;
-    emotion: string;
-    audioUrl: string;
-    volumes: number[];
-  }>>([]);
-  const isPlayingResponseRef = useRef(false);
+  ]); // 사용 가능한 모델 목록
+  const [isAvatarSpeaking, setIsAvatarSpeaking] = useState(false); // 아바타 말하기 상태
   
-  // 媛쒖꽦(personality) 愿???곹깭
+  // 개성(personality) 관련 상태
   const [avatarPersonality, setAvatarPersonality] = useState<string>("");
-  const [geminiApiKey, setGeminiApiKey] = useState<string>("");
-  const [geminiModel, setGeminiModel] = useState<string>("gemini-2.0-flash");
   const [showPersonalityDialog, setShowPersonalityDialog] = useState(false);
   const [personalityInput, setPersonalityInput] = useState("");
-  const [geminiApiKeyInput, setGeminiApiKeyInput] = useState("");
-  const [geminiModelInput, setGeminiModelInput] = useState<string>("gemini-2.0-flash");
 
-  const GEMINI_MODELS = [
-    { id: "gemini-1.5-flash",          label: "Gemini 1.5 Flash",         badge: "?덉젙" },
-    { id: "gemini-1.5-pro",            label: "Gemini 1.5 Pro",           badge: "?덉젙" },
-    { id: "gemini-2.0-flash",          label: "Gemini 2.0 Flash",         badge: "異붿쿇" },
-    { id: "gemini-2.0-flash-exp",      label: "Gemini 2.0 Flash Exp",     badge: "?ㅽ뿕" },
-    { id: "gemini-2.5-flash-preview-04-17", label: "Gemini 2.5 Flash",    badge: "理쒖떊" },
-    { id: "gemini-2.5-pro-preview-03-25",   label: "Gemini 2.5 Pro",     badge: "理쒖떊" },
-  ];
-
-  // localStorage?먯꽌 媛쒖꽦 ?곗씠??遺덈윭?ㅺ린
-  // Gemini API ??紐⑤뜽? ?ъ슜???꾩뿭 ??? 媛쒖꽦留??꾨컮?蹂????  useEffect(() => {
+  // localStorage에서 개성 데이터 불러오기
+  useEffect(() => {
     const savedPersonality = localStorage.getItem(`avatar_personality_${selectedModel}`);
-    setAvatarPersonality(savedPersonality ?? "");
+    if (savedPersonality) {
+      setAvatarPersonality(savedPersonality);
+      console.log(`🎭 ${selectedModel} 개성 불러옴:`, savedPersonality);
+    } else {
+      // 저장된 개성이 없으면 초기화
+      setAvatarPersonality("");
+      console.log(`🎭 ${selectedModel} 개성 없음 - 초기화`);
+    }
   }, [selectedModel]);
 
-  // Gemini API ??/ 紐⑤뜽? ???쒖옉 ????踰덈쭔 濡쒕뱶 (?꾨컮? 臾닿?)
+  // 다이얼로그가 열릴/닫힐 때 입력 필드 동기화
   useEffect(() => {
-    let savedKey   = localStorage.getItem("gemini_api_key_global");
-    let savedModel = localStorage.getItem("gemini_model_global");
-
-    // ?댁쟾 諛⑹떇(avatar_gemini_api_key_*)?쇰줈 ??λ맂 ???꾩닔 留덉씠洹몃젅?댁뀡
-    if (!savedKey) {
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith("avatar_gemini_api_key_")) {
-          const val = localStorage.getItem(k);
-          if (val && val.trim()) {
-            savedKey = val.trim();
-            localStorage.setItem("gemini_api_key_global", savedKey);
-            break;
-          }
-        }
-      }
-    }
-    if (!savedModel) {
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith("avatar_gemini_model_")) {
-          const val = localStorage.getItem(k);
-          if (val && val.trim()) {
-            savedModel = val.trim();
-            localStorage.setItem("gemini_model_global", savedModel);
-            break;
-          }
-        }
-      }
-    }
-
-    if (savedKey)   setGeminiApiKey(savedKey);
-    if (savedModel) setGeminiModel(savedModel);
-
-    console.log("?뵎 Gemini ?ㅼ젙 濡쒕뱶:", {
-      key: savedKey ? `${savedKey.substring(0, 10)}...` : "?놁쓬",
-      model: savedModel ?? "湲곕낯媛??ъ슜",
-    });
-  }, []);
-
-  // ?ㅼ씠?쇰줈洹멸? ?대┫/?ロ옄 ???낅젰 ?꾨뱶 ?숆린??  useEffect(() => {
     if (showPersonalityDialog) {
+      // 팝업 열릴 때: 현재 저장된 개성으로 초기화
       setPersonalityInput(avatarPersonality);
-      setGeminiApiKeyInput(geminiApiKey);
-      setGeminiModelInput(geminiModel);
+      console.log(`🎭 팝업 열림 - 개성 입력 필드 동기화:`, avatarPersonality);
     } else {
+      // 팝업 닫힐 때: 입력 필드를 현재 개성으로 되돌림 (취소 효과)
       setPersonalityInput(avatarPersonality);
-      setGeminiApiKeyInput(geminiApiKey);
-      setGeminiModelInput(geminiModel);
+      console.log(`🎭 팝업 닫힘 - 입력 필드 초기화`);
     }
-  }, [showPersonalityDialog, avatarPersonality, geminiApiKey, geminiModel]);
+  }, [showPersonalityDialog, avatarPersonality]); // 두 값 모두 의존
 
-  // 媛쒖꽦 ????⑥닔
+  // 개성 저장 함수
   const handleSavePersonality = () => {
-    // 媛쒖꽦? ?꾨컮?蹂꾨줈 ???    setAvatarPersonality(personalityInput.trim());
-    localStorage.setItem(`avatar_personality_${selectedModel}`, personalityInput.trim());
-
-    // Gemini API ??쨌 紐⑤뜽? ?꾩뿭 ???(?꾨컮? 臾닿?)
-    const trimmedKey = geminiApiKeyInput.trim();
-    setGeminiApiKey(trimmedKey);
-    localStorage.setItem("gemini_api_key_global", trimmedKey);
-
-    setGeminiModel(geminiModelInput);
-    localStorage.setItem("gemini_model_global", geminiModelInput);
-
-    console.log(`?렚 ${selectedModel} 媛쒖꽦 ??λ맖 | Gemini 紐⑤뜽: ${geminiModelInput} | ???ㅼ젙: ${trimmedKey ? "?덉쓬" : "?놁쓬"}`);
-    toast({
-      title: "?ㅼ젙 ?꾨즺",
-      description: "?꾨컮???媛쒖꽦怨?AI ?ㅼ젙???깃났?곸쑝濡???λ릺?덉뒿?덈떎.",
-    });
-    setShowPersonalityDialog(false);
+    if (personalityInput.trim()) {
+      setAvatarPersonality(personalityInput.trim());
+      localStorage.setItem(`avatar_personality_${selectedModel}`, personalityInput.trim());
+      console.log(`🎭 ${selectedModel} 개성 저장됨:`, personalityInput.trim());
+      toast({
+        title: "개성 설정 완료",
+        description: "아바타의 개성이 성공적으로 저장되었습니다.",
+      });
+      setShowPersonalityDialog(false);
+    }
   };
 
-  // speakFunction ?곹깭 蹂??紐⑤땲?곕쭅 諛?ref ?낅뜲?댄듃
+  // speakFunction 상태 변화 모니터링 및 ref 업데이트
   useEffect(() => {
-    console.log("?렎 speakFunction ?곹깭 蹂寃쎈맖:", {
+    console.log("🎤 speakFunction 상태 변경됨:", {
       exists: !!speakFunction,
       type: typeof speakFunction,
       functionName: speakFunction?.name || "none",
       isFunction: typeof speakFunction === "function",
     });
 
-    // ref???④퍡 ?낅뜲?댄듃
+    // ref도 함께 업데이트
     speakFunctionRef.current = speakFunction;
   }, [speakFunction]);
 
-  // ?ъ슜 媛?ν븳 紐⑤뜽 紐⑸줉 遺덈윭?ㅺ린
+  // 사용 가능한 모델 목록 불러오기
   useEffect(() => {
     const fetchAvailableModels = async () => {
       try {
-        console.log("?뵇 ?ъ슜 媛?ν븳 紐⑤뜽 紐⑸줉 遺덈윭?ㅻ뒗 以?..");
+        console.log("🔍 사용 가능한 모델 목록 불러오는 중...");
         const response = await fetch("/api/model-editor/scan-models");
 
-        // Content-Type ?뺤씤 (HTML???꾨땶 JSON?몄? 泥댄겕)
+        // Content-Type 확인 (HTML이 아닌 JSON인지 체크)
         const contentType = response.headers.get("content-type");
         if (!contentType || !contentType.includes("application/json")) {
           console.warn(
-            "?좑툘 ?쒕쾭媛 JSON??諛섑솚?섏? ?딆쓬 (HTML ?섏씠吏 諛섑솚), 湲곕낯 紐⑤뜽 ?ъ슜",
+            "⚠️ 서버가 JSON을 반환하지 않음 (HTML 페이지 반환), 기본 모델 사용",
           );
           return;
         }
@@ -303,44 +241,45 @@ const MainContent: React.FC<MainContentProps> = ({
             const modelNames = models.map((model: any) => model.name);
             setAvailableModels(modelNames);
             console.log(
-              `??${modelNames.length}媛?紐⑤뜽 濡쒕뱶 ?꾨즺:`,
+              `✅ ${modelNames.length}개 모델 로드 완료:`,
               modelNames,
             );
           } else {
-            console.warn("?좑툘 ?좏슚??紐⑤뜽 ?곗씠???놁쓬, 湲곕낯 紐⑤뜽 ?ъ슜");
+            console.warn("⚠️ 유효한 모델 데이터 없음, 기본 모델 사용");
           }
         } else {
           console.warn(
-            `?좑툘 紐⑤뜽 紐⑸줉 遺덈윭?ㅺ린 ?ㅽ뙣 (${response.status}), 湲곕낯 紐⑤뜽 ?ъ슜`,
+            `⚠️ 모델 목록 불러오기 실패 (${response.status}), 기본 모델 사용`,
           );
         }
       } catch (error) {
         console.warn(
-          "?좑툘 紐⑤뜽 紐⑸줉 遺덈윭?ㅺ린 ?ㅻ쪟 (?쒕쾭 誘몄쓳??, 湲곕낯 紐⑤뜽 ?ъ슜:",
+          "⚠️ 모델 목록 불러오기 오류 (서버 미응답), 기본 모델 사용:",
           error,
         );
       }
     };
 
-    // ?쒕쾭媛 以鍮꾨맆 ?쒓컙??二쇨린 ?꾪빐 ?쎄컙???쒕젅??異붽?
+    // 서버가 준비될 시간을 주기 위해 약간의 딜레이 추가
     const timeoutId = setTimeout(fetchAvailableModels, 1000);
 
     return () => clearTimeout(timeoutId);
   }, []);
 
-  // URL ?뚮씪誘명꽣?먯꽌 紐⑤뜽 ?뺤씤 諛?紐⑤뜽 蹂寃??대깽??泥섎━
+  // URL 파라미터에서 모델 확인 및 모델 변경 이벤트 처리
   useEffect(() => {
-    // URL ?뚮씪誘명꽣?먯꽌 紐⑤뜽 ?뺤씤
+    // URL 파라미터에서 모델 확인
     const urlParams = new URLSearchParams(window.location.search);
     const modelParam = urlParams.get('model');
     if (modelParam && channelType === 'vtuber') {
-      console.log(`?렞 URL?먯꽌 紐⑤뜽 ?뚮씪誘명꽣 媛먯?: ${modelParam}`);
+      console.log(`🎯 URL에서 모델 파라미터 감지: ${modelParam}`);
       setSelectedModel(modelParam);
     }
 
-    // 紐⑤뜽 蹂寃??대깽??由ъ뒪??    const handleModelChange = (event: CustomEvent) => {
+    // 모델 변경 이벤트 리스너
+    const handleModelChange = (event: CustomEvent) => {
       const { modelName } = event.detail;
-      console.log(`?봽 ?ъ씠?쒕컮?먯꽌 紐⑤뜽 蹂寃??붿껌: ${modelName}`);
+      console.log(`🔄 사이드바에서 모델 변경 요청: ${modelName}`);
       setSelectedModel(modelName);
     };
 
@@ -351,7 +290,7 @@ const MainContent: React.FC<MainContentProps> = ({
     };
   }, [channelType]);
 
-  // 梨꾨꼸 硫ㅻ쾭 濡쒕뱶
+  // 채널 멤버 로드
   useEffect(() => {
     const loadChannelMembers = () => {
       if (!currentChannel) {
@@ -359,7 +298,7 @@ const MainContent: React.FC<MainContentProps> = ({
         return;
       }
 
-      // 而ㅼ뒪? 梨꾨꼸??寃쎌슦
+      // 커스텀 채널인 경우
       if (currentChannel.startsWith('custom-')) {
         try {
           const stored = localStorage.getItem('customChannels');
@@ -368,10 +307,10 @@ const MainContent: React.FC<MainContentProps> = ({
             const channel = allChannels.find((c: any) => c.id === currentChannel);
             
             if (channel && channel.members) {
-              // ?ㅼ젣濡쒕뒗 Firebase?먯꽌 ?ъ슜???뺣낫瑜?媛?몄????섏?留? ?꾩떆濡?濡쒖뺄 ?곗씠???ъ슜
+              // 실제로는 Firebase에서 사용자 정보를 가져와야 하지만, 임시로 로컬 데이터 사용
               const members = channel.members.map((uid: string) => ({
                 uid,
-                displayName: uid === user?.uid ? (user.displayName || '??) : `?ъ슜??{uid.slice(-4)}`,
+                displayName: uid === user?.uid ? (user.displayName || '나') : `사용자${uid.slice(-4)}`,
                 photoURL: uid === user?.uid ? user.photoURL : `https://ui-avatars.com/api/?name=${uid.slice(-4)}&background=6366f1&color=fff&size=32`
               }));
               setChannelMembers(members);
@@ -379,15 +318,15 @@ const MainContent: React.FC<MainContentProps> = ({
             }
           }
         } catch (error) {
-          console.error('梨꾨꼸 硫ㅻ쾭 濡쒕뱶 ?ㅻ쪟:', error);
+          console.error('채널 멤버 로드 오류:', error);
         }
       }
 
-      // ?쇰컲 梨꾨꼸??寃쎌슦 ?꾩옱 ?ъ슜?먮쭔 ?쒖떆
+      // 일반 채널인 경우 현재 사용자만 표시
       if (user) {
         setChannelMembers([{
           uid: user.uid,
-          displayName: user.displayName || '??,
+          displayName: user.displayName || '나',
           photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'User')}&background=6366f1&color=fff&size=32`
         }]);
       } else {
@@ -397,7 +336,7 @@ const MainContent: React.FC<MainContentProps> = ({
 
     loadChannelMembers();
     
-    // ?ㅽ넗由ъ? 蹂寃?媛먯?
+    // 스토리지 변경 감지
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'customChannels') {
         loadChannelMembers();
@@ -408,7 +347,7 @@ const MainContent: React.FC<MainContentProps> = ({
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [currentChannel, user]);
 
-  // VTuber WebSocket ?곌껐 ?곹깭 (?꾨컮? 梨꾪똿??
+  // VTuber WebSocket 연결 상태 (아바타 채팅용)
   const [wsConnected, setWsConnected] = useState(false);
   const [vtuberConnecting, setVtuberConnecting] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
@@ -416,48 +355,49 @@ const MainContent: React.FC<MainContentProps> = ({
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const maxReconnectAttempts = 2;
 
-  // ?꾪솕踰덊샇 ?쒖떆 紐⑤떖 ?곹깭
+  // 전화번호 표시 모달 상태
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
 
-  // ?뚯꽦 ?몄떇 愿???곹깭 諛???(VAD ?ы븿)
+  // 음성 인식 관련 상태 및 훅 (VAD 포함)
   const voiceDetector = useVoiceActivityDetection(
-    0.05, // 移⑤У ?꾧퀎媛?    600,  // 0.6珥?移⑤У ???먮룞 ?꾩넚 (湲곗〈 1.5珥???0.6珥?
-    300,  // 理쒖냼 0.3珥??뱀쓬 (湲곗〈 0.8珥???0.3珥?
-    isAvatarSpeaking, // ?꾨컮?媛 留먰븯??以묒씠硫??뚯꽦 ?낅젰 李⑤떒
+    0.05, // 침묵 임계값 (더 높게 설정)
+    1500, // 1.5초 침묵 후 자동 전송
+    800, // 최소 0.8초 녹음
+    isAvatarSpeaking, // 아바타가 말하는 중이면 음성 입력 차단
   );
 
-  // ?좊Ъ/?대え?곗퐯 ?앹뾽 ?곹깭 (?붿뒪肄붾뱶 ?ㅽ???
+  // 선물/이모티콘 팝업 상태 (디스코드 스타일)
   const [showGiftPopup, setShowGiftPopup] = useState(false);
   const [showEmojiPopup, setShowEmojiPopup] = useState(false);
   
-  // 硫붿떆吏 ?곹샇?묒슜 ?곹깭
+  // 메시지 상호작용 상태
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  // ?앹뾽 ?몃? ?대┃ ???リ린
+  // 팝업 외부 클릭 시 닫기
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
       
-      // ?좊Ъ ?앹뾽 ?몃? ?대┃ ???リ린
+      // 선물 팝업 외부 클릭 시 닫기
       if (
         !target.closest(".gift-popup") &&
-        !target.closest('[title="?좊Ъ 蹂대궡湲?]')
+        !target.closest('[title="선물 보내기"]')
       ) {
         setShowGiftPopup(false);
       }
       
-      // ?대え?곗퐯 ?앹뾽 ?몃? ?대┃ ???リ린
+      // 이모티콘 팝업 외부 클릭 시 닫기
       if (
         !target.closest(".emoji-popup") &&
-        !target.closest('[title="?대え?곗퐯"]')
+        !target.closest('[title="이모티콘"]')
       ) {
         setShowEmojiPopup(false);
       }
 
-      // 諛섏쓳 ?좏깮湲??몃? ?대┃ ???リ린
+      // 반응 선택기 외부 클릭 시 닫기
       if (
         !target.closest('.reaction-picker') && 
         !target.closest('[data-reaction-trigger]')
@@ -473,66 +413,67 @@ const MainContent: React.FC<MainContentProps> = ({
     }
   }, [showGiftPopup, showEmojiPopup, showReactionPicker]);
 
-  // ?곹깭 愿由?遺遺??섏젙 - ?⑥씪 ?대?吏?먯꽌 ?щ윭 ?대?吏濡?蹂寃?  const [imageUploads, setImageUploads] = useState<File[]>([]);
+  // 상태 관리 부분 수정 - 단일 이미지에서 여러 이미지로 변경
+  const [imageUploads, setImageUploads] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
 
-  // VTuber WebSocket ?곌껐 ?⑥닔
+  // VTuber WebSocket 연결 함수
   const connectToVTuber = useCallback(async () => {
-    // ?대? ?곌껐 以묒씠嫄곕굹 ?곌껐?섏뼱 ?덉쑝硫?以묐났 ?곌껐 諛⑹?
+    // 이미 연결 중이거나 연결되어 있으면 중복 연결 방지
     if (wsRef.current?.readyState === WebSocket.OPEN || vtuberConnecting) {
-      console.log("?봽 ?대? ?곌껐 以묒씠嫄곕굹 ?곌껐?섏뼱 ?덉뒿?덈떎.");
+      console.log("🔄 이미 연결 중이거나 연결되어 있습니다.");
       return;
     }
 
-    console.log("?? VTuber WebSocket ?곌껐 ?쒖옉...");
+    console.log("🚀 VTuber WebSocket 연결 시작...");
     setVtuberConnecting(true);
 
     try {
-      // ?숈쟻?쇰줈 WebSocket URL ?앹꽦
+      // 동적으로 WebSocket URL 생성
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const host = window.location.hostname;
       const port =
         window.location.port ||
         (window.location.protocol === "https:" ? "443" : "80");
-      // 媛쒕컻 ?섍꼍?먯꽌 ?щ윭 ?ы듃 ?쒕룄
+      // 개발 환경에서 여러 포트 시도
       const devPorts = ["5001", "5000", "3001"];
       const isLocalhost = host === "localhost" || host === "127.0.0.1";
       
       let wsUrl = "";
       if (isLocalhost) {
-        // 媛쒕컻 ?섍꼍?먯꽌???ы듃 5001??癒쇱? ?쒕룄
+        // 개발 환경에서는 포트 5001을 먼저 시도
         wsUrl = `${protocol}//${host}:5001/client-ws`;
       } else {
         wsUrl = `${protocol}//${host}:${port}/client-ws`;
       }
       
-      console.log("?뱻 ?곌껐 URL:", wsUrl);
+      console.log("📡 연결 URL:", wsUrl);
 
       const ws = new WebSocket(wsUrl);
 
-      // ?곌껐 ??꾩븘???ㅼ젙 (10珥?
+      // 연결 타임아웃 설정 (10초)
       const connectionTimeout = setTimeout(() => {
         if (ws.readyState !== WebSocket.OPEN) {
-          console.log("??WebSocket ?곌껐 ??꾩븘??);
+          console.log("⏰ WebSocket 연결 타임아웃");
           ws.close();
         }
       }, 10000);
 
       ws.onopen = () => {
-        console.log("??VTuber WebSocket ?곌껐 ?깃났");
+        console.log("✅ VTuber WebSocket 연결 성공");
         clearTimeout(connectionTimeout);
         setWsConnected(true);
         setVtuberConnecting(false);
         setConnectionAttempts(0);
 
-        // ?곌껐 ?깃났 硫붿떆吏 異붽?
+        // 연결 성공 메시지 추가
         setMessages((prev) => [
           ...prev,
           {
             id: Date.now(),
-            content: "?쨼 AI ?꾨컮?? ?곌껐?섏뿀?듬땲?? ??붾? ?쒖옉?대낫?몄슂!",
+            content: "🤖 AI 아바타와 연결되었습니다. 대화를 시작해보세요!",
             sender: "system",
             timestamp: new Date().toISOString(),
             isBot: false,
@@ -541,10 +482,10 @@ const MainContent: React.FC<MainContentProps> = ({
           },
         ]);
 
-        // ?좎떆 ??珥덇린??硫붿떆吏 ?꾩넚 (?쒕쾭媛 以鍮꾨맆 ?쒓컙 ?쒓났)
+        // 잠시 후 초기화 메시지 전송 (서버가 준비될 시간 제공)
         setTimeout(() => {
           if (ws.readyState === WebSocket.OPEN) {
-            console.log("?뱾 珥덇린???ㅼ젙 ?붿껌 ?꾩넚");
+            console.log("📤 초기화 설정 요청 전송");
             ws.send(
               JSON.stringify({
                 type: "request-init-config",
@@ -557,25 +498,25 @@ const MainContent: React.FC<MainContentProps> = ({
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log("?벂 VTuber 硫붿떆吏 ?섏떊:", data.type || "unknown", data);
+          console.log("📨 VTuber 메시지 수신:", data.type || "unknown", data);
 
-          // 硫붿떆吏 ??낅퀎 ?덉쟾??泥섎━
+          // 메시지 타입별 안전한 처리
           switch (data.type) {
             case "init-config":
-              console.log("?렞 珥덇린 ?ㅼ젙 ?섏떊:", {
+              console.log("🎯 초기 설정 수신:", {
                 model: data.currentModel || data.modelName,
                 character: data.character_name,
                 status: data.status,
               });
 
-              // 紐⑤뜽 ?뺣낫媛 ?덉쑝硫??낅뜲?댄듃
+              // 모델 정보가 있으면 업데이트
               if (data.currentModel || data.modelName) {
                 setSelectedModel(data.currentModel || data.modelName);
               }
               break;
 
             case "system":
-              console.log("?뱼 ?쒖뒪??硫붿떆吏:", data.content);
+              console.log("📢 시스템 메시지:", data.content);
               if (data.content) {
                 setMessages((prev) => [
                   ...prev,
@@ -586,82 +527,226 @@ const MainContent: React.FC<MainContentProps> = ({
                     timestamp: new Date().toISOString(),
                     isBot: false,
                     senderName: "VTuber System",
-                    senderAvatar: "?쨼",
+                    senderAvatar: "🤖",
                   },
                 ]);
               }
               break;
 
             case "llm-response":
-            case "ai-response": {
+            case "ai-response":
               const originalResponseText =
-                data.text || data.content || data.message || "?묐떟??諛쏆븯?듬땲??";
-              const { emotion: parsedEmotion, cleanText: parsedClean } =
+                data.text ||
+                data.content ||
+                data.message ||
+                "응답을 받았습니다.";
+              const audioUrl = data.audioUrl; // 🎵 OpenAI TTS 오디오 URL
+              const volumes = data.volumes || []; // 🔊 볼륨 데이터 배열
+
+              // 감정 명령 파싱
+              const { emotion, cleanText } =
                 parseEmotionMessage(originalResponseText);
 
-              // ?먯뿉 異붽? (硫붿떆吏 ?쒖떆 + ?뚯꽦 ?ъ깮? ?쒖감 泥섎━)
-              responseQueueRef.current.push({
+              console.log("💬 AI 응답 수신:", {
                 originalText: originalResponseText,
-                cleanText: parsedClean,
-                emotion: parsedEmotion || (typeof data.emotion === "string" ? data.emotion : "neutral"),
-                audioUrl: data.audioUrl || "",
-                volumes: data.volumes || [],
+                extractedEmotion: emotion,
+                cleanText: cleanText,
+                textLength: cleanText.length,
+                hasEmotion: !!emotion,
+                isValidEmotion: emotion ? isValidEmotion(emotion) : false,
+                hasAudioUrl: !!audioUrl, // 🎵 오디오 URL 존재 여부
+                hasVolumes: volumes.length > 0, // 🔊 볼륨 데이터 존재 여부
+                volumeCount: volumes.length,
               });
-              console.log(`?뱿 ?묐떟 ??異붽?: ${responseQueueRef.current.length}媛??湲?);
 
-              if (!isPlayingResponseRef.current) {
-                processNextResponse();
+              // 감정이 감지되면 Live2D 모델에 적용
+              if (emotion && isValidEmotion(emotion)) {
+                console.log("🎭 Live2D 감정 변경:", {
+                  previousEmotion: currentEmotion,
+                  newEmotion: emotion,
+                  emotionApplied: true,
+                });
+                setCurrentEmotion(emotion);
+              } else if (data.emotion && typeof data.emotion === "string") {
+                // 기존 감정 처리 방식도 유지 (백업)
+                console.log("🎭 서버 감정 변경:", {
+                  previousEmotion: currentEmotion,
+                  newEmotion: data.emotion,
+                  source: "server",
+                });
+                setCurrentEmotion(data.emotion);
+              } else {
+                console.log("🎭 감정 변경 없음:", {
+                  parsedEmotion: emotion,
+                  serverEmotion: data.emotion,
+                  currentEmotion: currentEmotion,
+                  reason: !emotion ? "no_emotion_parsed" : "invalid_emotion",
+                });
               }
+
+              // 메시지는 원본으로 표시 (감정 명령 포함)
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: Date.now(),
+                  content: originalResponseText,
+                  sender: "ai",
+                  timestamp: new Date().toISOString(),
+                  isBot: true,
+                  senderName: "AI 아바타",
+                  senderAvatar: AvatarSamples[0]?.Avatar || "",
+                },
+              ]);
+
+              // TTS로 AI 응답 말하기 - OpenAI TTS 우선, 백업으로 브라우저 TTS
+              const tryTTS = (attempts = 0, maxAttempts = 10) => {
+                const ttsText = cleanText; // 감정 명령이 제거된 텍스트만 TTS
+                const currentSpeakFunction = speakFunctionRef.current; // ref에서 최신 값 가져오기
+
+                console.log("🎤 TTS 시도:", {
+                  attempts,
+                  maxAttempts,
+                  hasOpenAIAudio: !!audioUrl,
+                  speakFunctionExists: !!currentSpeakFunction,
+                  speakFunctionType: typeof currentSpeakFunction,
+                  refExists: !!speakFunctionRef.current,
+                  stateExists: !!speakFunction,
+                  ttsText: ttsText?.substring(0, 30) + "...",
+                  ttsTextLength: ttsText?.length || 0,
+                });
+
+                // OpenAI TTS만 사용 (폴백 제거)
+                if (audioUrl && currentSpeakFunction) {
+                  console.log(
+                    "🎵 OpenAI TTS 전용 재생:",
+                    audioUrl,
+                    "볼륨 데이터:",
+                    volumes.length,
+                    "개",
+                  );
+
+                  try {
+                    // 서버 URL 확인 - 환경에 따라 자동 설정
+                    let serverUrl = import.meta.env.VITE_API_URL;
+                    
+                    if (!serverUrl) {
+                      // 환경 변수가 없으면 현재 프로토콜과 호스트 기반으로 설정
+                      const isHttps = window.location.protocol === 'https:';
+                      const currentHost = window.location.hostname;
+                      
+                      if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+                        // 로컬 개발 환경
+                        serverUrl = 'http://localhost:5001';
+                      } else {
+                        // 프로덕션 환경 - 같은 도메인의 백엔드 사용
+                        serverUrl = `${isHttps ? 'https' : 'http'}://${currentHost}`;
+                      }
+                    }
+                    
+                    // 오디오 URL이 상대 경로인 경우 서버 URL과 결합
+                    const fullAudioUrl = audioUrl.startsWith('/') 
+                      ? `${serverUrl}${audioUrl}`
+                      : audioUrl;
+                    
+                    console.log("🎵 전체 오디오 URL:", fullAudioUrl);
+                    console.log("🎵 서버 URL:", serverUrl);
+                    
+                    // 파일 존재 확인 (선택적, 디버깅용)
+                    fetch(fullAudioUrl, { method: 'HEAD' })
+                      .then(checkResponse => {
+                        console.log("🎵 오디오 파일 체크:", {
+                          url: fullAudioUrl,
+                          status: checkResponse.status,
+                          contentType: checkResponse.headers.get('content-type'),
+                          exists: checkResponse.ok
+                        });
+                      })
+                      .catch(checkError => {
+                        console.warn("⚠️ 오디오 파일 체크 실패:", checkError);
+                      });
+                    
+                    // OpenAI TTS만 재생, 폴백 없음
+                    currentSpeakFunction(fullAudioUrl, "audio", volumes);
+                    return; // OpenAI TTS만 사용
+                  } catch (error) {
+                    console.error("❌ OpenAI TTS 재생 실패:", error);
+                    console.log(
+                      "🚫 브라우저 TTS 폴백 비활성화됨 - OpenAI TTS 전용 모드",
+                    );
+                    return; // 실패해도 폴백하지 않음
+                  }
+                } else if (currentSpeakFunction && !audioUrl) {
+                  console.log("⚠️ OpenAI TTS 오디오 URL 없음 - 재생 건너뜀");
+                  return;
+                }
+
+                // speakFunction이 준비되지 않은 경우만 재시도
+                if (!currentSpeakFunction && attempts < maxAttempts - 1) {
+                  console.log(
+                    "🎤 speakFunction 없음 - 재시도 예약:",
+                    attempts + 1,
+                  );
+                  setTimeout(() => tryTTS(attempts + 1, maxAttempts), 500);
+                  return;
+                } else if (!currentSpeakFunction) {
+                  console.log("❌ 최대 재시도 초과 - TTS 실행 실패");
+                  return;
+                }
+              };
+
+              // 즉시 첫 번째 시도 실행
+              setTimeout(() => tryTTS(), 100);
+
               break;
-            }
 
             case "model-switched":
               if (data.model && typeof data.model === "string") {
-                console.log("?봽 紐⑤뜽 ?꾪솚:", data.model);
+                console.log("🔄 모델 전환:", data.model);
                 setSelectedModel(data.model);
                 setCurrentEmotion("neutral");
               }
               break;
 
             case "heartbeat-ack":
-              // ?섑듃鍮꾪듃 ?묐떟 (議곗슜??泥섎━)
+              // 하트비트 응답 (조용히 처리)
               break;
 
             case "conversation-ended":
-              console.log("?뵚 ???醫낅즺:", data.timestamp);
-              // ???醫낅즺 ??以묒꽦 ?쒖젙?쇰줈 蹂寃?              setCurrentEmotion("neutral");
+              console.log("🔚 대화 종료:", data.timestamp);
+              // 대화 종료 시 중성 표정으로 변경
+              setCurrentEmotion("neutral");
               break;
 
             case "error":
-              console.warn("?좑툘 ?쒕쾭 ?ㅻ쪟:", data.message || "Unknown error");
+              console.warn("⚠️ 서버 오류:", data.message || "Unknown error");
               toast({
-                title: "?쒕쾭 ?ㅻ쪟",
-                description: data.message || "?????녿뒗 ?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.",
+                title: "서버 오류",
+                description: data.message || "알 수 없는 오류가 발생했습니다.",
                 variant: "destructive",
               });
               break;
 
             default:
-              console.log("???????녿뒗 硫붿떆吏 ???", data.type);
+              console.log("❓ 알 수 없는 메시지 타입:", data.type);
           }
         } catch (error) {
-          console.error("??硫붿떆吏 ?뚯떛 ?ㅻ쪟:", error, "Raw data:", event.data);
-          // ?뚯떛 ?ㅻ쪟媛 ?덉뼱???곌껐???딆? ?딆쓬
+          console.error("❌ 메시지 파싱 오류:", error, "Raw data:", event.data);
+          // 파싱 오류가 있어도 연결을 끊지 않음
         }
       };
 
         ws.onerror = (error) => {
-          console.error("??VTuber WebSocket ?ㅻ쪟:", error);
+          console.error("❌ VTuber WebSocket 오류:", error);
           clearTimeout(connectionTimeout);
           setVtuberConnecting(false);
           setWsConnected(false);
 
-          // 泥?踰덉㎏ ?곌껐 ?쒕룄 ?ㅽ뙣 ?쒖뿉留??덈궡 硫붿떆吏 ?쒖떆
+          // 첫 번째 연결 시도 실패 시에만 안내 메시지 표시
           if (connectionAttempts === 0) {
             const isLocalhost = host === "localhost" || host === "127.0.0.1";
             const message = isLocalhost 
-              ? "?렚 Live2D ?꾨컮????뺤긽 ?묐룞?⑸땲?? ?대┃?댁꽌 媛먯젙??蹂寃쏀빐蹂댁꽭??\n\n?쨼 AI ??붾? ?꾪빐?쒕뒗 諛깆뿏???쒕쾭瑜??ㅽ뻾?섏꽭??\n??`npm run dev:server` (?ы듃 5001)\n???먮뒗 `node server.js`"
-              : "?렚 Live2D ?꾨컮????뺤긽 ?묐룞?⑸땲?? ?대┃?댁꽌 媛먯젙??蹂寃쏀빐蹂댁꽭??\n\n?쨼 AI ???湲곕뒫? ?꾩옱 ?쒕쾭???곌껐?????놁뒿?덈떎.";
+              ? "🎭 Live2D 아바타는 정상 작동합니다! 클릭해서 감정을 변경해보세요.\n\n🤖 AI 대화를 위해서는 백엔드 서버를 실행하세요:\n• `npm run dev:server` (포트 5001)\n• 또는 `node server.js`"
+              : "🎭 Live2D 아바타는 정상 작동합니다! 클릭해서 감정을 변경해보세요.\n\n🤖 AI 대화 기능은 현재 서버에 연결할 수 없습니다.";
               
             setMessages((prev) => [
               ...prev,
@@ -672,39 +757,40 @@ const MainContent: React.FC<MainContentProps> = ({
                 timestamp: new Date().toISOString(),
                 isBot: false,
                 senderName: "Live2D System",
-                senderAvatar: "?렚",
+                senderAvatar: "🎭",
               },
             ]);
           }
         };
 
       ws.onclose = (event) => {
-        console.log("VTuber WebSocket ?곌껐 醫낅즺:", event.code, event.reason);
+        console.log("VTuber WebSocket 연결 종료:", event.code, event.reason);
         setWsConnected(false);
         setVtuberConnecting(false);
 
         clearTimeout(connectionTimeout);
 
-        // 媛쒕컻 ?섍꼍?먯꽌???ъ뿰寃??쒕룄瑜????곴쾶, ?꾨줈?뺤뀡?먯꽌????留롮씠
+        // 개발 환경에서는 재연결 시도를 더 적게, 프로덕션에서는 더 많이
         const isLocalhost = host === "localhost" || host === "127.0.0.1";
         const maxAttempts = isLocalhost ? 1 : maxReconnectAttempts;
         
-        // ?뺤긽 醫낅즺媛 ?꾨땶 寃쎌슦?먮쭔 ?ъ뿰寃??쒕룄
+        // 정상 종료가 아닌 경우에만 재연결 시도
         if (
           connectionAttempts < maxAttempts &&
           !event.wasClean &&
           event.code !== 1000
         ) {
           const nextAttempt = connectionAttempts + 1;
-          const delay = isLocalhost ? 8000 : 5000; // 媛쒕컻 ?섍꼍?먯꽌????湲??湲?          
+          const delay = isLocalhost ? 8000 : 5000; // 개발 환경에서는 더 긴 대기
+          
           console.log(
-            `?봽 ?ъ뿰寃??쒕룄 ?덉빟: ${nextAttempt}/${maxAttempts} (${delay/1000}珥???`,
+            `🔄 재연결 시도 예약: ${nextAttempt}/${maxAttempts} (${delay/1000}초 후)`,
           );
 
           setConnectionAttempts(nextAttempt);
           reconnectTimeoutRef.current = setTimeout(() => {
             console.log(
-              `?? ?ъ뿰寃??쒕룄 ${nextAttempt}/${maxAttempts} ?ㅽ뻾`,
+              `🚀 재연결 시도 ${nextAttempt}/${maxAttempts} 실행`,
             );
             connectToVTuber();
           }, delay);
@@ -713,9 +799,9 @@ const MainContent: React.FC<MainContentProps> = ({
           event.code === 1000
         ) {
           if (connectionAttempts >= maxAttempts) {
-            console.log("?썞 ?ъ뿰寃??ш린 - Live2D 紐⑤뜽留??쒖떆?⑸땲??");
+            console.log("🛑 재연결 포기 - Live2D 모델만 표시됩니다.");
           } else {
-            console.log("???뺤긽 醫낅즺 - ?ъ뿰寃고븯吏 ?딆뒿?덈떎.");
+            console.log("✋ 정상 종료 - 재연결하지 않습니다.");
           }
           setCurrentEmotion("neutral");
         }
@@ -723,19 +809,19 @@ const MainContent: React.FC<MainContentProps> = ({
 
       wsRef.current = ws;
     } catch (error) {
-      console.error("??WebSocket ?앹꽦 ?ㅻ쪟:", error);
+      console.error("❌ WebSocket 생성 오류:", error);
       setVtuberConnecting(false);
       setWsConnected(false);
 
       toast({
-        title: "?곌껐 珥덇린???ㅽ뙣",
-        description: "WebSocket ?앹꽦 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.",
+        title: "연결 초기화 실패",
+        description: "WebSocket 생성 중 오류가 발생했습니다.",
         variant: "destructive",
       });
     }
   }, [vtuberConnecting, connectionAttempts, toast]);
 
-  // VTuber 硫붿떆吏 ?꾩넚 ?⑥닔
+  // VTuber 메시지 전송 함수
   const sendVTuberMessage = useCallback(async () => {
     if (!message.trim() || !wsConnected) {
       return;
@@ -743,8 +829,8 @@ const MainContent: React.FC<MainContentProps> = ({
 
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       toast({
-        title: "?곌껐 ?ㅻ쪟",
-        description: "AI ?꾨컮? ?쒕쾭???곌껐?섏? ?딆븯?듬땲??",
+        title: "연결 오류",
+        description: "AI 아바타 서버에 연결되지 않았습니다.",
         variant: "destructive",
       });
       return;
@@ -753,7 +839,7 @@ const MainContent: React.FC<MainContentProps> = ({
     const messageText = message.trim();
 
     try {
-      // ?ъ슜??硫붿떆吏 異붽?
+      // 사용자 메시지 추가
       setMessages((prev) => [
         ...prev,
         {
@@ -763,45 +849,37 @@ const MainContent: React.FC<MainContentProps> = ({
           timestamp: new Date().toISOString(),
           isBot: false,
           senderName:
-            user?.displayName || user?.email?.split("@")[0] || "?ъ슜??,
+            user?.displayName || user?.email?.split("@")[0] || "사용자",
           senderAvatar: user?.photoURL || "",
           replyTo: replyingTo?.id.toString(),
         },
       ]);
 
-      // stale closure 諛⑹?: ?꾩넚 ?쒖젏??localStorage?먯꽌 吏곸젒 ?쎌쓬
-      const freshGeminiKey   = localStorage.getItem("gemini_api_key_global") || "";
-      const freshGeminiModel = localStorage.getItem("gemini_model_global")   || "gemini-2.0-flash";
-
-      // VTuber ?쒕쾭濡?硫붿떆吏 ?꾩넚
+      // VTuber 서버로 메시지 전송
       const vtuberMessage = {
         type: "text-input",
         text: messageText,
         replyTo: replyingTo?.id.toString(),
-        personality: avatarPersonality,
-        geminiApiKey: freshGeminiKey,
-        geminiModel: freshGeminiModel,
+        personality: avatarPersonality, // 개성 정보 포함
       };
 
       wsRef.current.send(JSON.stringify(vtuberMessage));
-      console.log("VTuber 硫붿떆吏 ?꾩넚:", {
-        ...vtuberMessage,
-        geminiApiKey: freshGeminiKey ? `${freshGeminiKey.substring(0, 10)}...` : "?놁쓬",
-      });
+      console.log("VTuber 메시지 전송:", vtuberMessage);
 
       setMessage("");
-      // ?듦? ?곹깭 珥덇린??      setReplyingTo(null);
+      // 답글 상태 초기화
+      setReplyingTo(null);
     } catch (error) {
-      console.error("VTuber 硫붿떆吏 ?꾩넚 ?ㅻ쪟:", error);
+      console.error("VTuber 메시지 전송 오류:", error);
       toast({
-        title: "?꾩넚 ?ㅻ쪟",
-        description: "硫붿떆吏瑜??꾩넚?????놁뒿?덈떎.",
+        title: "전송 오류",
+        description: "메시지를 전송할 수 없습니다.",
         variant: "destructive",
       });
     }
-  // geminiApiKey쨌geminiModel? ?꾩넚 ??localStorage?먯꽌 吏곸젒 ?쎌쑝誘濡??섏〈??遺덊븘??  }, [message, wsConnected, user, toast, avatarPersonality]);
+  }, [message, wsConnected, user, toast]);
 
-  // Firestore ?곌껐 ?곹깭 ?ㅼ젙
+  // Firestore 연결 상태 설정
   useEffect(() => {
     if (db) {
       setIsConnected(true);
@@ -810,57 +888,59 @@ const MainContent: React.FC<MainContentProps> = ({
     }
 
     return () => {
-      // ?댁쟾 硫붿떆吏 由ъ뒪?덇? ?덈떎硫??댁젣
+      // 이전 메시지 리스너가 있다면 해제
       if (messageListenerRef.current) {
         messageListenerRef.current();
       }
     };
   }, []);
 
-  // URL?먯꽌 'to' 留ㅺ컻蹂?섎? 媛?몄????대떦 梨꾪똿諛⑹쑝濡??대룞
+  // URL에서 'to' 매개변수를 가져와서 해당 채팅방으로 이동
   useEffect(() => {
     if (!user) {
-      // ?ъ슜?먭? ?놁쑝硫????댁긽 泥섎━?섏? ?딆쓬
+      // 사용자가 없으면 더 이상 처리하지 않음
       return;
     }
 
-    console.log("?꾩옱 URL:", location);
+    console.log("현재 URL:", location);
 
-    // URL 留ㅺ컻蹂??異붿텧
+    // URL 매개변수 추출
     const urlParams = new URLSearchParams(window.location.search);
     const toParam = urlParams.get("to");
     const nameParam = urlParams.get("name");
-    console.log("URL ?뚮씪誘명꽣 'to':", toParam, "name:", nameParam);
+    console.log("URL 파라미터 'to':", toParam, "name:", nameParam);
 
     if (toParam) {
-      // ?먯떊怨쇱쓽 梨꾪똿?몄? ?뺤씤
+      // 자신과의 채팅인지 확인
       if (toParam === user.uid) {
-        console.warn("?먯떊怨쇱쓽 梨꾪똿 ?쒕룄:", toParam);
-        alert("?먯떊怨쇱쓽 梨꾪똿? 吏?먮릺吏 ?딆뒿?덈떎.");
+        console.warn("자신과의 채팅 시도:", toParam);
+        alert("자신과의 채팅은 지원되지 않습니다.");
         setLocation("/chat");
         return;
       }
 
-      console.log("梨꾪똿諛?吏꾩엯 ?쒕룄 - ID:", toParam);
+      console.log("채팅방 진입 시도 - ID:", toParam);
       setIsLoading(true);
-      setShowChatList(false); // 梨꾪똿 紐⑸줉 ?④린湲?
-      // 臾몄옄?대줈 ??ID瑜??寃?ID濡?蹂??      const targetId = toParam;
+      setShowChatList(false); // 채팅 목록 숨기기
 
-      // Firestore瑜??ъ슜?섏뿬 梨꾪똿諛??앹꽦/李몄뿬
+      // 문자열로 된 ID를 타겟 ID로 변환
+      const targetId = toParam;
+
+      // Firestore를 사용하여 채팅방 생성/참여
       createOrGetChatRoom(user.uid, targetId)
         .then((result) => {
           if (result.success) {
             const newRoomId = result.roomId || "";
             setRoomId(newRoomId);
-            console.log("梨꾪똿諛??앹꽦/李몄뿬 ?깃났:", newRoomId);
+            console.log("채팅방 생성/참여 성공:", newRoomId);
 
-            // 梨꾪똿 ?뚰듃???뺣낫 李얘린
+            // 채팅 파트너 정보 찾기
             const partnerInfo = chatList.find(
               (m) => m.senderId.toString() === targetId,
             );
 
-            // 梨꾪똿 ?뚰듃???뺣낫 ?ㅼ젙 - URL?먯꽌 諛쏆? ?대쫫 ?곗꽑 ?ъ슜
-            let partnerName = partnerInfo?.senderName || `?꾨컮? #${targetId}`;
+            // 채팅 파트너 정보 설정 - URL에서 받은 이름 우선 사용
+            let partnerName = partnerInfo?.senderName || `아바타 #${targetId}`;
             if (nameParam) {
               partnerName = decodeURIComponent(nameParam);
             }
@@ -873,12 +953,12 @@ const MainContent: React.FC<MainContentProps> = ({
 
             setChatPartner(partner);
 
-            // 硫붿떆吏 ?댁뿭 濡쒕뱶
+            // 메시지 내역 로드
             if (newRoomId) {
               getChatMessages(newRoomId)
                 .then((messageResult) => {
                   if (messageResult.success && messageResult.messages) {
-                    // 硫붿떆吏 ?щ㎎ 蹂??- any ??낆쑝濡?泥섎━
+                    // 메시지 포맷 변환 - any 타입으로 처리
                     const formattedMessages = messageResult.messages.map(
                       (msg: any) => ({
                         id: msg.id,
@@ -892,26 +972,26 @@ const MainContent: React.FC<MainContentProps> = ({
 
                     setMessages(formattedMessages);
                     console.log(
-                      "硫붿떆吏 ?댁뿭 濡쒕뱶 ?꾨즺:",
+                      "메시지 내역 로드 완료:",
                       formattedMessages.length,
-                      "媛?,
+                      "개",
                     );
 
-                    // ?쎌? ?딆? 硫붿떆吏?ㅼ쓣 ?쎌쓬?쇰줈 ?쒖떆
+                    // 읽지 않은 메시지들을 읽음으로 표시
                     markMessagesAsRead(newRoomId, user.uid).catch((err) => {
-                      console.log("硫붿떆吏 ?쎌쓬 ?쒖떆 ?ㅽ뙣 (臾댁떆??:", err);
+                      console.log("메시지 읽음 표시 실패 (무시됨):", err);
                     });
                   } else {
-                    console.log("硫붿떆吏 ?댁뿭???놁뒿?덈떎.");
+                    console.log("메시지 내역이 없습니다.");
                     setMessages([]);
                   }
 
-                  // ?댁쟾 由ъ뒪?덇? ?덈떎硫??댁젣
+                  // 이전 리스너가 있다면 해제
                   if (messageListenerRef.current) {
                     messageListenerRef.current();
                   }
 
-                  // ?ㅼ떆媛?硫붿떆吏 援щ룆
+                  // 실시간 메시지 구독
                   messageListenerRef.current = subscribeToMessages(
                     newRoomId,
                     (newMessages: ChatMessage[]) => {
@@ -921,16 +1001,17 @@ const MainContent: React.FC<MainContentProps> = ({
                         sender: msg.senderId === user.uid ? "user" : "other",
                         timestamp: formatMessageTimestamp(msg.timestamp),
                         imageUrl: msg.imageUrl,
-                        replyTo: msg.replyTo, // ?듦? ?뺣낫 異붽?
-                        reactions: msg.reactions || {}, // 諛섏쓳 ?뺣낫 異붽?
-                        isDeleted: msg.isDeleted || false, // ??젣 ?곹깭 異붽?
-                        raw: msg, // ?먮낯 ?곗씠??                      }));
+                        replyTo: msg.replyTo, // 답글 정보 추가
+                        reactions: msg.reactions || {}, // 반응 정보 추가
+                        isDeleted: msg.isDeleted || false, // 삭제 상태 추가
+                        raw: msg, // 원본 데이터
+                      }));
 
                       setMessages(formattedNewMessages);
 
-                      // ??硫붿떆吏媛 ?꾩갑?섎㈃ ?먮룞?쇰줈 ?쎌쓬 ?쒖떆
+                      // 새 메시지가 도착하면 자동으로 읽음 표시
                       markMessagesAsRead(newRoomId, user.uid).catch((err) => {
-                        console.log("??硫붿떆吏 ?쎌쓬 ?쒖떆 ?ㅽ뙣 (臾댁떆??:", err);
+                        console.log("새 메시지 읽음 표시 실패 (무시됨):", err);
                       });
                     },
                   );
@@ -939,7 +1020,7 @@ const MainContent: React.FC<MainContentProps> = ({
                   setIsInitialized(true);
                 })
                 .catch((error) => {
-                  console.error("硫붿떆吏 ?댁뿭 濡쒕뱶 以??ㅻ쪟:", error);
+                  console.error("메시지 내역 로드 중 오류:", error);
                   setIsLoading(false);
                   setIsInitialized(true);
                 });
@@ -947,43 +1028,45 @@ const MainContent: React.FC<MainContentProps> = ({
               setIsLoading(false);
             }
 
-            // ?곷?諛??꾪솕踰덊샇 媛?몄삤湲?(?ㅼ젣濡쒕뒗 API?먯꽌 媛?몄?????
+            // 상대방 전화번호 가져오기 (실제로는 API에서 가져와야 함)
             setPhoneNumber(
               `010-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
             );
           } else {
-            console.error("梨꾪똿諛??앹꽦/李몄뿬 ?ㅽ뙣:", result.error);
+            console.error("채팅방 생성/참여 실패:", result.error);
             setIsLoading(false);
 
-            // ?ㅽ뙣 ??梨꾪똿 紐⑸줉?쇰줈 ?뚯븘媛湲?            setShowChatList(true);
-            alert("梨꾪똿諛??앹꽦???ㅽ뙣?덉뒿?덈떎. ?ㅼ떆 ?쒕룄?댁＜?몄슂.");
+            // 실패 시 채팅 목록으로 돌아가기
+            setShowChatList(true);
+            alert("채팅방 생성에 실패했습니다. 다시 시도해주세요.");
           }
         })
         .catch((error) => {
-          console.error("梨꾪똿諛??앹꽦/李몄뿬 以??ㅻ쪟:", error);
+          console.error("채팅방 생성/참여 중 오류:", error);
           setIsLoading(false);
 
-          // ?ㅻ쪟 ??梨꾪똿 紐⑸줉?쇰줈 ?뚯븘媛湲?          setShowChatList(true);
-          alert("梨꾪똿諛??앹꽦 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎. ?ㅼ떆 ?쒕룄?댁＜?몄슂.");
+          // 오류 시 채팅 목록으로 돌아가기
+          setShowChatList(true);
+          alert("채팅방 생성 중 오류가 발생했습니다. 다시 시도해주세요.");
         });
     } else {
-      console.log("梨꾪똿 紐⑸줉 ?쒖떆 (URL ?뚮씪誘명꽣 ?놁쓬)");
-      // 'to' ?뚮씪誘명꽣媛 ?놁쑝硫??쇰컲 梨꾨꼸濡??ㅼ젙
+      console.log("채팅 목록 표시 (URL 파라미터 없음)");
+      // 'to' 파라미터가 없으면 일반 채널로 설정
       setShowChatList(false);
       setChatPartner(null);
       setRoomId("general");
       setMessages([]);
       setIsInitialized(false);
 
-      // ?댁쟾 硫붿떆吏 由ъ뒪?덇? ?덈떎硫??댁젣
+      // 이전 메시지 리스너가 있다면 해제
       if (messageListenerRef.current) {
         messageListenerRef.current();
         messageListenerRef.current = null;
       }
     }
-  }, [user, location]); // location???섏〈?깆뿉 異붽??섏뿬 URL 蹂寃쎌떆 ?ㅼ떆 ?ㅽ뻾
+  }, [user, location]); // location을 의존성에 추가하여 URL 변경시 다시 실행
 
-  // 硫붿떆吏 紐⑸줉???낅뜲?댄듃???뚮쭏???ㅽ겕濡ㅼ쓣 ?꾨옒濡??대룞
+  // 메시지 목록이 업데이트될 때마다 스크롤을 아래로 이동
   useEffect(() => {
     if (scrollAreaRef.current) {
       const scrollArea = scrollAreaRef.current.querySelector(
@@ -995,53 +1078,55 @@ const MainContent: React.FC<MainContentProps> = ({
     }
   }, [messages]);
 
-  // Firebase 梨꾪똿諛?珥덇린??(Firebase 梨꾨꼸??
+  // Firebase 채팅방 초기화 (Firebase 채널용)
   useEffect(() => {
     if (!user || channelType !== "firebase") return;
     if (!db) {
-      console.error("Firebase DB媛 珥덇린?붾릺吏 ?딆븯?듬땲??");
+      console.error("Firebase DB가 초기화되지 않았습니다.");
       return;
     }
 
     const initializeFirebaseChatRoom = async () => {
       try {
-        console.log("Firebase 梨꾪똿諛?珥덇린???쒖옉:", currentChannel);
-        console.log("?ъ슜???몄쬆 ?곹깭:", user.uid, user.email);
+        console.log("Firebase 채팅방 초기화 시작:", currentChannel);
+        console.log("사용자 인증 상태:", user.uid, user.email);
 
-        // 梨꾨꼸???곕Ⅸ 梨꾪똿諛?ID ?ㅼ젙
+        // 채널에 따른 채팅방 ID 설정
         const chatRoomId = currentChannel || "general";
 
-        // ?ъ슜???몄쬆???꾨즺???뚭퉴吏 ?좎떆 ?湲?        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // 사용자 인증이 완료될 때까지 잠시 대기
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        console.log("Firebase 梨꾪똿 吏곸젒 珥덇린???쒕룄:", chatRoomId);
+        console.log("Firebase 채팅 직접 초기화 시도:", chatRoomId);
 
         try {
-          // 梨꾪똿諛??앹꽦 ?놁씠 諛붾줈 硫붿떆吏 濡쒕뱶 ?쒕룄
+          // 채팅방 생성 없이 바로 메시지 로드 시도
           const messageResult = await getChatMessages(chatRoomId);
           if (messageResult.success && messageResult.messages) {
             console.log(
-              "硫붿떆吏 濡쒕뱶 ?꾨즺:",
+              "메시지 로드 완료:",
               messageResult.messages.length,
-              "媛?,
+              "개",
             );
             
-            // 硫붿떆吏?먯꽌 怨좎쑀???ъ슜???뺣낫 異붿텧
+            // 메시지에서 고유한 사용자 정보 추출
             const uniqueMembers = new Map<string, {uid: string; displayName: string; photoURL?: string}>();
             messageResult.messages.forEach((msg: any) => {
               if (msg.senderId && msg.senderId !== user.uid && !msg.senderId.startsWith("Avatar_")) {
                 if (msg.senderName || msg.photoURL) {
                   uniqueMembers.set(msg.senderId, {
                     uid: msg.senderId,
-                    displayName: msg.senderName || "?ъ슜??,
+                    displayName: msg.senderName || "사용자",
                     photoURL: msg.photoURL
                   });
                 }
               }
             });
             
-            // channelMembers 珥덇린??            if (uniqueMembers.size > 0) {
+            // channelMembers 초기화
+            if (uniqueMembers.size > 0) {
               const members = Array.from(uniqueMembers.values());
-              console.log(`?뱥 珥덇린 channelMembers ?ㅼ젙: ${members.length}紐?, members);
+              console.log(`📋 초기 channelMembers 설정: ${members.length}명`, members);
               setChannelMembers(members);
             }
             
@@ -1058,45 +1143,45 @@ const MainContent: React.FC<MainContentProps> = ({
                   isBot:
                     msg.senderId !== user.uid &&
                     msg.senderId.startsWith("Avatar_"),
-                  replyTo: msg.replyTo, // ?듦? ?뺣낫 異붽?
-                  reactions: msg.reactions || {}, // 諛섏쓳 ?뺣낫 異붽?
-                  isDeleted: msg.isDeleted || false, // ??젣 ?곹깭 異붽?
-                  raw: msg, // ?먮낯 ?곗씠??異붽?
+                  replyTo: msg.replyTo, // 답글 정보 추가
+                  reactions: msg.reactions || {}, // 반응 정보 추가
+                  isDeleted: msg.isDeleted || false, // 삭제 상태 추가
+                  raw: msg, // 원본 데이터 추가
                 };
               }
             );
             setMessages(formattedMessages);
           } else {
-            console.log("硫붿떆吏媛 ?놁쓬 - 鍮?梨꾪똿諛⑹쑝濡??쒖옉");
+            console.log("메시지가 없음 - 빈 채팅방으로 시작");
             setMessages([]);
           }
 
-          // ?댁쟾 由ъ뒪???댁젣
+          // 이전 리스너 해제
           if (messageListenerRef.current) {
             messageListenerRef.current();
           }
 
-          // ?ㅼ떆媛?硫붿떆吏 援щ룆 - ?꾩껜 硫붿떆吏 諛곗뿴??諛쏆쓬
+          // 실시간 메시지 구독 - 전체 메시지 배열을 받음
           const unsubscribe = subscribeToMessages(
             chatRoomId,
             (newMessages: any[]) => {
-              console.log("?ㅼ떆媛?硫붿떆吏 ?낅뜲?댄듃:", newMessages.length, "媛?);
+              console.log("실시간 메시지 업데이트:", newMessages.length, "개");
               
-              // 硫붿떆吏?먯꽌 怨좎쑀???ъ슜???뺣낫 異붿텧
+              // 메시지에서 고유한 사용자 정보 추출
               const uniqueMembers = new Map<string, {uid: string; displayName: string; photoURL?: string}>();
               newMessages.forEach((msg: any) => {
                 if (msg.senderId && msg.senderId !== user.uid && !msg.senderId.startsWith("Avatar_")) {
                   if (msg.senderName || msg.photoURL) {
                     uniqueMembers.set(msg.senderId, {
                       uid: msg.senderId,
-                      displayName: msg.senderName || "?ъ슜??,
+                      displayName: msg.senderName || "사용자",
                       photoURL: msg.photoURL
                     });
                   }
                 }
               });
               
-              // channelMembers ?낅뜲?댄듃
+              // channelMembers 업데이트
               if (uniqueMembers.size > 0) {
                 setChannelMembers(prev => {
                   const membersMap = new Map(prev.map(m => [m.uid, m]));
@@ -1104,7 +1189,7 @@ const MainContent: React.FC<MainContentProps> = ({
                     membersMap.set(uid, member);
                   });
                   const updated = Array.from(membersMap.values());
-                  console.log(`?뱥 channelMembers ?낅뜲?댄듃: ${updated.length}紐?, updated);
+                  console.log(`📋 channelMembers 업데이트: ${updated.length}명`, updated);
                   return updated;
                 });
               }
@@ -1121,10 +1206,10 @@ const MainContent: React.FC<MainContentProps> = ({
                   isBot:
                     msg.senderId !== user.uid &&
                     msg.senderId.startsWith("Avatar_"),
-                  replyTo: msg.replyTo, // ?듦? ?뺣낫 異붽?
-                  reactions: msg.reactions || {}, // 諛섏쓳 ?뺣낫 異붽?
-                  isDeleted: msg.isDeleted || false, // ??젣 ?곹깭 異붽?
-                  raw: msg, // ?먮낯 ?곗씠??異붽?
+                  replyTo: msg.replyTo, // 답글 정보 추가
+                  reactions: msg.reactions || {}, // 반응 정보 추가
+                  isDeleted: msg.isDeleted || false, // 삭제 상태 추가
+                  raw: msg, // 원본 데이터 추가
                 };
               });
 
@@ -1133,22 +1218,23 @@ const MainContent: React.FC<MainContentProps> = ({
           );
 
           messageListenerRef.current = unsubscribe;
-          console.log("Firebase 梨꾪똿 珥덇린???꾨즺");
+          console.log("Firebase 채팅 초기화 완료");
         } catch (directError) {
-          console.error("吏곸젒 硫붿떆吏 濡쒕뱶 ?ㅽ뙣:", directError);
+          console.error("직접 메시지 로드 실패:", directError);
 
-          // 洹몃옒??梨꾪똿諛??앹꽦???쒕룄?대낫湲?          console.log("梨꾪똿諛??앹꽦 ?쒕룄:", chatRoomId, `public_${chatRoomId}`);
+          // 그래도 채팅방 생성을 시도해보기
+          console.log("채팅방 생성 시도:", chatRoomId, `public_${chatRoomId}`);
           const result = await createOrGetChatRoom(
             chatRoomId,
             `public_${chatRoomId}`,
           );
 
           if (result.success) {
-            console.log("Firebase 梨꾪똿諛?以鍮??꾨즺:", result.roomId);
+            console.log("Firebase 채팅방 준비 완료:", result.roomId);
             setMessages([]);
           } else {
-            console.error("梨꾪똿諛??앹꽦???ㅽ뙣:", result.error);
-            // 沅뚰븳 ?ㅻ쪟??寃쎌슦 ?ъ슜?먯뿉寃??뚮┝
+            console.error("채팅방 생성도 실패:", result.error);
+            // 권한 오류인 경우 사용자에게 알림
             if (
               result.error &&
               typeof result.error === "object" &&
@@ -1156,19 +1242,19 @@ const MainContent: React.FC<MainContentProps> = ({
               result.error.code === "permission-denied"
             ) {
               toast({
-                title: "沅뚰븳 ?ㅻ쪟",
+                title: "권한 오류",
                 description:
-                  "梨꾪똿諛⑹뿉 ?묎렐??沅뚰븳???놁뒿?덈떎. ?ㅼ떆 濡쒓렇?명빐二쇱꽭??",
+                  "채팅방에 접근할 권한이 없습니다. 다시 로그인해주세요.",
                 variant: "destructive",
               });
             }
           }
         }
       } catch (error) {
-        console.error("Firebase 梨꾪똿諛?珥덇린???ㅻ쪟:", error);
+        console.error("Firebase 채팅방 초기화 오류:", error);
         toast({
-          title: "?곌껐 ?ㅻ쪟",
-          description: "梨꾪똿 ?쒕쾭???곌껐?????놁뒿?덈떎.",
+          title: "연결 오류",
+          description: "채팅 서버에 연결할 수 없습니다.",
           variant: "destructive",
         });
       }
@@ -1192,84 +1278,85 @@ const MainContent: React.FC<MainContentProps> = ({
     return formatDistanceToNow(date, { addSuffix: true, locale: ko });
   };
 
-  // ?ъ슜???뺣낫 罹먯떆
+  // 사용자 정보 캐시
   const userInfoCache = useRef<Map<string, {displayName: string; photoURL?: string}>>(new Map());
 
   const getSenderName = (senderId: string, msgData?: any): string => {
-    // 硫붿떆吏 ?곗씠?곗뿉 senderName???덇퀬 "?ъ슜??媛 ?꾨땲硫??곗꽑 ?ъ슜
-    if (msgData?.senderName && msgData.senderName !== "?ъ슜??) {
+    // 메시지 데이터에 senderName이 있고 "사용자"가 아니면 우선 사용
+    if (msgData?.senderName && msgData.senderName !== "사용자") {
       return msgData.senderName;
     }
 
     if (senderId === user?.uid) {
-      return user.displayName || user.email?.split("@")[0] || "??;
+      return user.displayName || user.email?.split("@")[0] || "나";
     }
 
-    // 罹먯떆?먯꽌 李얘린
+    // 캐시에서 찾기
     const cached = userInfoCache.current.get(senderId);
     if (cached?.displayName) {
       return cached.displayName;
     }
 
-    // channelMembers?먯꽌 李얘린
+    // channelMembers에서 찾기
     const member = channelMembers.find(m => m.uid === senderId);
     if (member?.displayName) {
       return member.displayName;
     }
 
-    // ?꾨컮? ID??寃쎌슦
+    // 아바타 ID인 경우
     if (senderId.startsWith("Avatar_")) {
       const AvatarId = senderId.replace("Avatar_", "");
       const Avatar = AvatarSamples.find((a) => a.id === AvatarId);
-      return Avatar?.name || "?꾨컮?";
+      return Avatar?.name || "아바타";
     }
 
-    // DB?먯꽌 ?ъ슜???뺣낫 媛?몄삤湲?(鍮꾨룞湲?
+    // DB에서 사용자 정보 가져오기 (비동기)
     fetchUserInfo(senderId);
 
-    return msgData?.senderName || "?ъ슜??;
+    return msgData?.senderName || "사용자";
   };
 
   const getSenderAvatar = (senderId: string, msgData?: any): string | undefined => {
     let photoURL: string | undefined;
 
-    // 硫붿떆吏 ?곗씠?곗뿉 photoURL???덉쑝硫??곗꽑 ?ъ슜
+    // 메시지 데이터에 photoURL이 있으면 우선 사용
     if (msgData?.photoURL) {
       photoURL = msgData.photoURL;
     } else if (senderId === user?.uid) {
       photoURL = user.photoURL || undefined;
     } else {
-      // 罹먯떆?먯꽌 李얘린
+      // 캐시에서 찾기
       const cached = userInfoCache.current.get(senderId);
       if (cached?.photoURL) {
         photoURL = cached.photoURL;
       } else {
-        // channelMembers?먯꽌 李얘린
+        // channelMembers에서 찾기
         const member = channelMembers.find(m => m.uid === senderId);
         if (member?.photoURL) {
           photoURL = member.photoURL;
         } else if (senderId.startsWith("Avatar_")) {
-          // ?꾨컮? ID??寃쎌슦
+          // 아바타 ID인 경우
           const AvatarId = senderId.replace("Avatar_", "");
           const Avatar = AvatarSamples.find((a) => a.id === AvatarId);
           photoURL = Avatar?.Avatar;
         } else {
-          // DB?먯꽌 ?ъ슜???뺣낫 媛?몄삤湲?(鍮꾨룞湲?
+          // DB에서 사용자 정보 가져오기 (비동기)
           fetchUserInfo(senderId);
         }
       }
     }
 
-    // photoURL???덉쑝硫??뺢퇋?뷀븯??諛섑솚, ?놁쑝硫?undefined 諛섑솚
+    // photoURL이 있으면 정규화하여 반환, 없으면 undefined 반환
     return photoURL ? normalizeImageUrl(photoURL) : undefined;
   };
 
-  // DB?먯꽌 ?ъ슜???뺣낫 媛?몄삤湲?  const fetchUserInfo = async (userId: string) => {
-    // ?대? ?붿껌 以묒씠嫄곕굹 罹먯떆???덉쑝硫??ㅽ궢
+  // DB에서 사용자 정보 가져오기
+  const fetchUserInfo = async (userId: string) => {
+    // 이미 요청 중이거나 캐시에 있으면 스킵
     if (userInfoCache.current.has(userId)) return;
     
-    // ?꾩떆濡?鍮?媛앹껜 ???(以묐났 ?붿껌 諛⑹?)
-    userInfoCache.current.set(userId, { displayName: "?ъ슜?? });
+    // 임시로 빈 객체 저장 (중복 요청 방지)
+    userInfoCache.current.set(userId, { displayName: "사용자" });
 
     try {
       const response = await fetch(`/api/users/${userId}`);
@@ -1277,71 +1364,74 @@ const MainContent: React.FC<MainContentProps> = ({
         const userData = await response.json();
         if (userData.displayName || userData.photoURL) {
           userInfoCache.current.set(userId, {
-            displayName: userData.displayName || "?ъ슜??,
+            displayName: userData.displayName || "사용자",
             photoURL: userData.photoURL
           });
           
-          // channelMembers ?낅뜲?댄듃
+          // channelMembers 업데이트
           setChannelMembers(prev => {
             const exists = prev.find(m => m.uid === userId);
             if (!exists) {
               return [...prev, {
                 uid: userId,
-                displayName: userData.displayName || "?ъ슜??,
+                displayName: userData.displayName || "사용자",
                 photoURL: userData.photoURL
               }];
             }
             return prev;
           });
 
-          console.log(`??DB?먯꽌 ?ъ슜???뺣낫 媛?몄샂: ${userData.displayName}`);
+          console.log(`✅ DB에서 사용자 정보 가져옴: ${userData.displayName}`);
         }
       } else if (response.status === 404) {
-        // 404???뺤긽?곸씤 ?곹솴 (?ъ슜???뺣낫媛 ?놁쓣 ???덉쓬) - 寃쎄퀬 ?놁씠 泥섎━
-        console.debug(`?뱄툘 ?ъ슜???뺣낫 ?놁쓬: ${userId}`);
+        // 404는 정상적인 상황 (사용자 정보가 없을 수 있음) - 경고 없이 처리
+        console.debug(`ℹ️ 사용자 정보 없음: ${userId}`);
       }
     } catch (error) {
-      // ?ㅽ듃?뚰겕 ?먮윭 ???ㅼ젣 ?ㅻ쪟留?濡쒓렇
+      // 네트워크 에러 등 실제 오류만 로그
       if (error instanceof TypeError) {
-        console.warn(`?좑툘 ?ъ슜???뺣낫 媛?몄삤湲??ㅽ뙣: ${userId}`);
+        console.warn(`⚠️ 사용자 정보 가져오기 실패: ${userId}`);
       }
     }
   };
 
-  // URL???곷? 寃쎈줈??寃쎌슦 ?덈? 寃쎈줈濡?蹂??  const getAbsoluteImageUrl = (url: string | undefined): string | undefined => {
+  // URL이 상대 경로인 경우 절대 경로로 변환
+  const getAbsoluteImageUrl = (url: string | undefined): string | undefined => {
     if (!url) return undefined;
     return normalizeImageUrl(url);
   };
 
-  // URL 媛먯? 諛?留곹겕 蹂???⑥닔
+  // URL 감지 및 링크 변환 함수
   const convertLinksToHtml = (text: string) => {
     if (!text) return "";
 
-    // URL ?⑦꽩 (http, https濡??쒖옉?섎뒗 留곹겕)
+    // URL 패턴 (http, https로 시작하는 링크)
     const urlRegex = /(https?:\/\/[^\s]+)/g;
 
-    // URL??<a> ?쒓렇濡?援먯껜
+    // URL을 <a> 태그로 교체
     return text.replace(urlRegex, (url) => {
       return `<a href="${url}" target="_blank" class="text-blue-400 underline hover:text-blue-300" rel="noopener noreferrer">${url}</a>`;
     });
   };
 
-  // ?뚯씪 ?좏깮 ?몃뱾??  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 파일 선택 핸들러
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files: File[] = Array.from(e.target.files);
       const validFiles: File[] = [];
 
-      // 媛??뚯씪??????좏슚??寃??      files.forEach((file) => {
-        // ?뚯씪 ?ш린 ?쒗븳 (5MB)
+      // 각 파일에 대해 유효성 검사
+      files.forEach((file) => {
+        // 파일 크기 제한 (5MB)
         const maxSize = 5 * 1024 * 1024; // 5MB
         if (file.size > maxSize) {
           alert(
-            `?뚯씪 '${file.name}'???ш린媛 5MB瑜?珥덇낵?⑸땲?? ???묒? ?대?吏瑜??좏깮?댁＜?몄슂.`,
+            `파일 '${file.name}'의 크기가 5MB를 초과합니다. 더 작은 이미지를 선택해주세요.`,
           );
           return;
         }
 
-        // ?뚯씪 ????쒗븳
+        // 파일 타입 제한
         const allowedTypes = [
           "image/jpeg",
           "image/png",
@@ -1350,7 +1440,7 @@ const MainContent: React.FC<MainContentProps> = ({
         ];
         if (!allowedTypes.includes(file.type)) {
           alert(
-            `'${file.name}'?(?? 吏?먮릺吏 ?딅뒗 ?뚯씪 ?뺤떇?낅땲?? JPG, PNG, GIF, WEBP ?뚯씪留??낅줈??媛?ν빀?덈떎.`,
+            `'${file.name}'은(는) 지원되지 않는 파일 형식입니다. JPG, PNG, GIF, WEBP 파일만 업로드 가능합니다.`,
           );
           return;
         }
@@ -1359,102 +1449,107 @@ const MainContent: React.FC<MainContentProps> = ({
       });
 
       setImageUploads((prevFiles) => [...prevFiles, ...validFiles]);
-      console.log(`${validFiles.length}媛쒖쓽 ?대?吏 ?좏깮??);
+      console.log(`${validFiles.length}개의 이미지 선택됨`);
     }
   };
 
-  // ?대?吏 泥⑤? 踰꾪듉 ?대┃ ?몃뱾??  const handleAttachClick = () => {
+  // 이미지 첨부 버튼 클릭 핸들러
+  const handleAttachClick = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
 
-  // ?대?吏 ?쒓굅 ?몃뱾??  const handleRemoveImage = (index: number) => {
+  // 이미지 제거 핸들러
+  const handleRemoveImage = (index: number) => {
     setImageUploads((prevFiles) => prevFiles.filter((_, i) => i !== index));
   };
 
-  // ?좊Ъ ?곗씠??  const gifts = [
-    { id: 1, name: "?섑듃", icon: "?뮇", price: 10 },
-    { id: 2, name: "?λ?", icon: "?뙶", price: 50 },
-    { id: 3, name: "耳?댄겕", icon: "?럟", price: 100 },
-    { id: 4, name: "?ㅼ씠?꾨が??, icon: "?뭿", price: 500 },
-    { id: 5, name: "?뺢?", icon: "?몣", price: 1000 },
-    { id: 6, name: "蹂?, icon: "狩?, price: 25 },
+  // 선물 데이터
+  const gifts = [
+    { id: 1, name: "하트", icon: "💖", price: 10 },
+    { id: 2, name: "장미", icon: "🌹", price: 50 },
+    { id: 3, name: "케이크", icon: "🎂", price: 100 },
+    { id: 4, name: "다이아몬드", icon: "💎", price: 500 },
+    { id: 5, name: "왕관", icon: "👑", price: 1000 },
+    { id: 6, name: "별", icon: "⭐", price: 25 },
   ];
 
-  // ?대え?곗퐯 ?곗씠??  const emojis = [
-    "??",
-    "?쁼",
-    "?쁽",
-    "?쁺",
-    "?쁿",
-    "?쁾",
-    "?ㄳ",
-    "?쁻",
-    "?셽",
-    "?셾",
-    "?삂",
-    "?삃",
-    "?삀",
-    "?Ⅰ",
-    "?삆",
-    "?ㄹ",
-    "?삓",
-    "?삒",
-    "?삖",
-    "?삕",
-    "?삄",
-    "?삗",
-    "?삙",
-    "?ㄺ",
-    "?삇",
-    "?쨹",
-    "?쭚",
-    "?쨺",
-    "?삉",
-    "?삊",
-    "?샄",
-    "?ㄽ",
-    "?ㄻ",
-    "?쨽",
-    "?ㄸ",
-    "?삈",
-    "?삋",
-    "?셿",
-    "?삱",
-    "?ㄵ",
-    "?삍",
-    "?삫",
-    "?ㄴ",
-    "?샂",
-    "?샆",
-    "?쨸",
-    "?쨻",
-    "?ㄲ",
-    "?ㄾ",
-    "?ㄷ",
-    "?Ⅵ",
-    "?Ⅶ",
-    "?Ⅴ",
-    "?샃",
-    "?ㄿ",
-    "?쩆",
-    "?Ⅳ",
-    "?삇",
-    "?쨹",
-    "?쭚",
+  // 이모티콘 데이터
+  const emojis = [
+    "😀",
+    "😃",
+    "😄",
+    "😁",
+    "😆",
+    "😅",
+    "🤣",
+    "😂",
+    "🙂",
+    "🙃",
+    "😉",
+    "😊",
+    "😇",
+    "🥰",
+    "😍",
+    "🤩",
+    "😘",
+    "😗",
+    "😚",
+    "😙",
+    "😋",
+    "😛",
+    "😜",
+    "🤪",
+    "😎",
+    "🤓",
+    "🧐",
+    "🤔",
+    "😐",
+    "😑",
+    "😶",
+    "🤭",
+    "🤫",
+    "🤗",
+    "🤨",
+    "😏",
+    "😒",
+    "🙄",
+    "😬",
+    "🤥",
+    "😔",
+    "😪",
+    "🤤",
+    "😴",
+    "😷",
+    "🤒",
+    "🤕",
+    "🤢",
+    "🤮",
+    "🤧",
+    "🥵",
+    "🥶",
+    "🥴",
+    "😵",
+    "🤯",
+    "🤠",
+    "🥳",
+    "😎",
+    "🤓",
+    "🧐",
   ];
 
-  // ?좊Ъ ?꾩넚 ?몃뱾??  const handleSendGift = async (gift: (typeof gifts)[0]) => {
+  // 선물 전송 핸들러
+  const handleSendGift = async (gift: (typeof gifts)[0]) => {
     if (!user) {
       setShowAuthModal(true);
       return;
     }
 
-    const giftMessage = `${user.displayName || "?ъ슜??}?섏씠 ${gift.icon} ${gift.name}??瑜? ?좊Ъ?덉뒿?덈떎! (${gift.price} ?ъ씤??`;
+    const giftMessage = `${user.displayName || "사용자"}님이 ${gift.icon} ${gift.name}을(를) 선물했습니다! (${gift.price} 포인트)`;
 
     if (channelType === "vtuber") {
-      // VTuber 梨꾨꼸?먯꽌??硫붿떆吏濡??꾩넚
+      // VTuber 채널에서는 메시지로 전송
       setMessages((prev) => [
         ...prev,
         {
@@ -1464,20 +1559,20 @@ const MainContent: React.FC<MainContentProps> = ({
           timestamp: new Date().toISOString(),
           isBot: false,
           senderName:
-            user?.displayName || user?.email?.split("@")[0] || "?ъ슜??,
+            user?.displayName || user?.email?.split("@")[0] || "사용자",
           senderAvatar: user?.photoURL || "",
         },
       ]);
     } else {
-      // Firebase 梨꾨꼸?먯꽌??Firebase濡??꾩넚
+      // Firebase 채널에서는 Firebase로 전송
       const chatRoomId = currentChannel ?? "general";
       try {
         await sendChatMessage(chatRoomId, giftMessage, user.uid);
       } catch (error) {
-        console.error("?좊Ъ 硫붿떆吏 ?꾩넚 ?ㅻ쪟:", error);
+        console.error("선물 메시지 전송 오류:", error);
         toast({
-          title: "?꾩넚 ?ㅻ쪟",
-          description: "?좊Ъ???꾩넚?????놁뒿?덈떎.",
+          title: "전송 오류",
+          description: "선물을 전송할 수 없습니다.",
           variant: "destructive",
         });
       }
@@ -1486,12 +1581,13 @@ const MainContent: React.FC<MainContentProps> = ({
     setShowGiftPopup(false);
   };
 
-  // ?대え?곗퐯 ?꾩넚 ?몃뱾??  const handleSendEmoji = (emoji: string) => {
+  // 이모티콘 전송 핸들러
+  const handleSendEmoji = (emoji: string) => {
     setMessage((prev) => prev + emoji);
     setShowEmojiPopup(false);
   };
 
-  // 硫붿떆吏??諛섏쓳 異붽?/?쒓굅
+  // 메시지에 반응 추가/제거
   const handleReaction = async (messageId: string | number, emoji: string) => {
     if (!user) return;
     
@@ -1501,17 +1597,17 @@ const MainContent: React.FC<MainContentProps> = ({
     const userReactions = msg.reactions?.[emoji] || [];
     const isAdd = !userReactions.includes(user.uid);
 
-    // 利됱떆 UI ?낅뜲?댄듃
+    // 즉시 UI 업데이트
     setMessages(prev => prev.map(message => {
       if (message.id === messageId) {
         const reactions = { ...(message.reactions || {}) };
         const currentUserReactions = reactions[emoji] || [];
         
         if (isAdd) {
-          // 諛섏쓳 異붽?
+          // 반응 추가
           reactions[emoji] = [...currentUserReactions, user.uid];
         } else {
-          // 諛섏쓳 ?쒓굅
+          // 반응 제거
           reactions[emoji] = currentUserReactions.filter(uid => uid !== user.uid);
           if (reactions[emoji].length === 0) {
             delete reactions[emoji];
@@ -1523,13 +1619,13 @@ const MainContent: React.FC<MainContentProps> = ({
       return message;
     }));
 
-    // ?쒕쾭?????(Firebase 梨꾪똿留?
+    // 서버에 저장 (Firebase 채팅만)
     if (channelType === "firebase" && currentChannel && typeof messageId === 'string') {
       try {
         const result = await updateMessageReaction(currentChannel, messageId, emoji, user.uid, isAdd);
         if (!result.success) {
-          console.error("諛섏쓳 ?낅뜲?댄듃 ?ㅽ뙣:", result.error);
-          // ?ㅽ뙣 ??UI 濡ㅻ갚
+          console.error("반응 업데이트 실패:", result.error);
+          // 실패 시 UI 롤백
           setMessages(prev => prev.map(message => {
             if (message.id === messageId) {
               return { ...message, reactions: msg.reactions };
@@ -1538,64 +1634,67 @@ const MainContent: React.FC<MainContentProps> = ({
           }));
         }
       } catch (error) {
-        console.error("諛섏쓳 ?낅뜲?댄듃 以??ㅻ쪟:", error);
+        console.error("반응 업데이트 중 오류:", error);
       }
     }
 
     setShowReactionPicker(null);
   };
 
-  // ?듦? ?쒖옉
+  // 답글 시작
   const handleReply = (message: Message) => {
     setReplyingTo(message);
-    setMessage(""); // 硫붿떆吏 ?낅젰李?珥덇린??    // ?낅젰李쎌뿉 ?ъ빱??    setTimeout(() => {
-      const inputElement = document.querySelector('input[placeholder*="?듦?"]') as HTMLInputElement;
+    setMessage(""); // 메시지 입력창 초기화
+    // 입력창에 포커스
+    setTimeout(() => {
+      const inputElement = document.querySelector('input[placeholder*="답글"]') as HTMLInputElement;
       if (inputElement) {
         inputElement.focus();
       }
     }, 100);
   };
 
-  // 硫붿떆吏 ??젣 (?꾩쟾 ?쒓굅)
+  // 메시지 삭제 (완전 제거)
   const handleDeleteMessage = async (messageId: string | number) => {
     if (!user) return;
     
     const msg = messages.find(m => m.id === messageId);
     if (!msg) return;
 
-    // 利됱떆 UI?먯꽌 ?꾩쟾 ?쒓굅
+    // 즉시 UI에서 완전 제거
     setMessages(prev => prev.filter(message => {
-      // 蹂몄씤 硫붿떆吏留???젣 媛??      if (message.id === messageId && (message.sender === "user" || user.uid === message.raw?.senderId)) {
-        return false; // 硫붿떆吏 ?쒓굅
+      // 본인 메시지만 삭제 가능
+      if (message.id === messageId && (message.sender === "user" || user.uid === message.raw?.senderId)) {
+        return false; // 메시지 제거
       }
-      return true; // 硫붿떆吏 ?좎?
+      return true; // 메시지 유지
     }));
 
-    // ?쒕쾭?????(Firebase 梨꾪똿留?
+    // 서버에 저장 (Firebase 채팅만)
     if (channelType === "firebase" && currentChannel && typeof messageId === 'string') {
       try {
         const result = await deleteMessage(currentChannel, messageId, user.uid);
         if (!result.success) {
-          console.error("硫붿떆吏 ??젣 ?ㅽ뙣:", result.error);
-          // ?ㅽ뙣 ??UI 濡ㅻ갚 (硫붿떆吏 ?ㅼ떆 異붽?)
+          console.error("메시지 삭제 실패:", result.error);
+          // 실패 시 UI 롤백 (메시지 다시 추가)
           setMessages(prev => [...prev, msg].sort((a, b) => 
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           ));
         }
       } catch (error) {
-        console.error("硫붿떆吏 ??젣 以??ㅻ쪟:", error);
+        console.error("메시지 삭제 중 오류:", error);
       }
     }
   };
 
-  // ?듦? 痍⑥냼
+  // 답글 취소
   const cancelReply = () => {
     setReplyingTo(null);
   };
 
-  // 梨꾨꼸 ??낆뿉 ?곕Ⅸ ?곌껐 ?ㅼ젙
+  // 채널 타입에 따른 연결 설정
   useEffect(() => {
-    console.log("?렞 梨꾨꼸 ?ㅼ젙 蹂寃?", {
+    console.log("🎯 채널 설정 변경:", {
       channelType,
       currentChannel,
       user: user?.uid,
@@ -1604,210 +1703,151 @@ const MainContent: React.FC<MainContentProps> = ({
     });
 
     if (channelType === "vtuber" && user && !wsConnected && !vtuberConnecting) {
-      console.log("?쨼 VTuber ?곌껐 議곌굔 異⑹” - ?곌껐 ?쒖옉 (3珥???");
-      // 而댄룷?뚰듃 ?덉젙???湲????곌껐
+      console.log("🤖 VTuber 연결 조건 충족 - 연결 시작 (3초 후)");
+      // 컴포넌트 안정화 대기 후 연결
       const connectTimeout = setTimeout(() => {
-        console.log("??VTuber ?곌껐 ?쒖옉 ??대㉧ ?ㅽ뻾");
+        console.log("⏰ VTuber 연결 시작 타이머 실행");
         connectToVTuber();
       }, 3000);
 
       return () => {
-        console.log("?㏏ VTuber ?곌껐 ??대㉧ ?뺣━");
+        console.log("🧹 VTuber 연결 타이머 정리");
         clearTimeout(connectTimeout);
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
         }
-        // 梨꾨꼸 ?꾪솚 ??利됱떆 ?곌껐 醫낅즺?섏? ?딄퀬 ?좎떆 ?湲?        // if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        // 채널 전환 시 즉시 연결 종료하지 않고 잠시 대기
+        // if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         //   wsRef.current.close(1000, 'Channel switching');
         // }
       };
     } else if (channelType === "firebase") {
-      // Firebase ?곌껐 濡쒖쭅? 湲곗〈 useEffect?먯꽌 泥섎━
-      console.log("?뵦 Firebase 梨꾨꼸 紐⑤뱶");
+      // Firebase 연결 로직은 기존 useEffect에서 처리
+      console.log("🔥 Firebase 채널 모드");
     }
 
-    // ?뺣━ ?⑥닔 - ?곌껐 ?좎? 媛쒖꽑
+    // 정리 함수 - 연결 유지 개선
     return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
-      // 遺덊븘?뷀븳 梨꾨꼸 ?꾪솚?쇰줈 ?명븳 ?곌껐 醫낅즺 諛⑹?
+      // 불필요한 채널 전환으로 인한 연결 종료 방지
       // if (wsRef.current && channelType !== 'vtuber') {
       //   wsRef.current.close(1000, 'Channel switching');
       // }
     };
   }, [channelType, currentChannel, user]);
 
-  // 梨꾨꼸 ?꾪솚 ??硫붿떆吏 珥덇린??  useEffect(() => {
-    console.log("?봽 梨꾨꼸 ?꾪솚 媛먯? - 硫붿떆吏 珥덇린??", {
+  // 채널 전환 시 메시지 초기화
+  useEffect(() => {
+    console.log("🔄 채널 전환 감지 - 메시지 초기화:", {
       channelType,
       currentChannel,
       messagesCount: messages.length
     });
     
-    // 梨꾨꼸??蹂寃쎈릺硫?硫붿떆吏瑜?珥덇린??    setMessages([]);
+    // 채널이 변경되면 메시지를 초기화
+    setMessages([]);
     
-    // 硫붿떆吏 由ъ뒪?덈룄 珥덇린??    if (messageListenerRef.current) {
+    // 메시지 리스너도 초기화
+    if (messageListenerRef.current) {
       messageListenerRef.current();
       messageListenerRef.current = null;
     }
   }, [channelType, currentChannel]);
 
-  // ?뚯꽦 ?몄떇 寃곌낵 泥섎━ - ?낅젰李쎌뿉 ?쒖떆 ??利됱떆 ?꾩넚
+  // 음성 인식 결과 처리 - 바로 AI와 대화
   useEffect(() => {
-    const recognized = voiceDetector.transcription?.trim();
-    if (!recognized) return;
+    if (
+      voiceDetector.transcription &&
+      channelType === "vtuber" &&
+      wsConnected
+    ) {
+      const userVoiceMessage = voiceDetector.transcription.trim();
 
-    // 癒쇱? ?몄떇 寃곌낵瑜??낅젰李쎌뿉 ?쒖떆
-    setMessage(recognized);
-    voiceDetector.clearTranscription();
+      if (userVoiceMessage) {
+        // 사용자 음성 메시지를 채팅에 표시
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            content: userVoiceMessage,
+            sender: "user",
+            timestamp: new Date().toISOString(),
+            isBot: false,
+            senderName:
+              user?.displayName || user?.email?.split("@")[0] || "사용자",
+            senderAvatar: user?.photoURL || "",
+            replyTo: replyingTo?.id.toString(),
+          },
+        ]);
 
-    if (channelType === "vtuber" && wsConnected) {
-      // 梨꾪똿 硫붿떆吏 紐⑸줉???ъ슜??硫붿떆吏 異붽?
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          content: recognized,
-          sender: "user",
-          timestamp: new Date().toISOString(),
-          isBot: false,
-          senderName: user?.displayName || user?.email?.split("@")[0] || "?ъ슜??,
-          senderAvatar: user?.photoURL || "",
-        },
-      ]);
+        // 답글 상태 초기화
+        setReplyingTo(null);
 
-      setReplyingTo(null);
-      setCurrentEmotion("neutral");
+        // AI 아바타를 생각하는 표정으로 변경
+        setCurrentEmotion("neutral");
 
-      // VTuber ?쒕쾭濡?利됱떆 ?꾩넚
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        const freshGeminiKey = localStorage.getItem("gemini_api_key_global") || "";
-        const freshGeminiModel = localStorage.getItem("gemini_model_global") || "gemini-2.0-flash";
-        wsRef.current.send(JSON.stringify({
-          type: "text-input",
-          text: recognized,
-          personality: avatarPersonality,
-          geminiApiKey: freshGeminiKey,
-          geminiModel: freshGeminiModel,
-        }));
+        // AI에게 바로 전송 (메시지 입력창 사용하지 않음)
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          const vtuberMessage = {
+            type: "text-input",
+            text: userVoiceMessage,
+            replyTo: replyingTo?.id.toString(),
+          };
+
+          wsRef.current.send(JSON.stringify(vtuberMessage));
+        }
+
+        // 음성 인식 결과 정리
+        voiceDetector.clearTranscription();
       }
-
-      // ?꾩넚 ???낅젰李?鍮꾩슦湲?      setMessage("");
+    } else if (voiceDetector.transcription && channelType === "firebase") {
+      // Firebase 채널에서는 기존 방식대로 입력창에 추가
+      setMessage(
+        (prev) => prev + (prev ? " " : "") + voiceDetector.transcription,
+      );
+      voiceDetector.clearTranscription();
     }
-    // Firebase 梨꾨꼸: ?낅젰李쎌뿉留?梨꾩썙?먭퀬 ?ъ슜?먭? 吏곸젒 ?꾩넚
   }, [
     voiceDetector.transcription,
     channelType,
     wsConnected,
     user,
-    avatarPersonality,
     voiceDetector,
   ]);
 
-  // ?? ?묐떟 ???쒖감 泥섎━ ???????????????????????????????????????????
-  const processNextResponse = useCallback(() => {
-    if (responseQueueRef.current.length === 0) {
-      isPlayingResponseRef.current = false;
-      return;
-    }
-
-    isPlayingResponseRef.current = true;
-    const item = responseQueueRef.current.shift()!;
-
-    // 媛먯젙 ?곸슜
-    if (item.emotion && isValidEmotion(item.emotion)) {
-      setCurrentEmotion(item.emotion);
-    }
-
-    // 梨꾪똿 硫붿떆吏 ?쒖떆 (媛먯젙 ?쒓렇 ?쒓굅??cleanText ?ъ슜)
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        content: item.cleanText || item.originalText,
-        sender: "ai",
-        timestamp: new Date().toISOString(),
-        isBot: true,
-        senderName: "AI ?꾨컮?",
-        senderAvatar: AvatarSamples[0]?.Avatar || "",
-      },
-    ]);
-
-    // ?뚯꽦 ?ъ깮
-    const speakFn = speakFunctionRef.current;
-    if (!speakFn) {
-      // speakFunction ?놁쑝硫?諛붾줈 ?ㅼ쓬?쇰줈
-      isPlayingResponseRef.current = false;
-      if (responseQueueRef.current.length > 0) processNextResponse();
-      return;
-    }
-
-    if (item.audioUrl) {
-      let serverUrl = import.meta.env.VITE_API_URL;
-      if (!serverUrl) {
-        const isHttps = window.location.protocol === "https:";
-        const host = window.location.hostname;
-        serverUrl = host === "localhost" || host === "127.0.0.1"
-          ? "http://localhost:5001"
-          : `${isHttps ? "https" : "http"}://${host}`;
-      }
-      const fullUrl = item.audioUrl.startsWith("/")
-        ? `${serverUrl}${item.audioUrl}`
-        : item.audioUrl;
-      speakFn(fullUrl, "audio", item.volumes);
-    } else if (item.cleanText) {
-      speakFn(item.cleanText, "text");
-    } else {
-      isPlayingResponseRef.current = false;
-      if (responseQueueRef.current.length > 0) processNextResponse();
-    }
-  }, [setCurrentEmotion, setMessages, speakFunctionRef]);
-
-  // ?뚯꽦 ?ъ깮???앸굹硫??먯쓽 ?ㅼ쓬 ??ぉ 泥섎━
-  useEffect(() => {
-    if (!isAvatarSpeaking && isPlayingResponseRef.current) {
-      // ?쎄컙??媛꾧꺽???먯뼱 ?먯뿰?ㅻ읇寃??꾪솚
-      const t = setTimeout(() => {
-        isPlayingResponseRef.current = false;
-        if (responseQueueRef.current.length > 0) {
-          processNextResponse();
-        }
-      }, 400);
-      return () => clearTimeout(t);
-    }
-  }, [isAvatarSpeaking, processNextResponse]);
-  // ????????????????????????????????????????????????????????????????
-
-  // 留덉씠???좉? ?⑥닔 - VAD ?뚯꽦 ???(??踰??대┃?쇰줈 怨꾩냽 ?ｊ린)
+  // 마이크 토글 함수 - VAD 음성 대화 (한 번 클릭으로 계속 듣기)
   const toggleMicrophone = useCallback(async () => {
     if (!voiceDetector.isListening) {
-      // 由ъ뒪???쒖옉
+      // 리스닝 시작
       try {
         await voiceDetector.startListening();
 
-        // VTuber 紐⑤뱶?먯꽌 寃쎌껌 ?곹깭濡?蹂寃?        if (channelType === "vtuber") {
-          setCurrentEmotion("joy"); // 寃쎌껌?섎뒗 湲곗걶 ?쒖젙
+        // VTuber 모드에서 경청 상태로 변경
+        if (channelType === "vtuber") {
+          setCurrentEmotion("joy"); // 경청하는 기쁜 표정
         }
       } catch (error) {
-        console.error("?뚯꽦 由ъ뒪???쒖옉 ?ㅽ뙣:", error);
+        console.error("음성 리스닝 시작 실패:", error);
         toast({
-          title: "留덉씠???ㅻ쪟",
-          description: "留덉씠?щ? ?ъ슜?????놁뒿?덈떎. 沅뚰븳???뺤씤?댁＜?몄슂.",
+          title: "마이크 오류",
+          description: "마이크를 사용할 수 없습니다. 권한을 확인해주세요.",
           variant: "destructive",
         });
       }
     } else {
-      // 由ъ뒪??以묒?
+      // 리스닝 중지
       await voiceDetector.stopListening();
 
-      // 湲곕낯 ?쒖젙?쇰줈 蹂寃?      if (channelType === "vtuber") {
+      // 기본 표정으로 변경
+      if (channelType === "vtuber") {
         setCurrentEmotion("neutral");
       }
     }
   }, [voiceDetector, channelType, toast]);
 
-  // 硫붿떆吏 ?꾩넚 ?⑥닔 - 梨꾨꼸 ??낆뿉 ?곕씪 遺꾧린
+  // 메시지 전송 함수 - 채널 타입에 따라 분기
   const handleSendMessage = useCallback(async () => {
     if (channelType === "vtuber") {
       await sendVTuberMessage();
@@ -1816,7 +1856,7 @@ const MainContent: React.FC<MainContentProps> = ({
     }
   }, [channelType, sendVTuberMessage]);
 
-  // Firebase 硫붿떆吏 ?꾩넚 ?⑥닔
+  // Firebase 메시지 전송 함수
   const handleFirebaseSendMessage = useCallback(async () => {
     if ((!message.trim() && imageUploads.length === 0) || !user) return;
 
@@ -1826,97 +1866,108 @@ const MainContent: React.FC<MainContentProps> = ({
     const imageUrls: string[] = [];
 
 
-    // 硫붿떆吏 ?낅젰李?珥덇린??(利됱떆 UI 諛섏쓳)
+    // 메시지 입력창 초기화 (즉시 UI 반응)
     setMessage("");
 
-    // ?대?吏媛 ?덉쑝硫??낅줈??    if (imageUploads.length > 0) {
+    // 이미지가 있으면 업로드
+    if (imageUploads.length > 0) {
       setIsUploading(true);
       try {
-        // 紐⑤뱺 ?대?吏 ?낅줈???묒뾽 蹂묐젹 泥섎━ - ?섍꼍???곕씪 ?곸젅???쒕쾭濡??꾩넚
+        // 모든 이미지 업로드 작업 병렬 처리 - 환경에 따라 적절한 서버로 전송
         const uploadPromises = imageUploads.map(async (file) => {
-          console.log("?뱾 ?대?吏 ?낅줈???쒖옉:", file.name);
+          console.log("📤 이미지 업로드 시작:", file.name);
 
-          // ?낅줈??URL 寃곗젙 (?섍꼍???곕씪)
+          // 업로드 URL 결정 (환경에 따라)
           let uploadUrl = import.meta.env.VITE_IMAGE_UPLOAD_URL;
           
           if (!uploadUrl) {
             const isHttps = window.location.protocol === 'https:';
             const currentHost = window.location.hostname;
             
-            // ??긽 ?꾩옱 ?쒕쾭??API ?ъ슜 (Cloudinary濡??낅줈??
-            uploadUrl = `/api/upload`;
+            if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+              // 로컬 개발 환경 - PM2로 실행 중인 CDN 서버 (웹서버 없이 직접 접속)
+              uploadUrl = "http://115.160.0.166:3008/upload";
+            } else {
+              // 프로덕션 환경 - 현재 도메인의 /api/upload 사용
+              uploadUrl = `${isHttps ? 'https' : 'http'}://${currentHost}/api/upload`;
+            }
           }
           
-          console.log("?뱾 ?낅줈??URL:", uploadUrl);
+          console.log("📤 업로드 URL:", uploadUrl);
 
-          // ?대?吏 ?낅줈??          const formData = new FormData();
-          formData.append("image", file); // ?쒕쾭媛 'image' ?꾨뱶瑜?湲곕???
+          // 이미지 업로드
+          const formData = new FormData();
+          formData.append("image", file); // 서버가 'image' 필드를 기대함
+
           const uploadResponse = await fetch(uploadUrl, {
             method: "POST",
             body: formData,
           });
 
           if (!uploadResponse.ok) {
-            throw new Error(`?대?吏 ?낅줈???ㅽ뙣: ${uploadResponse.status}`);
+            throw new Error(`이미지 업로드 실패: ${uploadResponse.status}`);
           }
 
           const uploadResult = await uploadResponse.json();
-          // ?쒕쾭 ?묐떟 ?뺤떇??留욊쾶 泥섎━ (url ?먮뒗 imageUrl)
+          // 서버 응답 형식에 맞게 처리 (url 또는 imageUrl)
           const imageUrl = uploadResult.url || uploadResult.imageUrl;
           
           if (uploadResult.success && imageUrl) {
-            console.log("???대?吏 ?낅줈???깃났:", imageUrl);
+            console.log("✅ 이미지 업로드 성공:", imageUrl);
             return imageUrl;
           } else {
-            throw new Error("?대?吏 ?낅줈???묐떟???щ컮瑜댁? ?딆뒿?덈떎");
+            throw new Error("이미지 업로드 응답이 올바르지 않습니다");
           }
         });
 
-        // 紐⑤뱺 ?낅줈?쒓? ?꾨즺???뚭퉴吏 湲곕떎由?        imageUrls.push(...(await Promise.all(uploadPromises)));
+        // 모든 업로드가 완료될 때까지 기다림
+        imageUrls.push(...(await Promise.all(uploadPromises)));
       } catch (error) {
-        console.error("?대?吏 ?낅줈??以??ㅻ쪟:", error);
-        alert("?쇰? ?대?吏 ?낅줈?쒖뿉 ?ㅽ뙣?덉뒿?덈떎. ?ㅼ떆 ?쒕룄?댁＜?몄슂.");
+        console.error("이미지 업로드 중 오류:", error);
+        alert("일부 이미지 업로드에 실패했습니다. 다시 시도해주세요.");
         setIsUploading(false);
-        return; // ?대?吏 ?낅줈???ㅽ뙣 ??硫붿떆吏 ?꾩넚 以묐떒
+        return; // 이미지 업로드 실패 시 메시지 전송 중단
       } finally {
         setIsUploading(false);
-        setImageUploads([]); // ?낅줈???꾨즺 ???대?吏 紐⑸줉 珥덇린??      }
+        setImageUploads([]); // 업로드 완료 후 이미지 목록 초기화
+      }
     }
 
     try {
       console.log(
-        "硫붿떆吏 ?꾩넚 ?쒕룄:",
+        "메시지 전송 시도:",
         trimmedMessage,
-        "?대?吏:",
-        imageUrls.length > 0 ? `${imageUrls.length}媛? : "?놁쓬",
+        "이미지:",
+        imageUrls.length > 0 ? `${imageUrls.length}개` : "없음",
       );
 
 
-      // ?대?吏? ?띿뒪?몃? ?섎굹??硫붿떆吏濡??꾩넚 (?대?吏瑜?洹몃９??
-      // ?쇰컲 ?뚯썝 媛???ъ슜?먮? ?꾪빐 displayName怨?photoURL ?꾨떖
+      // 이미지와 텍스트를 하나의 메시지로 전송 (이미지를 그룹화)
+      // 일반 회원 가입 사용자를 위해 displayName과 photoURL 전달
       const result = await sendChatMessage(
         chatRoomId,
         trimmedMessage,
         user.uid,
         imageUrls.join(","),
         replyingTo?.id.toString(),
-        user.displayName || user.email?.split("@")[0] || "?ъ슜??,
+        user.displayName || user.email?.split("@")[0] || "사용자",
         user.photoURL || undefined,
       );
 
-      // ?듦? ?곹깭 珥덇린??      setReplyingTo(null);
+      // 답글 상태 초기화
+      setReplyingTo(null);
 
       if (!result.success) {
-        console.error("硫붿떆吏 ?꾩넚 ?ㅽ뙣:", result.error);
-        alert("硫붿떆吏 ?꾩넚???ㅽ뙣?덉뒿?덈떎.");
+        console.error("메시지 전송 실패:", result.error);
+        alert("메시지 전송에 실패했습니다.");
       }
     } catch (error) {
-      console.error("硫붿떆吏 ?꾩넚 以??ㅻ쪟:", error);
-      alert("硫붿떆吏 ?꾩넚 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.");
+      console.error("메시지 전송 중 오류:", error);
+      alert("메시지 전송 중 오류가 발생했습니다.");
     }
   }, [message, imageUploads, currentChannel, user]);
 
-  // Enter ??泥섎━
+  // Enter 키 처리
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -1924,23 +1975,26 @@ const MainContent: React.FC<MainContentProps> = ({
     }
   };
 
-  // ?꾪솕 踰꾪듉 ?대┃ ?몃뱾??  const handlePhoneClick = () => {
+  // 전화 버튼 클릭 핸들러
+  const handlePhoneClick = () => {
     setShowPhoneModal(true);
   };
 
-  // 硫붿떆吏 ?쒖떆 遺遺??섏젙 - ?щ윭 ?대?吏瑜?洹몃９?쇰줈 ?쒖떆
+  // 메시지 표시 부분 수정 - 여러 이미지를 그룹으로 표시
   const renderMessage = (msg: Message) => {
-    // ?쇳몴濡?援щ텇???대?吏 URL??諛곗뿴濡?蹂??    const imageUrls = msg.imageUrl ? msg.imageUrl.split(",") : [];
+    // 쉼표로 구분된 이미지 URL을 배열로 변환
+    const imageUrls = msg.imageUrl ? msg.imageUrl.split(",") : [];
 
-    // URL??HTML 留곹겕濡?蹂??    const htmlContent = convertLinksToHtml(msg.content);
+    // URL을 HTML 링크로 변환
+    const htmlContent = convertLinksToHtml(msg.content);
 
-    // ?듦? ???硫붿떆吏 李얘린
+    // 답글 대상 메시지 찾기
     const replyToMessage = msg.replyTo ? messages.find(m => m.id === msg.replyTo) : null;
 
-    // ?ъ슜?먭? 硫붿떆吏瑜???젣?????덈뒗吏 ?뺤씤
+    // 사용자가 메시지를 삭제할 수 있는지 확인
     const canDelete = user && (msg.sender === "user" || user.uid === msg.raw?.senderId);
 
-    // ??젣??硫붿떆吏???뚮뜑留곹븯吏 ?딆쓬
+    // 삭제된 메시지는 렌더링하지 않음
     if (msg.isDeleted) {
       return null;
     }
@@ -1972,7 +2026,7 @@ const MainContent: React.FC<MainContentProps> = ({
                       : "text-gray-900 dark:text-white"
                 }`}
               >
-                {msg.senderName || (msg.sender === "user" ? "?? : "?ъ슜??)}
+                {msg.senderName || (msg.sender === "user" ? "나" : "사용자")}
               </span>
               {msg.isBot && (
                 <span className="bg-purple-600 text-white text-xs px-1.5 py-0.5 rounded font-medium">
@@ -1981,26 +2035,26 @@ const MainContent: React.FC<MainContentProps> = ({
               )}
               {msg.replyTo && (
                 <span className="bg-purple-600 text-white text-xs px-1.5 py-0.5 rounded font-medium">
-                  ?듦?
+                  답글
                 </span>
               )}
               <span className="text-xs text-gray-500 dark:text-gray-400">{msg.timestamp}</span>
               
-              {/* ?쒖쨪 ?듦? ?쒖떆 */}
+              {/* 한줄 답글 표시 */}
               {msg.replyTo && (
                 <span className="text-xs text-purple-600 dark:text-purple-300 flex items-center space-x-1 bg-gray-200 dark:bg-[#1A1A1B] px-2 py-1 rounded">
                   <i className="fas fa-reply text-xs"></i>
                   <span className="text-gray-600 dark:text-gray-400">
                     {replyToMessage && !replyToMessage.isDeleted 
                       ? `"${replyToMessage.content.substring(0, 20)}${replyToMessage.content.length > 20 ? '...' : ''}"`
-                      : "??젣??硫붿떆吏"}
+                      : "삭제된 메시지"}
                   </span>
-                  <span className="text-purple-400">??/span>
+                  <span className="text-purple-400">→</span>
                 </span>
               )}
             </div>
             
-            {/* ?대?吏 ?쒖떆 */}
+            {/* 이미지 표시 */}
             {imageUrls.length > 0 && (
               <div className="mt-2">
                 {imageUrls.length === 1 ? (
@@ -2009,24 +2063,25 @@ const MainContent: React.FC<MainContentProps> = ({
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('?뼹截?而⑦뀒?대꼫 ?대┃! URL:', imageUrls[0]);
-                      console.log('?뼹截??대┃ ??selectedImage:', selectedImage);
+                      console.log('🖼️ 컨테이너 클릭! URL:', imageUrls[0]);
+                      console.log('🖼️ 클릭 전 selectedImage:', selectedImage);
                       
-                      // 媛뺤젣 ?곹깭 蹂?붾? ?꾪빐 癒쇱? null濡?珥덇린??                      setSelectedImage(null);
+                      // 강제 상태 변화를 위해 먼저 null로 초기화
+                      setSelectedImage(null);
                       setTimeout(() => {
                         setSelectedImage(imageUrls[0]);
-                        console.log('?뼹截?吏?곕맂 setSelectedImage ?꾨즺:', imageUrls[0]);
+                        console.log('🖼️ 지연된 setSelectedImage 완료:', imageUrls[0]);
                       }, 10);
                     }}
                     style={{ pointerEvents: 'auto' }}
                   >
                     <img
                       src={getAbsoluteImageUrl(imageUrls[0])}
-                      alt="泥⑤? ?대?吏"
+                      alt="첨부 이미지"
                       className="w-full h-auto max-h-64 object-cover hover:opacity-90 transition-opacity"
                       style={{ pointerEvents: 'none' }}
-                      onLoad={() => console.log('?뼹截??대?吏 濡쒕뱶 ?꾨즺:', imageUrls[0])}
-                      onError={() => console.log('???대?吏 濡쒕뱶 ?ㅽ뙣:', imageUrls[0])}
+                      onLoad={() => console.log('🖼️ 이미지 로드 완료:', imageUrls[0])}
+                      onError={() => console.log('❌ 이미지 로드 실패:', imageUrls[0])}
                     />
                     <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 hover:bg-opacity-10 transition-all duration-200 pointer-events-none">
                       <i className="fas fa-expand text-white opacity-0 group-hover:opacity-80 text-lg"></i>
@@ -2041,9 +2096,10 @@ const MainContent: React.FC<MainContentProps> = ({
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          console.log('?뼹截??ㅼ쨷 ?대?吏 而⑦뀒?대꼫 ?대┃! URL:', url);
+                          console.log('🖼️ 다중 이미지 컨테이너 클릭! URL:', url);
                           
-                          // 媛뺤젣 ?곹깭 蹂?붾? ?꾪빐 癒쇱? null濡?珥덇린??                          setSelectedImage(null);
+                          // 강제 상태 변화를 위해 먼저 null로 초기화
+                          setSelectedImage(null);
                           setTimeout(() => {
                             setSelectedImage(url);
                           }, 10);
@@ -2052,11 +2108,11 @@ const MainContent: React.FC<MainContentProps> = ({
                       >
                         <img
                           src={getAbsoluteImageUrl(url)}
-                          alt={`泥⑤? ?대?吏 ${index + 1}`}
+                          alt={`첨부 이미지 ${index + 1}`}
                           className="w-full h-32 object-cover"
                           style={{ pointerEvents: 'none' }}
-                          onLoad={() => console.log('?뼹截??ㅼ쨷 ?대?吏 濡쒕뱶 ?꾨즺:', url)}
-                          onError={() => console.log('???ㅼ쨷 ?대?吏 濡쒕뱶 ?ㅽ뙣:', url)}
+                          onLoad={() => console.log('🖼️ 다중 이미지 로드 완료:', url)}
+                          onError={() => console.log('❌ 다중 이미지 로드 실패:', url)}
                         />
                         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 hover:bg-opacity-10 transition-all duration-200 pointer-events-none">
                           <i className="fas fa-expand text-white opacity-0 group-hover:opacity-80 text-sm"></i>
@@ -2068,7 +2124,7 @@ const MainContent: React.FC<MainContentProps> = ({
               </div>
             )}
             
-            {/* 硫붿떆吏 ?댁슜 */}
+            {/* 메시지 내용 */}
             {msg.content && (
               <div
                 className="text-gray-700 dark:text-gray-100 mt-1 break-words"
@@ -2076,7 +2132,7 @@ const MainContent: React.FC<MainContentProps> = ({
               />
             )}
 
-            {/* 諛섏쓳 ?쒖떆 */}
+            {/* 반응 표시 */}
             {msg.reactions && Object.keys(msg.reactions).length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
                 {Object.entries(msg.reactions).map(([emoji, userIds]) => (
@@ -2097,7 +2153,7 @@ const MainContent: React.FC<MainContentProps> = ({
             )}
           </div>
 
-          {/* 硫붿떆吏 ?≪뀡 踰꾪듉??*/}
+          {/* 메시지 액션 버튼들 */}
           <div className="opacity-0 group-hover:opacity-100 flex space-x-1 relative">
             <Button
               variant="ghost"
@@ -2128,11 +2184,11 @@ const MainContent: React.FC<MainContentProps> = ({
             )}
           </div>
 
-          {/* 諛섏쓳 ?좏깮湲?*/}
+          {/* 반응 선택기 */}
           {showReactionPicker === msg.id.toString() && (
             <div className="reaction-picker absolute top-0 right-0 mt-8 bg-white dark:bg-[#1A1A1B] rounded-lg shadow-2xl border border-gray-200 dark:border-[#272729] p-2 z-50">
               <div className="flex gap-1">
-                {["?몟", "?ㅿ툘", "?쁻", "?삷", "?삟", "?삞", "?몡", "?뵦"].map((emoji) => (
+                {["👍", "❤️", "😂", "😮", "😢", "😡", "👏", "🔥"].map((emoji) => (
                   <button
                     key={emoji}
                     onClick={() => handleReaction(msg.id, emoji)}
@@ -2149,17 +2205,17 @@ const MainContent: React.FC<MainContentProps> = ({
     );
   };
 
-  // ?꾨컮?-梨꾪똿 梨꾨꼸 ?ㅻ챸 ?뱀뀡 異붽?
+  // 아바타-채팅 채널 설명 섹션 추가
   const renderAvatarChatHeader = () => {
     if (currentChannel === "Avatar-chat" || channelType === "vtuber") {
       return (
         <div className="relative bg-gray-100 dark:bg-[#0B0B0B] border-b border-gray-200 dark:border-purple-500/30 overflow-hidden transition-colors" style={{ zIndex: 0 }}>
-          {/* 諛곌꼍 ?μ떇 ?붿냼??- 蹂대씪???묓겕 ??(?ㅽ겕 紐⑤뱶 only) */}
+          {/* 배경 장식 요소들 - 보라색/핑크 톤 (다크 모드 only) */}
           <div className="absolute top-4 left-8 w-20 h-20 bg-purple-500/10 dark:bg-purple-500/30 rounded-full blur-xl"></div>
           <div className="absolute bottom-6 right-16 w-24 h-24 bg-pink-500/10 dark:bg-pink-500/30 rounded-full blur-xl"></div>
           <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-violet-500/10 dark:bg-violet-500/30 rounded-full blur-lg"></div>
 
-          {/* VTuber 罹먮┃??- ?ㅻⅨ履?諛곗튂 */}
+          {/* VTuber 캐릭터 - 오른쪽 배치 */}
           <div className="absolute right-6 top-1/2 transform -translate-y-1/2 z-0 hidden lg:block">
             <div className="relative">
               <div className="absolute inset-0 bg-purple-200/20 dark:bg-purple-400/30 rounded-full blur-2xl scale-150 animate-pulse"></div>
@@ -2175,7 +2231,7 @@ const MainContent: React.FC<MainContentProps> = ({
             </div>
           </div>
 
-          {/* 異붽? ?묒? 罹먮┃??- ?쇱そ ?섎떒 */}
+          {/* 추가 작은 캐릭터 - 왼쪽 하단 */}
           <div className="absolute left-6 bottom-4 z-0 hidden lg:block opacity-60 dark:opacity-80">
             <div className="relative">
               <img
@@ -2190,7 +2246,7 @@ const MainContent: React.FC<MainContentProps> = ({
             </div>
           </div>
 
-          {/* 而⑦뀗痢??곸뿭 */}
+          {/* 컨텐츠 영역 */}
           <div className="relative z-0 px-6 py-8 max-w-2xl">
             <div className="bg-white/80 dark:bg-black/30 backdrop-blur-sm rounded-2xl p-6 border border-gray-200 dark:border-purple-300/20">
               <div className="flex items-center mb-4">
@@ -2199,7 +2255,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                    AI ?꾨컮?? ?ㅼ떆媛???뷀븯?몄슂!
+                    AI 아바타와 실시간 대화하세요!
                   </h3>
                   <div className="flex items-center space-x-2">
                     <Badge
@@ -2207,13 +2263,15 @@ const MainContent: React.FC<MainContentProps> = ({
                       className="bg-purple-200 dark:bg-purple-500/30 text-purple-700 dark:text-purple-200 border-purple-300 dark:border-purple-400/40"
                     >
                       <i className="fas fa-robot mr-1"></i>
-                      AI ???                    </Badge>
+                      AI 대화
+                    </Badge>
                     <Badge
                       variant="default"
                       className="bg-pink-200 dark:bg-pink-500/30 text-pink-700 dark:text-pink-200 border-pink-300 dark:border-pink-400/40"
                     >
                       <i className="fas fa-bolt mr-1"></i>
-                      ?ㅼ떆媛?                    </Badge>
+                      실시간
+                    </Badge>
                   </div>
                 </div>
               </div>
@@ -2221,24 +2279,25 @@ const MainContent: React.FC<MainContentProps> = ({
               <div className="space-y-3 text-gray-700 dark:text-gray-100">
                 <p className="text-lg leading-relaxed">
                   <i className="fas fa-wand-magic-sparkles text-pink-500 dark:text-pink-400 mr-2"></i>
-                  理쒖꺼??AI 湲곗닠濡?援ы쁽???앹깮?????寃쏀뿕??留뚮굹蹂댁꽭??
+                  최첨단 AI 기술로 구현된 생생한 대화 경험을 만나보세요!
                 </p>
                 <p className="text-sm leading-relaxed opacity-90">
-                  ?ㅼ떆媛꾩쑝濡?諛섏쓳?섎뒗 AI ?꾨컮?? ?먯뿰?ㅻ윭????붾? ?섎늻?몄슂.
-                  媛먯젙 ?쒗쁽, 媛쒖꽦 ?덈뒗 ?묐떟, 洹몃━怨???쇱슫 ????λ젰??                  泥댄뿕?대낫?몄슂.
+                  실시간으로 반응하는 AI 아바타와 자연스러운 대화를 나누세요.
+                  감정 표현, 개성 있는 응답, 그리고 놀라운 대화 능력을
+                  체험해보세요.
                 </p>
                 <div className="flex items-center space-x-4 pt-2">
                   <div className="flex items-center text-sm text-green-600 dark:text-green-300">
                     <i className="fas fa-circle text-green-500 dark:text-green-400 mr-2 text-xs animate-pulse"></i>
-                    ?ㅼ떆媛??묐떟
+                    실시간 응답
                   </div>
                   <div className="flex items-center text-sm text-purple-600 dark:text-purple-300">
                     <i className="fas fa-brain mr-2"></i>
-                    怨좉툒 AI
+                    고급 AI
                   </div>
                   <div className="flex items-center text-sm text-pink-600 dark:text-pink-300">
                     <i className="fas fa-heart mr-2"></i>
-                    媛먯젙 ?쒗쁽
+                    감정 표현
                   </div>
                 </div>
               </div>
@@ -2254,22 +2313,23 @@ const MainContent: React.FC<MainContentProps> = ({
     return <div className="flex-1 bg-white dark:bg-[#030303] flex flex-col transition-colors" style={{ height: 'calc(100vh - 40px)' }}>{children}</div>;
   }
 
-  // 濡쒕뵫 以?  if (isLoading) {
+  // 로딩 중
+  if (isLoading) {
     return (
       <div className="flex-1 bg-white dark:bg-[#030303] flex items-center justify-center transition-colors" style={{ height: 'calc(100vh - 40px)' }}>
         <div className="text-center">
           <div className="w-8 h-8 border-t-2 border-purple-500 border-solid rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-300">梨꾪똿諛⑹쓣 濡쒕뱶?섎뒗 以?..</p>
+          <p className="text-gray-600 dark:text-gray-300">채팅방을 로드하는 중...</p>
         </div>
       </div>
     );
   }
 
-  // 媛쒕퀎 梨꾪똿諛?(DM)
+  // 개별 채팅방 (DM)
   if (chatPartner) {
     return (
       <div className="flex-1 bg-white dark:bg-[#030303] flex flex-col overflow-hidden transition-colors" style={{ height: 'calc(100vh - 40px)' }}>
-        {/* 梨꾨꼸 ?ㅻ뜑 */}
+        {/* 채널 헤더 */}
         <div
           className={`h-12 bg-gray-100 dark:bg-[#0B0B0B] border-b border-gray-200 dark:border-[#1A1A1B] flex items-center px-4 shadow-sm transition-colors ${
             isMobile ? "relative z-30" : ""
@@ -2285,7 +2345,8 @@ const MainContent: React.FC<MainContentProps> = ({
             <h2 className="text-gray-900 dark:text-white font-semibold">{chatPartner?.name}</h2>
           </div>
           <div className="ml-4 text-sm text-gray-600 dark:text-gray-300">
-            AI ?꾨컮????媛쒖씤 ???          </div>
+            AI 아바타와의 개인 대화
+          </div>
           <div className="ml-auto flex items-center space-x-2">
             <Button
               variant="ghost"
@@ -2312,11 +2373,11 @@ const MainContent: React.FC<MainContentProps> = ({
           </div>
         </div>
 
-        {/* 硫붿떆吏 ?곸뿭 */}
+        {/* 메시지 영역 */}
         <div className="flex-1 overflow-hidden">
           <ScrollArea ref={scrollAreaRef} className="h-full px-2 sm:px-4 py-1">
             <div className="space-y-4">
-              {/* 梨꾪똿 ?쒖옉 硫붿떆吏 */}
+              {/* 채팅 시작 메시지 */}
               {messages.length === 0 && (
                 <div className="mb-8">
                   <Avatar className="w-16 h-16 mb-4">
@@ -2328,26 +2389,27 @@ const MainContent: React.FC<MainContentProps> = ({
                     </AvatarFallback>
                   </Avatar>
                   <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                    {chatPartner?.name}??????                  </h3>
+                    {chatPartner?.name}와의 대화
+                  </h3>
                   <p className="text-gray-600 dark:text-gray-300">
-                    AI ?꾨컮?? ?④퍡 ??붾? ?쒖옉?대낫?몄슂.
+                    AI 아바타와 함께 대화를 시작해보세요.
                   </p>
                 </div>
               )}
 
-              {/* 硫붿떆吏 紐⑸줉 */}
+              {/* 메시지 목록 */}
               {messages.map((msg) => renderMessage(msg))}
             </div>
           </ScrollArea>
         </div>
 
-        {/* 硫붿떆吏 ?낅젰 ?곸뿭 */}
+        {/* 메시지 입력 영역 */}
         <div
           className={`flex-shrink-0 px-2 sm:px-4 py-3 bg-gray-100 dark:bg-[#0B0B0B] border-t border-gray-200 dark:border-[#1A1A1B] relative transition-colors ${
             isMobile ? "z-30" : ""
           }`}
         >
-          {/* ?대?吏 誘몃━蹂닿린 */}
+          {/* 이미지 미리보기 */}
           {imageUploads.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-2">
               {imageUploads.map((file, index) => (
@@ -2357,7 +2419,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 >
                   <img
                     src={URL.createObjectURL(file)}
-                    alt={`?낅줈???대?吏 ${index + 1}`}
+                    alt={`업로드 이미지 ${index + 1}`}
                     className="h-20 w-auto object-cover"
                   />
                   <button
@@ -2372,16 +2434,16 @@ const MainContent: React.FC<MainContentProps> = ({
             </div>
           )}
 
-          {/* ?듦? ?쒖떆 */}
+          {/* 답글 표시 */}
           {replyingTo && (
             <div className="absolute bottom-full left-0 right-0 mb-0 mx-4 p-3 bg-gray-200 dark:bg-[#1A1A1B] rounded-t-lg border-l-4 border-purple-500">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2 text-sm">
                   <i className="fas fa-reply text-purple-400"></i>
-                  <span className="text-gray-600 dark:text-gray-300">?듦?:</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{replyingTo.senderName || "?ъ슜??}</span>
+                  <span className="text-gray-600 dark:text-gray-300">답글:</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{replyingTo.senderName || "사용자"}</span>
                   <span className="text-gray-500 dark:text-gray-400 truncate max-w-xs">
-                    {replyingTo.isDeleted ? "??젣??硫붿떆吏" : replyingTo.content}
+                    {replyingTo.isDeleted ? "삭제된 메시지" : replyingTo.content}
                   </span>
                 </div>
                 <Button
@@ -2424,10 +2486,10 @@ const MainContent: React.FC<MainContentProps> = ({
                   onKeyPress={handleKeyPress}
                   placeholder={
                     replyingTo
-                      ? `${replyingTo.senderName || "?ъ슜??}?먭쾶 ?듦????낅젰?섏꽭??..`
+                      ? `${replyingTo.senderName || "사용자"}에게 답글을 입력하세요...`
                       : isUploading
-                        ? "?대?吏 ?낅줈??以?.."
-                        : "硫붿떆吏瑜??낅젰?섏꽭??.."
+                        ? "이미지 업로드 중..."
+                        : "메시지를 입력하세요..."
                   }
                   className="bg-transparent border-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 resize-none"
                   disabled={!isConnected || isUploading}
@@ -2445,7 +2507,7 @@ const MainContent: React.FC<MainContentProps> = ({
               </div>
 
               <div className="flex items-center space-x-2">
-                {/* ?뚯꽦 ???留덉씠??踰꾪듉 - VAD */}
+                {/* 음성 대화 마이크 버튼 - VAD */}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -2461,14 +2523,14 @@ const MainContent: React.FC<MainContentProps> = ({
                   onClick={toggleMicrophone}
                   title={
                     voiceDetector.isRecording
-                      ? "?렎 ?뱀쓬 以?.. 留먯쓣 硫덉텛硫??먮룞?쇰줈 AI媛 ?묐떟?⑸땲??
+                      ? "🎤 녹음 중... 말을 멈추면 자동으로 AI가 응답합니다"
                       : voiceDetector.isProcessing
-                        ? "?쨺 AI媛 ?듬???以鍮꾪븯怨??덉뒿?덈떎..."
+                        ? "🤔 AI가 답변을 준비하고 있습니다..."
                         : voiceDetector.isListening
-                          ? "?렒 ?뚯꽦 媛먯? 以?.. ?대┃?섎㈃ 以묒??⑸땲??
+                          ? "🎧 음성 감지 중... 클릭하면 중지됩니다"
                           : channelType === "vtuber"
-                            ? "?뿣截??대┃?섏뿬 AI? ?뚯꽦 ??뷀븯湲?
-                            : "?렎 ?뚯꽦 ?낅젰"
+                            ? "🗣️ 클릭하여 AI와 음성 대화하기"
+                            : "🎤 음성 입력"
                   }
                   disabled={voiceDetector.isProcessing}
                   style={{
@@ -2529,7 +2591,7 @@ const MainContent: React.FC<MainContentProps> = ({
                   size="sm"
                   className="w-8 h-8 p-0 text-gray-300 transition-all duration-200"
                   onClick={() => setShowGiftPopup(!showGiftPopup)}
-                  title="?좊Ъ 蹂대궡湲?
+                  title="선물 보내기"
                   style={{
                     transition: "all 0.2s ease",
                   }}
@@ -2549,7 +2611,7 @@ const MainContent: React.FC<MainContentProps> = ({
                   size="sm"
                   className="w-8 h-8 p-0 text-gray-300 transition-all duration-200"
                   onClick={() => setShowEmojiPopup(!showEmojiPopup)}
-                  title="?대え?곗퐯"
+                  title="이모티콘"
                   style={{
                     transition: "all 0.2s ease",
                   }}
@@ -2585,17 +2647,17 @@ const MainContent: React.FC<MainContentProps> = ({
           {!(channelType === "vtuber" ? wsConnected : isConnected) && (
             <p className="text-xs text-red-400 mt-1">
               {channelType === "vtuber"
-                ? "AI ?꾨컮? ?쒕쾭???곌껐 以?.."
-                : "?곌껐???딄꼈?듬땲?? ?ъ뿰寃곗쓣 ?쒕룄?섎뒗 以?.."}
+                ? "AI 아바타 서버에 연결 중..."
+                : "연결이 끊겼습니다. 재연결을 시도하는 중..."}
             </p>
           )}
 
-          {/* ?좊Ъ ?앹뾽 */}
+          {/* 선물 팝업 */}
           {showGiftPopup && (
             <div className="gift-popup absolute bottom-full left-0 right-0 mb-2 mx-4 bg-white dark:bg-[#1A1A1B] rounded-lg shadow-2xl border border-gray-200 dark:border-[#272729] p-3 z-50">
               <div className="flex items-center mb-2">
                 <i className="fas fa-gift text-pink-400 mr-2"></i>
-                <h3 className="text-gray-900 dark:text-white font-semibold text-sm">?좊Ъ 蹂대궡湲?/h3>
+                <h3 className="text-gray-900 dark:text-white font-semibold text-sm">선물 보내기</h3>
               </div>
               <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
                 {gifts.map((gift) => (
@@ -2620,12 +2682,12 @@ const MainContent: React.FC<MainContentProps> = ({
             </div>
           )}
 
-          {/* ?대え?곗퐯 ?앹뾽 */}
+          {/* 이모티콘 팝업 */}
           {showEmojiPopup && (
             <div className="emoji-popup absolute bottom-full left-0 right-0 mb-2 mx-4 bg-white dark:bg-[#1A1A1B] rounded-lg shadow-2xl border border-gray-200 dark:border-[#272729] p-3 z-50">
               <div className="flex items-center mb-2">
                 <i className="fas fa-smile text-yellow-400 mr-2"></i>
-                <h3 className="text-gray-900 dark:text-white font-semibold text-sm">?대え?곗퐯</h3>
+                <h3 className="text-gray-900 dark:text-white font-semibold text-sm">이모티콘</h3>
               </div>
               <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-1">
                 {emojis.map((emoji, index) => (
@@ -2644,13 +2706,13 @@ const MainContent: React.FC<MainContentProps> = ({
           )}
         </div>
 
-        {/* ?꾪솕踰덊샇 ?쒖떆 紐⑤떖 */}
+        {/* 전화번호 표시 모달 */}
         <Dialog open={showPhoneModal} onOpenChange={setShowPhoneModal}>
           <DialogContent className="sm:max-w-md bg-white dark:bg-[#0B0B0B] text-gray-900 dark:text-white border-gray-200 dark:border-[#1A1A1B]">
             <DialogHeader>
-              <DialogTitle>?듯솕 ?곌껐</DialogTitle>
+              <DialogTitle>통화 연결</DialogTitle>
               <DialogDescription className="text-gray-600 dark:text-gray-400">
-                ?꾨옒 ?꾪솕踰덊샇濡??곌껐?????덉뒿?덈떎.
+                아래 전화번호로 연결할 수 있습니다.
               </DialogDescription>
             </DialogHeader>
             <div className="p-4 flex flex-col items-center">
@@ -2661,7 +2723,7 @@ const MainContent: React.FC<MainContentProps> = ({
                   className="w-24 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                   onClick={() => setShowPhoneModal(false)}
                 >
-                  痍⑥냼
+                  취소
                 </Button>
                 <Button
                   className="w-24 bg-purple-600 hover:bg-purple-700"
@@ -2669,7 +2731,7 @@ const MainContent: React.FC<MainContentProps> = ({
                     window.location.href = `tel:${phoneNumber.replace(/-/g, "")}`;
                   }}
                 >
-                  ?꾪솕 嫄멸린
+                  전화 걸기
                 </Button>
               </div>
             </div>
@@ -2679,23 +2741,23 @@ const MainContent: React.FC<MainContentProps> = ({
     );
   }
 
-  // general 梨꾨꼸?닿퀬 Firebase ??낆씪 ?뚮뒗 Reddit ?ㅽ????쇰뱶 ?쒖떆
+  // general 채널이고 Firebase 타입일 때는 Reddit 스타일 피드 표시
   if (currentChannel === "general" && channelType === "firebase") {
-    // ?쇰뱶 ?ъ뒪???곸꽭 ?섏씠吏 ?뺤씤
+    // 피드 포스트 상세 페이지 확인
     const feedPostMatch = location.match(/^\/feed\/(\d+)$/);
     if (feedPostMatch) {
       const postId = parseInt(feedPostMatch[1]);
       return <FeedPostDetail postId={postId} />;
     }
     
-    // ?쇰뱶 紐⑸줉 ?쒖떆
+    // 피드 목록 표시
     return <FeedView sortBy={feedSortBy} />;
   }
 
-  // 濡쒓렇?명븯吏 ?딆? ?ъ슜?먮룄 ?쇰컲 梨꾨꼸? 蹂????덉쓬
+  // 로그인하지 않은 사용자도 일반 채널은 볼 수 있음
   return (
     <div className="flex-1 bg-white dark:bg-[#030303] flex flex-col overflow-hidden transition-colors" style={{ height: 'calc(100vh - 40px)' }}>
-      {/* 梨꾨꼸 ?ㅻ뜑 */}
+      {/* 채널 헤더 */}
       <div
         className={`h-12 bg-gray-100 dark:bg-[#0B0B0B] border-b border-gray-200 dark:border-[#1A1A1B] flex items-center px-2 shadow-sm transition-colors ${
           isMobile ? "relative z-30" : ""
@@ -2707,33 +2769,33 @@ const MainContent: React.FC<MainContentProps> = ({
 {(() => {
               if (channelType === "vtuber" && currentChannel?.startsWith('avatar-')) {
                 const modelName = currentChannel.replace('avatar-', '');
-                return `${modelName}? 梨꾪똿`;
+                return `${modelName}와 채팅`;
               }
-              return channelType === "vtuber" ? "?꾨컮?? 梨꾪똿" : "?쇰컲";
+              return channelType === "vtuber" ? "아바타와 채팅" : "일반";
             })()}
           </h2>
         </div>
         <div className="flex-1 flex items-center justify-between">
           <div className="text-sm text-gray-600 dark:text-gray-300">
             {channelType === "vtuber"
-              ? "_AI ?꾨컮?? ?ㅼ떆媛?
-              : "_AI ?꾨컮??ㅺ낵 ?먯쑀濡?쾶"}
+              ? "_AI 아바타와 실시간"
+              : "_AI 아바타들과 자유롭게"}
           </div>
           <div className="flex items-center space-x-2">
-            {/* 媛쒖꽦 ?꾩씠肄?踰꾪듉 - VTuber 梨꾨꼸?먯꽌留??쒖떆 */}
+            {/* 개성 아이콘 버튼 - VTuber 채널에서만 표시 */}
             {channelType === "vtuber" && (
               <Button
                 onClick={() => setShowPersonalityDialog(true)}
                 size="sm"
                 variant="ghost"
                 className="h-8 w-8 p-0 rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all duration-200"
-                title={avatarPersonality ? `媛쒖꽦: ${avatarPersonality}` : "?꾨컮? 媛쒖꽦 ?ㅼ젙"}
+                title={avatarPersonality ? `개성: ${avatarPersonality}` : "아바타 개성 설정"}
               >
                 <i className={`fas fa-brain text-lg ${avatarPersonality ? 'text-purple-500 dark:text-purple-400' : 'text-gray-400 dark:text-gray-500'}`}></i>
               </Button>
             )}
 
-            {/* 梨꾨꼸 李몄뿬???꾨줈???ъ쭊 */}
+            {/* 채널 참여자 프로필 사진 */}
             {channelMembers.length > 0 && (
               <div className="flex items-center space-x-1">
                 <div className="flex -space-x-2">
@@ -2752,18 +2814,19 @@ const MainContent: React.FC<MainContentProps> = ({
                   {channelMembers.length > 5 && (
                     <div 
                       className="w-6 h-6 bg-gray-300 dark:bg-gray-500 border-2 border-gray-300 dark:border-gray-600 rounded-full flex items-center justify-center text-xs text-gray-900 dark:text-white font-medium"
-                      title={`+${channelMembers.length - 5}紐???}
+                      title={`+${channelMembers.length - 5}명 더`}
                     >
                       +{channelMembers.length - 5}
                     </div>
                   )}
                 </div>
                 <span className="text-xs text-gray-600 dark:text-gray-400 ml-2">
-                  {channelMembers.length}紐?                </span>
+                  {channelMembers.length}명
+                </span>
               </div>
             )}
 
-            {/* ?곌껐 ?곹깭 */}
+            {/* 연결 상태 */}
             <Badge
               variant={
                 (channelType === "vtuber" ? wsConnected : isConnected)
@@ -2777,15 +2840,15 @@ const MainContent: React.FC<MainContentProps> = ({
               }`}
             >
               {(channelType === "vtuber" ? wsConnected : isConnected)
-                ? "?곌껐??
-                : "?곌껐 ?딄?"}
+                ? "연결됨"
+                : "연결 끊김"}
             </Badge>
           </div>
         </div>
       </div>
 
       {!user ? (
-        // 濡쒓렇???덈궡
+        // 로그인 안내
         <div
           className="flex-1 flex items-center justify-center"
           style={{ minHeight: "calc(100vh - 200px)" }}
@@ -2795,20 +2858,22 @@ const MainContent: React.FC<MainContentProps> = ({
               <i className="fas fa-user-lock text-3xl text-gray-600 dark:text-gray-300"></i>
             </div>
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              濡쒓렇?몄씠 ?꾩슂?⑸땲??            </h3>
+              로그인이 필요합니다
+            </h3>
             <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-md">
-              AI ?꾨컮??ㅺ낵 梨꾪똿?섎젮硫?癒쇱? 濡쒓렇?명빐二쇱꽭??
+              AI 아바타들과 채팅하려면 먼저 로그인해주세요.
             </p>
             <Button
               onClick={() => setShowAuthModal(true)}
               className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2"
             >
-              濡쒓렇?명븯湲?            </Button>
+              로그인하기
+            </Button>
           </div>
         </div>
       ) : (
         <>
-          {/* Live2D ?꾨컮? ?곸뿭 - VTuber 梨꾨꼸?먯꽌留??쒖떆 */}
+          {/* Live2D 아바타 영역 - VTuber 채널에서만 표시 */}
           {channelType === "vtuber" && (
             <div
               className={`flex-shrink-0 bg-gray-100 dark:bg-[#0B0B0B] border-b border-gray-200 dark:border-[#1A1A1B] ${
@@ -2819,26 +2884,26 @@ const MainContent: React.FC<MainContentProps> = ({
               <div className="flex justify-center items-center">
                 <div className="relative">
                   <Live2DAvatarPixi
-                    key="live2d-avatar" // 怨좎젙 key濡?而댄룷?뚰듃 ?щ쭏?댄듃 諛⑹?
+                    key="live2d-avatar" // 고정 key로 컴포넌트 재마운트 방지
                     modelName={selectedModel}
                     width={450}
                     height={700}
                     emotion={currentEmotion}
                     onLoaded={(model: Live2DModel) => {
                       setLive2dInstance(model);
-                      console.log(`??紐⑤뜽 濡쒕뱶 ?꾨즺: ${selectedModel}`);
+                      console.log(`✅ 모델 로드 완료: ${selectedModel}`);
                     }}
                     onError={(error: Error) => {
-                      console.error("PIXI.js + WebGL 濡쒕뱶 ?ㅻ쪟:", error);
+                      console.error("PIXI.js + WebGL 로드 오류:", error);
                     }}
                     onSpeakReady={(speakFn) => {
-                      console.log("?렎 MainContent?먯꽌 TTS ?⑥닔 諛쏆쓬:", {
+                      console.log("🎤 MainContent에서 TTS 함수 받음:", {
                         speakFnExists: !!speakFn,
                         speakFnType: typeof speakFn,
                         speakFnName: speakFn?.name || "no name",
                       });
 
-                      // React ?⑥닔 state ??????щ컮瑜?諛⑸쾿
+                      // React 함수 state 저장 시 올바른 방법
                       setSpeakFunction(
                         (
                           prev:
@@ -2849,7 +2914,7 @@ const MainContent: React.FC<MainContentProps> = ({
                               ) => void)
                             | null,
                         ) => {
-                          console.log("?렎 speakFunction ?낅뜲?댄듃:", {
+                          console.log("🎤 speakFunction 업데이트:", {
                             prevExists: !!prev,
                             newExists: !!speakFn,
                             newType: typeof speakFn,
@@ -2858,11 +2923,11 @@ const MainContent: React.FC<MainContentProps> = ({
                         },
                       );
 
-                      console.log("?렎 setSpeakFunction ?몄텧 ?꾨즺");
+                      console.log("🎤 setSpeakFunction 호출 완료");
                     }}
                     onSpeakingChange={(speaking) => {
                       setIsAvatarSpeaking(speaking);
-                      console.log(`?렎 ?꾨컮? 留먰븯湲??곹깭 蹂寃? ${speaking ? '留먰븯??以? : '?湲?以?}`);
+                      console.log(`🎤 아바타 말하기 상태 변경: ${speaking ? '말하는 중' : '대기 중'}`);
                     }}
                     className="mx-auto"
                   />
@@ -2871,11 +2936,11 @@ const MainContent: React.FC<MainContentProps> = ({
             </div>
           )}
 
-          {/* 硫붿떆吏 ?곸뿭 - 怨좎젙 ?믪씠濡??ㅽ겕濡?媛??*/}
+          {/* 메시지 영역 - 고정 높이로 스크롤 가능 */}
           <div className="flex-1 overflow-hidden">
             <ScrollArea ref={scrollAreaRef} className="h-full px-2 sm:px-4">
               <div className="space-y-3">
-                {/* 梨꾨꼸蹂??뚭컻 ?곸뿭 - ?ㅽ겕濡?媛?ν븳 ?곸뿭 ?대? */}
+                {/* 채널별 소개 영역 - 스크롤 가능한 영역 내부 */}
                 {(() => {
                   if (channelType === "vtuber") {
                     return (
@@ -2906,32 +2971,32 @@ const MainContent: React.FC<MainContentProps> = ({
                     <div className="inline-flex items-center px-4 py-2 bg-purple-100 dark:bg-purple-600/20 rounded-full border border-purple-300 dark:border-purple-500/30">
                       <i className="fas fa-robot text-purple-600 dark:text-purple-400 mr-2"></i>
                       <span className="text-gray-700 dark:text-gray-200 text-sm">
-                        Live2D ?꾨컮?? ??뷀빐蹂댁꽭?? ?꾨컮?瑜??대┃?섎㈃
-                        諛섏쓳?⑸땲??
+                        Live2D 아바타와 대화해보세요! 아바타를 클릭하면
+                        반응합니다.
                       </span>
                     </div>
 
-                    {/* ?곌껐 ?곹깭 ?덈궡 */}
+                    {/* 연결 상태 안내 */}
                     <div className="text-center">
                       {wsConnected ? (
                         <div className="inline-flex items-center px-3 py-1 bg-green-100 dark:bg-green-600/20 rounded-full border border-green-300 dark:border-green-500/30">
                           <div className="w-2 h-2 bg-green-500 dark:bg-green-400 rounded-full mr-2 animate-pulse"></div>
                           <span className="text-green-700 dark:text-green-200 text-xs">
-                            AI ?쒕쾭 ?곌껐??- ???媛??
+                            AI 서버 연결됨 - 대화 가능!
                           </span>
                         </div>
                       ) : vtuberConnecting ? (
                         <div className="inline-flex items-center px-3 py-1 bg-yellow-100 dark:bg-yellow-600/20 rounded-full border border-yellow-300 dark:border-yellow-500/30">
                           <div className="w-2 h-2 bg-yellow-500 dark:bg-yellow-400 rounded-full mr-2 animate-bounce"></div>
                           <span className="text-yellow-700 dark:text-yellow-200 text-xs">
-                            AI ?쒕쾭 ?곌껐 以?..
+                            AI 서버 연결 중...
                           </span>
                         </div>
                       ) : (
                         <div className="inline-flex items-center px-3 py-1 bg-blue-100 dark:bg-blue-600/20 rounded-full border border-blue-300 dark:border-blue-500/30">
                           <div className="w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full mr-2"></div>
                           <span className="text-blue-700 dark:text-blue-200 text-xs">
-                            Live2D ?꾨컮? ?쒖떆 以?- ?대┃?댁꽌 媛먯젙 蹂??泥댄뿕!
+                            Live2D 아바타 표시 중 - 클릭해서 감정 변화 체험!
                           </span>
                         </div>
                       )}
@@ -2944,7 +3009,7 @@ const MainContent: React.FC<MainContentProps> = ({
                       <div className="inline-flex items-center px-4 py-2 bg-purple-100 dark:bg-purple-600/20 rounded-full border border-purple-300 dark:border-purple-500/30">
                         <i className="fas fa-comment-dots text-purple-600 dark:text-purple-400 mr-2"></i>
                         <span className="text-gray-700 dark:text-gray-200 text-sm">
-                          ??붾? ?쒖옉?대낫?몄슂! ?꾨옒??硫붿떆吏瑜??낅젰?섏꽭??
+                          대화를 시작해보세요! 아래에 메시지를 입력하세요.
                         </span>
                       </div>
                     )}
@@ -2952,7 +3017,7 @@ const MainContent: React.FC<MainContentProps> = ({
                       <div className="inline-flex items-center px-4 py-2 bg-orange-100 dark:bg-orange-600/20 rounded-full border border-orange-300 dark:border-orange-500/30">
                         <i className="fas fa-laugh text-orange-600 dark:text-orange-400 mr-2"></i>
                         <span className="text-gray-700 dark:text-gray-200 text-sm">
-                          ?명븯寃??댁빞湲고빐蹂댁꽭?? 臾댁뾿?대뱺 醫뗭븘??
+                          편하게 이야기해보세요! 무엇이든 좋아요.
                         </span>
                       </div>
                     )}
@@ -2960,7 +3025,7 @@ const MainContent: React.FC<MainContentProps> = ({
                       <div className="inline-flex items-center px-4 py-2 bg-blue-100 dark:bg-blue-600/20 rounded-full border border-blue-300 dark:border-blue-500/30">
                         <i className="fas fa-question-circle text-blue-600 dark:text-blue-400 mr-2"></i>
                         <span className="text-gray-700 dark:text-gray-200 text-sm">
-                          沅곴툑??寃껋씠 ?덉쑝?쒕㈃ ?몄젣??吏덈Ц?댁＜?몄슂!
+                          궁금한 것이 있으시면 언제든 질문해주세요!
                         </span>
                       </div>
                     )}
@@ -2968,38 +3033,38 @@ const MainContent: React.FC<MainContentProps> = ({
                       <div className="inline-flex items-center px-4 py-2 bg-purple-100 dark:bg-purple-600/30 rounded-full border border-purple-300 dark:border-purple-400/40">
                         <i className="fas fa-robot text-purple-600 dark:text-purple-400 mr-2"></i>
                         <span className="text-gray-700 dark:text-gray-200 text-sm">
-                          AI ?꾨컮?? ?ㅼ떆媛꾩쑝濡???뷀빐蹂댁꽭??
+                          AI 아바타와 실시간으로 대화해보세요!
                         </span>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* ?꾨컮? 梨꾪똿???쒖옉 硫붿떆吏 */}
+                {/* 아바타 채팅용 시작 메시지 */}
                 {messages.length === 0 && channelType === "vtuber" && (
                   <div className="mb-6 text-center">
                     <div className="inline-flex items-center px-4 py-2 bg-purple-100 dark:bg-purple-600/30 rounded-full border border-purple-300 dark:border-purple-400/40">
                       <i className="fas fa-magic text-purple-600 dark:text-purple-400 mr-2"></i>
                       <span className="text-gray-700 dark:text-gray-100 text-sm">
-                        AI ?꾨컮?媛 ?묐떟??湲곕떎由ш퀬 ?덉뼱?? ??붾? ?쒖옉?대낫?몄슂.
+                        AI 아바타가 응답을 기다리고 있어요! 대화를 시작해보세요.
                       </span>
                     </div>
                   </div>
                 )}
 
-                {/* 硫붿떆吏 紐⑸줉 */}
+                {/* 메시지 목록 */}
                 {messages.map((msg) => renderMessage(msg))}
               </div>
             </ScrollArea>
           </div>
 
-          {/* 硫붿떆吏 ?낅젰 ?곸뿭 - ?섎떒 怨좎젙 */}
+          {/* 메시지 입력 영역 - 하단 고정 */}
           <div
             className={`flex-shrink-0 px-2 sm:px-4 py-3 bg-gray-100 dark:bg-[#0B0B0B] border-t border-gray-200 dark:border-[#1A1A1B] relative transition-colors ${
               isMobile ? "z-30" : ""
             }`}
           >
-            {/* ?대?吏 誘몃━蹂닿린 */}
+            {/* 이미지 미리보기 */}
             {imageUploads.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-2">
                 {imageUploads.map((file, index) => (
@@ -3009,7 +3074,7 @@ const MainContent: React.FC<MainContentProps> = ({
                   >
                     <img
                       src={URL.createObjectURL(file)}
-                      alt={`?낅줈???대?吏 ${index + 1}`}
+                      alt={`업로드 이미지 ${index + 1}`}
                       className="h-20 w-auto object-cover"
                     />
                     <button
@@ -3054,12 +3119,12 @@ const MainContent: React.FC<MainContentProps> = ({
                     onKeyPress={handleKeyPress}
                     placeholder={
                       replyingTo
-                        ? `${replyingTo.senderName || "?ъ슜??}?먭쾶 ?듦????낅젰?섏꽭??..`
+                        ? `${replyingTo.senderName || "사용자"}에게 답글을 입력하세요...`
                         : channelType === "vtuber"
-                          ? "AI ?꾨컮??먭쾶 硫붿떆吏瑜?蹂대궡?몄슂..."
+                          ? "AI 아바타에게 메시지를 보내세요..."
                           : isUploading
-                            ? "?대?吏 ?낅줈??以?.."
-                            : "硫붿떆吏瑜??낅젰?섏꽭??.."
+                            ? "이미지 업로드 중..."
+                            : "메시지를 입력하세요..."
                     }
                     className="bg-transparent border-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 resize-none"
                     disabled={
@@ -3081,7 +3146,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  {/* ?뚯꽦 ???留덉씠??踰꾪듉 - VAD */}
+                  {/* 음성 대화 마이크 버튼 - VAD */}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -3097,12 +3162,12 @@ const MainContent: React.FC<MainContentProps> = ({
                     onClick={toggleMicrophone}
                     title={
                       voiceDetector.isRecording
-                        ? "?렎 ?뱀쓬 以?.. 留먯쓣 硫덉텛硫??먮룞?쇰줈 AI媛 ?묐떟?⑸땲??
+                        ? "🎤 녹음 중... 말을 멈추면 자동으로 AI가 응답합니다"
                         : voiceDetector.isProcessing
-                          ? "?쨺 AI媛 ?듬???以鍮꾪븯怨??덉뒿?덈떎..."
+                          ? "🤔 AI가 답변을 준비하고 있습니다..."
                           : voiceDetector.isListening
-                            ? "?렒 ?뚯꽦 媛먯? 以?.. ?대┃?섎㈃ 以묒??⑸땲??
-                            : "?렎 ?뚯꽦 ?낅젰"
+                            ? "🎧 음성 감지 중... 클릭하면 중지됩니다"
+                            : "🎤 음성 입력"
                     }
                     disabled={voiceDetector.isProcessing}
                     style={{
@@ -3163,7 +3228,7 @@ const MainContent: React.FC<MainContentProps> = ({
                     size="sm"
                     className="w-8 h-8 p-0 text-gray-600 dark:text-gray-300 transition-all duration-200"
                     onClick={() => setShowGiftPopup(!showGiftPopup)}
-                    title="?좊Ъ 蹂대궡湲?
+                    title="선물 보내기"
                     style={{
                       transition: "all 0.2s ease",
                     }}
@@ -3183,7 +3248,7 @@ const MainContent: React.FC<MainContentProps> = ({
                     size="sm"
                     className="w-8 h-8 p-0 text-gray-600 dark:text-gray-300 transition-all duration-200"
                     onClick={() => setShowEmojiPopup(!showEmojiPopup)}
-                    title="?대え?곗퐯"
+                    title="이모티콘"
                     style={{
                       transition: "all 0.2s ease",
                     }}
@@ -3222,20 +3287,20 @@ const MainContent: React.FC<MainContentProps> = ({
 
             {!isConnected && (
               <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                ?곌껐???딄꼈?듬땲?? ?ъ뿰寃곗쓣 ?쒕룄?섎뒗 以?..
+                연결이 끊겼습니다. 재연결을 시도하는 중...
               </p>
             )}
 
-            {/* VTuber 梨꾪똿 ?듦? ?쒖떆 */}
+            {/* VTuber 채팅 답글 표시 */}
             {replyingTo && (
               <div className="absolute bottom-full left-0 right-0 mb-0 mx-4 p-3 bg-gray-100 dark:bg-[#1A1A1B] rounded-t-lg border-l-4 border-purple-500">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2 text-sm">
                     <i className="fas fa-reply text-purple-400"></i>
-                    <span className="text-gray-600 dark:text-gray-300">?듦?:</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{replyingTo.senderName || "?ъ슜??}</span>
+                    <span className="text-gray-600 dark:text-gray-300">답글:</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{replyingTo.senderName || "사용자"}</span>
                     <span className="text-gray-400 truncate max-w-xs">
-                      {replyingTo.isDeleted ? "??젣??硫붿떆吏" : replyingTo.content}
+                      {replyingTo.isDeleted ? "삭제된 메시지" : replyingTo.content}
                     </span>
                   </div>
                   <Button
@@ -3250,12 +3315,12 @@ const MainContent: React.FC<MainContentProps> = ({
               </div>
             )}
 
-            {/* ?좊Ъ ?앹뾽 */}
+            {/* 선물 팝업 */}
             {showGiftPopup && (
               <div className="gift-popup absolute bottom-full left-0 right-0 mb-2 mx-4 bg-white dark:bg-[#1A1A1B] rounded-lg shadow-2xl border border-gray-200 dark:border-[#272729] p-3 z-50">
                 <div className="flex items-center mb-2">
                   <i className="fas fa-gift text-pink-400 mr-2"></i>
-                  <h3 className="text-gray-900 dark:text-white font-semibold text-sm">?좊Ъ 蹂대궡湲?/h3>
+                  <h3 className="text-gray-900 dark:text-white font-semibold text-sm">선물 보내기</h3>
                 </div>
                 <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
                   {gifts.map((gift) => (
@@ -3308,12 +3373,12 @@ const MainContent: React.FC<MainContentProps> = ({
               </div>
             )}
 
-            {/* ?대え?곗퐯 ?앹뾽 */}
+            {/* 이모티콘 팝업 */}
             {showEmojiPopup && (
               <div className="emoji-popup absolute bottom-full left-0 right-0 mb-2 mx-4 bg-white dark:bg-[#1A1A1B] rounded-lg shadow-2xl border border-gray-200 dark:border-[#272729] p-3 z-50">
                 <div className="flex items-center mb-2">
                   <i className="fas fa-smile text-yellow-400 mr-2"></i>
-                  <h3 className="text-gray-900 dark:text-white font-semibold text-sm">?대え?곗퐯</h3>
+                  <h3 className="text-gray-900 dark:text-white font-semibold text-sm">이모티콘</h3>
                 </div>
                 <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-1">
                   {emojis.map((emoji, index) => (
@@ -3346,7 +3411,7 @@ const MainContent: React.FC<MainContentProps> = ({
         </>
       )}
 
-      {/* ?대?吏 ?뺣? 紐⑤떖 */}
+      {/* 이미지 확대 모달 */}
       {selectedImage ? (
         <div 
           className="fixed inset-0 bg-black bg-opacity-90 z-50"
@@ -3359,7 +3424,7 @@ const MainContent: React.FC<MainContentProps> = ({
             <div className="relative max-w-4xl max-h-full">
               <img
                 src={selectedImage}
-                alt="?뺣????대?吏"
+                alt="확대된 이미지"
                 className="max-w-full max-h-full object-contain rounded-lg"
                 onClick={(e) => e.stopPropagation()}
               />
@@ -3373,7 +3438,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 <button
                   onClick={() => window.open(selectedImage, '_blank')}
                   className="text-white bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70 transition-colors"
-                  title="????뿉???닿린"
+                  title="새 탭에서 열기"
                 >
                   <i className="fas fa-external-link-alt"></i>
                 </button>
@@ -3387,7 +3452,7 @@ const MainContent: React.FC<MainContentProps> = ({
                     document.body.removeChild(link);
                   }}
                   className="text-white bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70 transition-colors"
-                  title="?ㅼ슫濡쒕뱶"
+                  title="다운로드"
                 >
                   <i className="fas fa-download"></i>
                 </button>
@@ -3397,17 +3462,17 @@ const MainContent: React.FC<MainContentProps> = ({
         </div>
       ) : null}
 
-      {/* 媛쒖꽦 ?ㅼ젙 ?ㅼ씠?쇰줈洹?*/}
+      {/* 개성 설정 다이얼로그 */}
       <Dialog open={showPersonalityDialog} onOpenChange={setShowPersonalityDialog}>
         <DialogContent className="sm:max-w-[500px] bg-white dark:bg-gray-900 border-2 border-purple-500/30">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent flex items-center gap-2">
               <i className="fas fa-brain text-purple-500"></i>
-              ?꾨컮? 媛쒖꽦 ?ㅼ젙
+              아바타 개성 설정
             </DialogTitle>
             <DialogDescription className="text-gray-600 dark:text-gray-300">
-              {selectedModel ? `${selectedModel} ?꾨컮?` : '?꾩옱 ?꾨컮?'}??怨좎쑀??媛쒖꽦???ㅼ젙?섏꽭??
-              ?ㅼ젙??媛쒖꽦? ??붿? ?뚯꽦 ?앹꽦??諛섏쁺?⑸땲??
+              {selectedModel ? `${selectedModel} 아바타` : '현재 아바타'}의 고유한 개성을 설정하세요.
+              설정한 개성은 대화와 음성 생성에 반영됩니다.
             </DialogDescription>
           </DialogHeader>
           
@@ -3415,101 +3480,31 @@ const MainContent: React.FC<MainContentProps> = ({
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-200 flex items-center gap-2">
                 <i className="fas fa-edit text-purple-500"></i>
-                罹먮┃??媛쒖꽦 ?낅젰
+                캐릭터 개성 입력
               </label>
               <textarea
                 value={personalityInput}
                 onChange={(e) => setPersonalityInput(e.target.value)}
-                placeholder="?? 諛앷퀬 湲띿젙?곸씤 ?깃꺽?쇰줈 移쒓렐?섍쾶 ??뷀븯硫? 媛???λ궃?ㅻ윭??留먰닾瑜??ъ슜?⑸땲?? ?곷?諛⑹쓽 ?댁빞湲곕? ???ㅼ뼱二쇨퀬 怨듦컧?섎뒗 ?몄씠?먯슂."
+                placeholder="예: 밝고 긍정적인 성격으로 친근하게 대화하며, 가끔 장난스러운 말투를 사용합니다. 상대방의 이야기를 잘 들어주고 공감하는 편이에요."
                 className="w-full min-h-[150px] p-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                 <i className="fas fa-info-circle"></i>
-                ?깃꺽, 留먰닾, ?뱀쭠 ?깆쓣 ?먯쑀濡?쾶 ?낅젰?섏꽭??
+                성격, 말투, 특징 등을 자유롭게 입력하세요.
               </p>
             </div>
 
             <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700/50 rounded-lg p-3">
               <h4 className="text-sm font-semibold text-purple-700 dark:text-purple-300 mb-2 flex items-center gap-2">
                 <i className="fas fa-lightbulb"></i>
-                媛쒖꽦 ?ㅼ젙 ?덉떆
+                개성 설정 예시
               </h4>
               <ul className="space-y-1 text-xs text-gray-700 dark:text-gray-300">
-                <li>??<span className="font-medium">湲띿젙?곸씠怨??쒕컻???깃꺽:</span> "??긽 諛앷퀬 湲띿젙?곸씠硫? ?먮꼫吏媛 ?섏튂???깃꺽"</li>
-                <li>??<span className="font-medium">李⑤텇?섍퀬 吏?곸씤 ?깃꺽:</span> "議곗슜?섍퀬 ?щ젮 源딆쑝硫? ?쇰━?곸쑝濡??ㅻ챸?섎뒗 ??</li>
-                <li>??<span className="font-medium">移쒓렐?섍퀬 怨듦컧?섎뒗 ?깃꺽:</span> "?곕쑜?섍쾶 怨듦컧?섍퀬 移쒓뎄泥섎읆 ??섎뒗 ?깃꺽"</li>
+                <li>• <span className="font-medium">긍정적이고 활발한 성격:</span> "항상 밝고 긍정적이며, 에너지가 넘치는 성격"</li>
+                <li>• <span className="font-medium">차분하고 지적인 성격:</span> "조용하고 사려 깊으며, 논리적으로 설명하는 편"</li>
+                <li>• <span className="font-medium">친근하고 공감하는 성격:</span> "따뜻하게 공감하고 친구처럼 대하는 성격"</li>
               </ul>
             </div>
-
-            <div className="space-y-2 mt-4">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                <i className="fas fa-key text-blue-500"></i>
-                Google Gemini API ??(?좏깮?ы빆)
-                <a
-                  href="https://aistudio.google.com/app/apikey"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-auto text-xs font-normal text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 underline"
-                >
-                  <i className="fas fa-external-link-alt text-[10px]"></i>
-                  API ??諛쒓툒諛쏄린
-                </a>
-              </label>
-              <input
-                type="password"
-                value={geminiApiKeyInput}
-                onChange={(e) => setGeminiApiKeyInput(e.target.value)}
-                placeholder="AIza..."
-                className="w-full p-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                <i className="fas fa-info-circle"></i>
-                ?낅젰 ???쒕??섏씠 紐⑤뜽濡???뷀빀?덈떎. (釉뚮씪?곗? 濡쒖뺄?먮쭔 ??λ맖)
-              </p>
-            </div>
-
-            {/* ?쒕??섏씠 紐⑤뜽 ?좏깮 */}
-            {geminiApiKeyInput && (
-              <div className="space-y-2 mt-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                  <i className="fas fa-robot text-indigo-500"></i>
-                  Gemini 紐⑤뜽 ?좏깮
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {GEMINI_MODELS.map((m) => {
-                    const badgeColors: Record<string, string> = {
-                      "?덉젙": "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                      "異붿쿇": "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-                      "?ㅽ뿕": "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-                      "理쒖떊": "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-                    };
-                    const isSelected = geminiModelInput === m.id;
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => setGeminiModelInput(m.id)}
-                        className={`flex items-center justify-between px-3 py-2 rounded-lg border-2 text-left transition-all ${
-                          isSelected
-                            ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
-                            : "border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700"
-                        }`}
-                      >
-                        <span className={`text-xs font-medium ${isSelected ? "text-indigo-700 dark:text-indigo-300" : "text-gray-700 dark:text-gray-300"}`}>
-                          {m.label}
-                        </span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${badgeColors[m.badge]}`}>
-                          {m.badge}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  ?꾩옱 ?좏깮: <span className="font-mono font-medium text-indigo-600 dark:text-indigo-400">{geminiModelInput}</span>
-                </p>
-              </div>
-            )}
           </div>
 
           <div className="flex gap-3 justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -3518,14 +3513,16 @@ const MainContent: React.FC<MainContentProps> = ({
               variant="outline"
               className="border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
-              痍⑥냼
+              취소
             </Button>
             <Button
               onClick={handleSavePersonality}
+              disabled={!personalityInput.trim()}
               className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <i className="fas fa-save mr-2"></i>
-              ??ν븯湲?            </Button>
+              저장하기
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

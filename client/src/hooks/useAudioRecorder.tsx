@@ -25,7 +25,7 @@ export const useAudioRecorder = (): UseAudioRecorderReturn => {
       setError(null);
       setIsProcessing(false);
       
-      // 留덉씠??沅뚰븳 ?붿껌 諛??ㅻ뵒???ㅽ듃由??띾뱷
+      // 마이크 권한 요청 및 오디오 스트림 획득
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
@@ -38,9 +38,9 @@ export const useAudioRecorder = (): UseAudioRecorderReturn => {
       streamRef.current = stream;
       audioChunksRef.current = [];
 
-      // MediaRecorder ?ㅼ젙
+      // MediaRecorder 설정
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus' // ???명솚???μ긽
+        mimeType: 'audio/webm;codecs=opus' // 웹 호환성 향상
       });
 
       mediaRecorder.ondataavailable = (event) => {
@@ -54,35 +54,34 @@ export const useAudioRecorder = (): UseAudioRecorderReturn => {
         setIsProcessing(true);
 
         try {
-          // ?ㅻ뵒??釉붾∼ ?앹꽦
+          // 오디오 블롭 생성
           const audioBlob = new Blob(audioChunksRef.current, { 
             type: 'audio/webm;codecs=opus' 
           });
 
-          // FormData濡??쒕쾭???꾩넚 (Gemini API ???ы븿)
-          const geminiApiKey = localStorage.getItem('gemini_api_key_global') || '';
+          // FormData로 서버에 전송
           const formData = new FormData();
           formData.append('audio', audioBlob, 'recording.webm');
-          formData.append('geminiApiKey', geminiApiKey);
 
+          // 음성 인식 API 호출 (liv2d 서버의 /asr 엔드포인트 사용)
           const response = await fetch('/api/speech/transcribe', {
             method: 'POST',
             body: formData
           });
 
           if (!response.ok) {
-            throw new Error(`?뚯꽦 ?몄떇 ?ㅽ뙣: ${response.status}`);
+            throw new Error(`음성 인식 실패: ${response.status}`);
           }
 
           const result = await response.json();
-          setTranscription(result.text || '?뚯꽦???몄떇?????놁뒿?덈떎.');
+          setTranscription(result.text || '음성을 인식할 수 없습니다.');
           
         } catch (err) {
-          console.error('?뚯꽦 ?몄떇 ?ㅻ쪟:', err);
-          setError(err instanceof Error ? err.message : '?뚯꽦 ?몄떇 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+          console.error('음성 인식 오류:', err);
+          setError(err instanceof Error ? err.message : '음성 인식 중 오류가 발생했습니다.');
         } finally {
           setIsProcessing(false);
-          // ?ㅽ듃由??뺣━
+          // 스트림 정리
           if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
             streamRef.current = null;
@@ -95,8 +94,8 @@ export const useAudioRecorder = (): UseAudioRecorderReturn => {
       setIsRecording(true);
       
     } catch (err) {
-      console.error('?뱀쓬 ?쒖옉 ?ㅻ쪟:', err);
-      setError(err instanceof Error ? err.message : '留덉씠???묎렐 沅뚰븳???꾩슂?⑸땲??');
+      console.error('녹음 시작 오류:', err);
+      setError(err instanceof Error ? err.message : '마이크 접근 권한이 필요합니다.');
     }
   }, []);
 

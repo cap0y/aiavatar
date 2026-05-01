@@ -174,8 +174,13 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({
             const isHttps = window.location.protocol === 'https:';
             const currentHost = window.location.hostname;
             
-            // 항상 현재 서버의 API 사용 (Cloudinary로 업로드)
-            uploadUrl = `/api/upload`;
+            if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+              // 로컬 개발 환경 - PM2로 실행 중인 CDN 서버 (웹서버 없이 직접 접속)
+              uploadUrl = "http://115.160.0.166:3008/upload";
+            } else {
+              // 프로덕션 환경 - 현재 도메인의 /api/upload 사용
+              uploadUrl = `${isHttps ? 'https' : 'http'}://${currentHost}/api/upload`;
+            }
           }
           
           console.log("📤 업로드 URL:", uploadUrl);
