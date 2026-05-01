@@ -1,4 +1,4 @@
-﻿import path from "path";
+import path from "path";
 
 /**
  * Gemini 湲곕컲 ?뚯꽦 ?몄떇 ?쒕퉬??(湲곗〈 OpenAI Whisper ?泥?

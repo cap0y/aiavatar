@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 import type { Express } from "express";
 import express from "express";
 import { createServer, type Server } from "http";

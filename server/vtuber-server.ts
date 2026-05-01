@@ -1,4 +1,4 @@
-﻿import WebSocket, { WebSocketServer } from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 import { Server as HTTPServer } from 'http';
 import fs from 'fs/promises';

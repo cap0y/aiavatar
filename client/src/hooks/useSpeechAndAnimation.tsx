@@ -1,4 +1,4 @@
-﻿import { useCallback, useState, useRef, useEffect } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 import { Live2DModel } from 'pixi-live2d-display';
 import { parseEmotionMessage } from '@/lib/utils';
 
