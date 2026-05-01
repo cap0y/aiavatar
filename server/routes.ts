@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import type { Express } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
@@ -25,29 +25,29 @@ import modelEditorRouter from "./routes/model-editor.js";
 import feedRouter from "./routes/feed.js";
 import { uploadToCloudinary } from "./cloudinary.js";
 
-// Cloudinary를 사용하므로 메모리 스토리지 사용
+// Cloudinary瑜??ъ슜?섎?濡?硫붾え由??ㅽ넗由ъ? ?ъ슜
 const memoryStorage = multer.memoryStorage();
 
-// 이미지 업로드용 Multer (메모리 → Cloudinary)
+// ?대?吏 ?낅줈?쒖슜 Multer (硫붾え由???Cloudinary)
 const upload = multer({
   storage: memoryStorage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB 제한
+    fileSize: 10 * 1024 * 1024, // 10MB ?쒗븳
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith("image/")) {
       cb(null, true);
     } else {
-      cb(new Error("이미지 파일만 업로드 가능합니다."));
+      cb(new Error("?대?吏 ?뚯씪留??낅줈??媛?ν빀?덈떎."));
     }
   },
 });
 
-// 작품 완료 / 주문 파일 전용 Multer (다양한 파일 형식 허용)
+// ?묓뭹 ?꾨즺 / 二쇰Ц ?뚯씪 ?꾩슜 Multer (?ㅼ뼇???뚯씪 ?뺤떇 ?덉슜)
 const uploadCompletionFile = multer({
   storage: memoryStorage,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB 제한
+    fileSize: 100 * 1024 * 1024, // 100MB ?쒗븳
   },
   fileFilter: (req, file, cb) => {
     const allowedMimeTypes = [
@@ -69,7 +69,7 @@ const uploadCompletionFile = multer({
     ) {
       cb(null, true);
     } else {
-      cb(new Error(`지원하지 않는 파일 형식입니다: ${file.mimetype}`));
+      cb(new Error(`吏?먰븯吏 ?딅뒗 ?뚯씪 ?뺤떇?낅땲?? ${file.mimetype}`));
     }
   },
 });
@@ -80,7 +80,7 @@ export async function registerRoutes(app: Express): Promise<void> {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
-  // 정적 파일 서빙 (로컬 public 폴더 - 기존 호환용)
+  // ?뺤쟻 ?뚯씪 ?쒕튃 (濡쒖뺄 public ?대뜑 - 湲곗〈 ?명솚??
   const imageUploadDir = path.join(process.cwd(), "public", "images");
   if (fs.existsSync(imageUploadDir)) {
     app.use(
@@ -95,20 +95,20 @@ export async function registerRoutes(app: Express): Promise<void> {
     );
   }
 
-  // 결제 라우트 등록
+  // 寃곗젣 ?쇱슦???깅줉
   registerPaymentRoutes(app);
 
-  // 모델 에디터 라우트 등록
+  // 紐⑤뜽 ?먮뵒???쇱슦???깅줉
   app.use("/api/model-editor", modelEditorRouter);
 
-  // 피드 라우트 등록
+  // ?쇰뱶 ?쇱슦???깅줉
   app.use("/api/feed", feedRouter);
 
-  // 사용자 정보 조회 API
+  // ?ъ슜???뺣낫 議고쉶 API
   app.get("/api/users/:userId", async (req, res) => {
     try {
       const { userId } = req.params;
-      console.log(`👤 사용자 정보 조회 요청: ${userId}`);
+      console.log(`?뫀 ?ъ슜???뺣낫 議고쉶 ?붿껌: ${userId}`);
 
       const [user] = await db
         .select({
@@ -123,36 +123,36 @@ export async function registerRoutes(app: Express): Promise<void> {
         .where(eq(users.id, userId));
 
       if (!user) {
-        console.log(`❌ 사용자 찾을 수 없음: ${userId}`);
-        return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
+        console.log(`???ъ슜??李얠쓣 ???놁쓬: ${userId}`);
+        return res.status(404).json({ error: "?ъ슜?먮? 李얠쓣 ???놁뒿?덈떎." });
       }
 
       console.log(
-        `✅ 사용자 정보 조회 성공: ${user.displayName} (${user.email})`,
+        `???ъ슜???뺣낫 議고쉶 ?깃났: ${user.displayName} (${user.email})`,
       );
       res.json(user);
     } catch (error) {
-      console.error("사용자 정보 조회 실패:", error);
-      res.status(500).json({ error: "사용자 정보를 불러오는데 실패했습니다." });
+      console.error("?ъ슜???뺣낫 議고쉶 ?ㅽ뙣:", error);
+      res.status(500).json({ error: "?ъ슜???뺣낫瑜?遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎." });
     }
   });
 
-  // ==================== Cloudinary 이미지 업로드 API ====================
+  // ==================== Cloudinary ?대?吏 ?낅줈??API ====================
 
-  // 프로필 이미지 업로드 → Cloudinary
+  // ?꾨줈???대?吏 ?낅줈????Cloudinary
   app.post("/api/upload", upload.single("image"), async (req, res) => {
     try {
-      console.log("🖼️ 프로필 이미지 업로드 요청 받음 (Cloudinary)");
+      console.log("?뼹截??꾨줈???대?吏 ?낅줈???붿껌 諛쏆쓬 (Cloudinary)");
 
       if (!req.file) {
         return res
           .status(400)
-          .json({ error: "이미지가 업로드되지 않았습니다." });
+          .json({ error: "?대?吏媛 ?낅줈?쒕릺吏 ?딆븯?듬땲??" });
       }
 
       const result = await uploadToCloudinary(req.file.buffer, "profile");
 
-      console.log("✅ 프로필 이미지 Cloudinary 업로드 성공:", {
+      console.log("???꾨줈???대?吏 Cloudinary ?낅줈???깃났:", {
         originalName: req.file.originalname,
         url: result.url,
       });
@@ -162,28 +162,28 @@ export async function registerRoutes(app: Express): Promise<void> {
         imageUrl: result.url,
       });
     } catch (error) {
-      console.error("🚫 이미지 업로드 오류:", error);
-      res.status(500).json({ error: "이미지 업로드 중 오류가 발생했습니다" });
+      console.error("?슟 ?대?吏 ?낅줈???ㅻ쪟:", error);
+      res.status(500).json({ error: "?대?吏 ?낅줈??以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎" });
     }
   });
 
-  // 상품 이미지 업로드 → Cloudinary
+  // ?곹뭹 ?대?吏 ?낅줈????Cloudinary
   app.post(
     "/api/upload/product-image",
     upload.single("image"),
     async (req, res) => {
       try {
-        console.log("🖼️ 상품 이미지 업로드 요청 받음 (Cloudinary)");
+        console.log("?뼹截??곹뭹 ?대?吏 ?낅줈???붿껌 諛쏆쓬 (Cloudinary)");
 
         if (!req.file) {
           return res
             .status(400)
-            .json({ error: "이미지가 업로드되지 않았습니다." });
+            .json({ error: "?대?吏媛 ?낅줈?쒕릺吏 ?딆븯?듬땲??" });
         }
 
         const result = await uploadToCloudinary(req.file.buffer, "products");
 
-        console.log("✅ 상품 이미지 Cloudinary 업로드 성공:", {
+        console.log("???곹뭹 ?대?吏 Cloudinary ?낅줈???깃났:", {
           originalName: req.file.originalname,
           url: result.url,
         });
@@ -193,33 +193,33 @@ export async function registerRoutes(app: Express): Promise<void> {
           imageUrl: result.url,
         });
       } catch (error) {
-        console.error("🚫 상품 이미지 업로드 오류:", error);
+        console.error("?슟 ?곹뭹 ?대?吏 ?낅줈???ㅻ쪟:", error);
         return res.status(500).json({
-          error: "이미지 업로드 중 오류가 발생했습니다",
+          error: "?대?吏 ?낅줈??以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎",
         });
       }
     },
   );
 
-  // 채팅 이미지 업로드 → Cloudinary
+  // 梨꾪똿 ?대?吏 ?낅줈????Cloudinary
   app.post(
     "/api/upload/chat-image",
     upload.single("image"),
     async (req, res) => {
       try {
-        console.log("🖼️ 채팅 이미지 업로드 요청 받음 (Cloudinary)");
+        console.log("?뼹截?梨꾪똿 ?대?吏 ?낅줈???붿껌 諛쏆쓬 (Cloudinary)");
 
         if (!req.file) {
           return res
             .status(400)
-            .json({ error: "이미지가 업로드되지 않았습니다." });
+            .json({ error: "?대?吏媛 ?낅줈?쒕릺吏 ?딆븯?듬땲??" });
         }
 
         const roomId = req.query.roomId || "general";
 
         const result = await uploadToCloudinary(req.file.buffer, `chat/${roomId}`);
 
-        console.log("✅ 채팅 이미지 Cloudinary 업로드 성공:", {
+        console.log("??梨꾪똿 ?대?吏 Cloudinary ?낅줈???깃났:", {
           roomId,
           originalName: req.file.originalname,
           url: result.url,
@@ -230,29 +230,29 @@ export async function registerRoutes(app: Express): Promise<void> {
           url: result.url,
         });
       } catch (error) {
-        console.error("🚫 채팅 이미지 업로드 오류:", error);
+        console.error("?슟 梨꾪똿 ?대?吏 ?낅줈???ㅻ쪟:", error);
         return res.status(500).json({
-          error: "이미지 업로드 중 오류가 발생했습니다",
+          error: "?대?吏 ?낅줈??以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎",
         });
       }
     },
   );
 
-  // 작품 완료 파일 업로드 → Cloudinary
+  // ?묓뭹 ?꾨즺 ?뚯씪 ?낅줈????Cloudinary
   app.post(
     "/api/upload/completion-file",
     uploadCompletionFile.single("file"),
     async (req, res) => {
       try {
-        console.log("📦 작품 완료 파일 업로드 요청 받음 (Cloudinary)");
+        console.log("?벀 ?묓뭹 ?꾨즺 ?뚯씪 ?낅줈???붿껌 諛쏆쓬 (Cloudinary)");
 
         if (!req.file) {
           return res
             .status(400)
-            .json({ error: "파일이 업로드되지 않았습니다." });
+            .json({ error: "?뚯씪???낅줈?쒕릺吏 ?딆븯?듬땲??" });
         }
 
-        // 파일 타입에 따라 리소스 유형 결정
+        // ?뚯씪 ??낆뿉 ?곕씪 由ъ냼???좏삎 寃곗젙
         const resourceType = req.file.mimetype.startsWith("video/")
           ? "video" as const
           : req.file.mimetype.startsWith("image/")
@@ -263,7 +263,7 @@ export async function registerRoutes(app: Express): Promise<void> {
           resourceType,
         });
 
-        console.log("✅ 작품 완료 파일 Cloudinary 업로드 성공:", {
+        console.log("???묓뭹 ?꾨즺 ?뚯씪 Cloudinary ?낅줈???깃났:", {
           originalName: req.file.originalname,
           url: result.url,
         });
@@ -273,26 +273,26 @@ export async function registerRoutes(app: Express): Promise<void> {
           fileUrl: result.url,
         });
       } catch (error) {
-        console.error("🚫 작품 완료 파일 업로드 오류:", error);
+        console.error("?슟 ?묓뭹 ?꾨즺 ?뚯씪 ?낅줈???ㅻ쪟:", error);
         return res.status(500).json({
-          error: "파일 업로드 중 오류가 발생했습니다",
+          error: "?뚯씪 ?낅줈??以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎",
         });
       }
     },
   );
 
-  // 주문 상품 배송용 디지털 파일 업로드 → Cloudinary
+  // 二쇰Ц ?곹뭹 諛곗넚???붿????뚯씪 ?낅줈????Cloudinary
   app.post(
     "/api/upload/order-file",
     uploadCompletionFile.single("file"),
     async (req, res) => {
       try {
-        console.log("📦 주문 배송 파일 업로드 요청 받음 (Cloudinary)");
+        console.log("?벀 二쇰Ц 諛곗넚 ?뚯씪 ?낅줈???붿껌 諛쏆쓬 (Cloudinary)");
 
         if (!req.file) {
           return res
             .status(400)
-            .json({ error: "파일이 업로드되지 않았습니다." });
+            .json({ error: "?뚯씪???낅줈?쒕릺吏 ?딆븯?듬땲??" });
         }
 
         const resourceType = req.file.mimetype.startsWith("video/")
@@ -305,7 +305,7 @@ export async function registerRoutes(app: Express): Promise<void> {
           resourceType,
         });
 
-        console.log("✅ 주문 배송 파일 Cloudinary 업로드 성공:", {
+        console.log("??二쇰Ц 諛곗넚 ?뚯씪 Cloudinary ?낅줈???깃났:", {
           originalName: req.file.originalname,
           url: result.url,
         });
@@ -316,9 +316,9 @@ export async function registerRoutes(app: Express): Promise<void> {
           fileName: req.file.originalname,
         });
       } catch (error) {
-        console.error("🚫 주문 배송 파일 업로드 오류:", error);
+        console.error("?슟 二쇰Ц 諛곗넚 ?뚯씪 ?낅줈???ㅻ쪟:", error);
         return res.status(500).json({
-          error: "파일 업로드 중 오류가 발생했습니다",
+          error: "?뚯씪 ?낅줈??以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎",
         });
       }
     },
@@ -327,54 +327,53 @@ export async function registerRoutes(app: Express): Promise<void> {
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
-      console.log("📝 회원가입 요청:", req.body);
+      console.log("?뱷 ?뚯썝媛???붿껌:", req.body);
       const userData = await insertUserSchema.parseAsync(req.body);
-      console.log("✅ 스키마 검증 통과:", userData);
+      console.log("???ㅽ궎留?寃利??듦낵:", userData);
 
       const existingUser = await storage.getUserByEmail(userData.email);
 
       if (existingUser) {
-        console.log("❌ 이미 존재하는 이메일:", userData.email);
-        return res.status(400).json({ error: "이미 존재하는 이메일입니다" });
+        console.log("???대? 議댁옱?섎뒗 ?대찓??", userData.email);
+        return res.status(400).json({ error: "?대? 議댁옱?섎뒗 ?대찓?쇱엯?덈떎" });
       }
 
-      // 비밀번호 암호화 적용
+      // 鍮꾨?踰덊샇 ?뷀샇???곸슜
       const userWithHashedPassword = await createUserWithHash(userData);
       console.log(
-        "🔒 비밀번호 암호화 완료, 길이:",
+        "?뵏 鍮꾨?踰덊샇 ?뷀샇???꾨즺, 湲몄씠:",
         userWithHashedPassword.password?.length,
       );
 
       const user = await storage.createUser(userWithHashedPassword);
-      console.log("🎉 사용자 생성 완료:", {
+      console.log("?럦 ?ъ슜???앹꽦 ?꾨즺:", {
         id: user.id,
         email: user.email,
         username: user.username,
       });
 
-      // 민감한 정보는 제외하고 반환
+      // 誘쇨컧???뺣낫???쒖쇅?섍퀬 諛섑솚
       res.json({
         user: {
           id: user.id,
-          uid: String(user.id), // Firebase 호환성
-          email: user.email,
+          uid: String(user.id), // Firebase ?명솚??          email: user.email,
           name: user.name,
-          displayName: user.displayName || user.name, // displayName 우선, 없으면 name
-          photoURL: user.photoURL || null, // 프로필 사진 추가
+          displayName: user.displayName || user.name, // displayName ?곗꽑, ?놁쑝硫?name
+          photoURL: user.photoURL || null, // ?꾨줈???ъ쭊 異붽?
           userType: user.userType,
           grade: user.grade,
         },
       });
     } catch (error) {
-      console.error("회원가입 오류:", error);
-      res.status(400).json({ error: "회원가입에 실패했습니다" });
+      console.error("?뚯썝媛???ㅻ쪟:", error);
+      res.status(400).json({ error: "?뚯썝媛?낆뿉 ?ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // Firebase 사용자 등록/업데이트 API
+  // Firebase ?ъ슜???깅줉/?낅뜲?댄듃 API
   app.post("/api/auth/register-firebase-user", async (req, res) => {
     try {
-      console.log("🔥 Firebase 사용자 DB 저장/업데이트:", req.body);
+      console.log("?뵦 Firebase ?ъ슜??DB ????낅뜲?댄듃:", req.body);
       const {
         uid,
         username,
@@ -388,10 +387,10 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!email || !password) {
         return res
           .status(400)
-          .json({ error: "이메일과 비밀번호는 필수입니다" });
+          .json({ error: "?대찓?쇨낵 鍮꾨?踰덊샇???꾩닔?낅땲?? });
       }
 
-      // Firebase UID로 먼저 확인
+      // Firebase UID濡?癒쇱? ?뺤씤
       if (uid) {
         const existingUserById = await db
           .select()
@@ -400,8 +399,8 @@ export async function registerRoutes(app: Express): Promise<void> {
           .limit(1);
 
         if (existingUserById.length > 0) {
-          // UID로 사용자를 찾았으면 업데이트
-          console.log("✅ Firebase UID로 사용자 정보 업데이트:", uid);
+          // UID濡??ъ슜?먮? 李얠븯?쇰㈃ ?낅뜲?댄듃
+          console.log("??Firebase UID濡??ъ슜???뺣낫 ?낅뜲?댄듃:", uid);
           await db
             .update(users)
             .set({
@@ -424,12 +423,12 @@ export async function registerRoutes(app: Express): Promise<void> {
         }
       }
 
-      // 이메일로 기존 사용자 확인
+      // ?대찓?쇰줈 湲곗〈 ?ъ슜???뺤씤
       const existingUser = await storage.getUserByEmail(email);
 
       if (existingUser) {
-        // 기존 사용자가 있으면 photoURL과 displayName 업데이트
-        console.log("✅ 이메일로 사용자 정보 업데이트:", email);
+        // 湲곗〈 ?ъ슜?먭? ?덉쑝硫?photoURL怨?displayName ?낅뜲?댄듃
+        console.log("???대찓?쇰줈 ?ъ슜???뺣낫 ?낅뜲?댄듃:", email);
         await db
           .update(users)
           .set({
@@ -450,23 +449,23 @@ export async function registerRoutes(app: Express): Promise<void> {
         });
       }
 
-      // 새 사용자 생성 - Firebase UID를 id로 사용
+      // ???ъ슜???앹꽦 - Firebase UID瑜?id濡??ъ슜
       const userData = {
-        id: uid || password, // Firebase UID를 id로 사용
+        id: uid || password, // Firebase UID瑜?id濡??ъ슜
         username: username || email.split("@")[0],
         displayName: displayName || username || email.split("@")[0],
         email,
-        password, // Firebase UID를 비밀번호로도 사용
+        password, // Firebase UID瑜?鍮꾨?踰덊샇濡쒕룄 ?ъ슜
         userType: userType || "customer",
         photoURL: photoURL || null,
       };
 
-      console.log("🆕 새 Firebase 사용자 생성:", {
+      console.log("?넅 ??Firebase ?ъ슜???앹꽦:", {
         id: userData.id,
         email: userData.email,
       });
       const user = await storage.createUser(userData);
-      console.log("🎉 Firebase 사용자 DB 저장 완료:", email);
+      console.log("?럦 Firebase ?ъ슜??DB ????꾨즺:", email);
 
       res.json({
         success: true,
@@ -479,76 +478,74 @@ export async function registerRoutes(app: Express): Promise<void> {
         },
       });
     } catch (error) {
-      console.error("Firebase 사용자 DB 저장 오류:", error);
-      res.status(500).json({ error: "사용자 정보 저장에 실패했습니다" });
+      console.error("Firebase ?ъ슜??DB ????ㅻ쪟:", error);
+      res.status(500).json({ error: "?ъ슜???뺣낫 ??μ뿉 ?ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
   app.post("/api/auth/login", async (req, res) => {
     try {
-      console.log("🔐 로그인 요청:", req.body);
+      console.log("?뵍 濡쒓렇???붿껌:", req.body);
       let { email, password } = req.body;
       email = typeof email === "string" ? email.trim().toLowerCase() : email;
       password = typeof password === "string" ? password.trim() : password;
 
       console.log(
-        `📧 처리된 이메일: "${email}", 비밀번호 길이: ${password?.length}`,
+        `?벁 泥섎━???대찓?? "${email}", 鍮꾨?踰덊샇 湲몄씠: ${password?.length}`,
       );
 
       if (!email || !password) {
-        console.log("이메일 또는 비밀번호 누락");
+        console.log("?대찓???먮뒗 鍮꾨?踰덊샇 ?꾨씫");
         return res
           .status(400)
-          .json({ error: "이메일과 비밀번호는 필수 항목입니다" });
+          .json({ error: "?대찓?쇨낵 鍮꾨?踰덊샇???꾩닔 ??ぉ?낅땲?? });
       }
 
       const user = await storage.getUserByEmail(email);
 
       if (!user) {
-        console.log(`❌ 사용자 없음: ${email}`);
+        console.log(`???ъ슜???놁쓬: ${email}`);
         console.log(
-          `📋 저장된 모든 사용자 이메일:`,
+          `?뱥 ??λ맂 紐⑤뱺 ?ъ슜???대찓??`,
           Array.from((storage as any).users?.values() || []).map(
             (u: any) => u.email,
           ),
         );
         return res
           .status(401)
-          .json({ error: "이메일 또는 비밀번호가 잘못되었습니다" });
+          .json({ error: "?대찓???먮뒗 鍮꾨?踰덊샇媛 ?섎せ?섏뿀?듬땲?? });
       }
 
       console.log(
-        `✅ 사용자 찾음: ${email}, 저장된 비밀번호 길이: ${user.password?.length}`,
+        `???ъ슜??李얠쓬: ${email}, ??λ맂 鍮꾨?踰덊샇 湲몄씠: ${user.password?.length}`,
       );
 
-      // 비밀번호 검증
-      const bcryptFormat = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/;
+      // 鍮꾨?踰덊샇 寃利?      const bcryptFormat = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/;
       const storedLooksHashedInitial =
         typeof user.password === "string" && bcryptFormat.test(user.password);
       console.log(
-        `[auth] 로그인 검사 시작: email=${email}, storedFmt=${storedLooksHashedInitial ? "bcrypt" : "plain"} len=${(user.password || "").length}`,
+        `[auth] 濡쒓렇??寃???쒖옉: email=${email}, storedFmt=${storedLooksHashedInitial ? "bcrypt" : "plain"} len=${(user.password || "").length}`,
       );
       let isPasswordValid = await verifyPassword(password, user.password);
-      console.log(`[auth] bcrypt.compare 결과: ${isPasswordValid}`);
+      console.log(`[auth] bcrypt.compare 寃곌낵: ${isPasswordValid}`);
 
-      // 레거시 폴백: DB에 평문이 저장되어 있거나, 사용자가 해시 문자열 자체를 입력하는 경우 처리
+      // ?덇굅???대갚: DB???됰Ц????λ릺???덇굅?? ?ъ슜?먭? ?댁떆 臾몄옄???먯껜瑜??낅젰?섎뒗 寃쎌슦 泥섎━
       if (!isPasswordValid) {
         const storedLooksHashed =
           typeof user.password === "string" && bcryptFormat.test(user.password);
         if (password === user.password) {
           if (storedLooksHashed) {
-            // 사용자가 저장된 해시와 동일한 문자열을 입력한 경우: 통과만 시키고 DB는 변경하지 않음
+            // ?ъ슜?먭? ??λ맂 ?댁떆? ?숈씪??臾몄옄?댁쓣 ?낅젰??寃쎌슦: ?듦낵留??쒗궎怨?DB??蹂寃쏀븯吏 ?딆쓬
             isPasswordValid = true;
             console.log(
-              `[auth] 해시 문자열 입력으로 통과(변경 없음): user=${email}`,
+              `[auth] ?댁떆 臾몄옄???낅젰?쇰줈 ?듦낵(蹂寃??놁쓬): user=${email}`,
             );
           } else {
-            // 저장된 값이 평문이고 입력도 동일 평문 → bcrypt로 업그레이드 저장
-            const upgraded = bcrypt.hashSync(password, 10);
+            // ??λ맂 媛믪씠 ?됰Ц?닿퀬 ?낅젰???숈씪 ?됰Ц ??bcrypt濡??낃렇?덉씠?????            const upgraded = bcrypt.hashSync(password, 10);
             await storage.updatePassword(user.id, upgraded);
             isPasswordValid = true;
             console.log(
-              `[auth] 레거시 평문 비밀번호를 bcrypt로 업그레이드: user=${email}`,
+              `[auth] ?덇굅???됰Ц 鍮꾨?踰덊샇瑜?bcrypt濡??낃렇?덉씠?? user=${email}`,
             );
           }
         }
@@ -556,38 +553,37 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       if (!isPasswordValid) {
         console.log(
-          `❌ 비밀번호 불일치: ${email}, 입력된 비밀번호: "${password}", 저장된 비밀번호: "${user.password}"`,
+          `??鍮꾨?踰덊샇 遺덉씪移? ${email}, ?낅젰??鍮꾨?踰덊샇: "${password}", ??λ맂 鍮꾨?踰덊샇: "${user.password}"`,
         );
         return res
           .status(401)
-          .json({ error: "이메일 또는 비밀번호가 잘못되었습니다" });
+          .json({ error: "?대찓???먮뒗 鍮꾨?踰덊샇媛 ?섎せ?섏뿀?듬땲?? });
       }
 
-      console.log(`로그인 성공: ${email}`);
+      console.log(`濡쒓렇???깃났: ${email}`);
 
-      // Firebase 사용자 정보와 호환되도록 응답 형식 수정
+      // Firebase ?ъ슜???뺣낫? ?명솚?섎룄濡??묐떟 ?뺤떇 ?섏젙
       res.json({
         user: {
           id: user.id,
-          uid: String(user.id), // Firebase uid 호환성
-          email: user.email,
+          uid: String(user.id), // Firebase uid ?명솚??          email: user.email,
           name: user.name,
-          displayName: user.displayName || user.name, // displayName 우선, 없으면 name
-          photoURL: user.photoURL || null, // 프로필 사진 추가
+          displayName: user.displayName || user.name, // displayName ?곗꽑, ?놁쑝硫?name
+          photoURL: user.photoURL || null, // ?꾨줈???ъ쭊 異붽?
           userType: user.userType,
           grade: user.grade,
           isApproved: user.isApproved || user.userType !== "careManager",
         },
       });
     } catch (error) {
-      console.error("로그인 오류:", error);
-      res.status(400).json({ error: "로그인에 실패했습니다" });
+      console.error("濡쒓렇???ㅻ쪟:", error);
+      res.status(400).json({ error: "濡쒓렇?몄뿉 ?ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // Firebase 사용자 비밀번호 변경 (Firebase UID 사용) - 제거됨, 통합 엔드포인트 사용
+  // Firebase ?ъ슜??鍮꾨?踰덊샇 蹂寃?(Firebase UID ?ъ슜) - ?쒓굅?? ?듯빀 ?붾뱶?ъ씤???ъ슜
 
-  // 사용자 비밀번호 변경 (UUID 및 숫자 ID 모두 지원)
+  // ?ъ슜??鍮꾨?踰덊샇 蹂寃?(UUID 諛??レ옄 ID 紐⑤몢 吏??
   app.post("/api/auth/change-password", async (req, res) => {
     try {
       let { userId, currentPassword, newPassword } = req.body as {
@@ -596,7 +592,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         newPassword?: string;
       };
 
-      // 입력 정리
+      // ?낅젰 ?뺣━
       if (typeof currentPassword === "string")
         currentPassword = currentPassword.trim();
       if (typeof newPassword === "string") newPassword = newPassword.trim();
@@ -604,15 +600,14 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!userId || !currentPassword || !newPassword) {
         return res
           .status(400)
-          .json({ error: "userId, currentPassword, newPassword는 필수입니다" });
+          .json({ error: "userId, currentPassword, newPassword???꾩닔?낅땲?? });
       }
 
-      // userId를 문자열로 변환
-      const userIdStr = String(userId);
+      // userId瑜?臾몄옄?대줈 蹂??      const userIdStr = String(userId);
 
       const user = await storage.getUser(userIdStr);
       if (!user) {
-        return res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+        return res.status(404).json({ error: "?ъ슜?먮? 李얠쓣 ???놁뒿?덈떎" });
       }
 
       let isValid = await verifyPassword(currentPassword, user.password);
@@ -623,8 +618,8 @@ export async function registerRoutes(app: Express): Promise<void> {
         const inputLooksHashed =
           typeof currentPassword === "string" &&
           bcryptFormat.test(currentPassword);
-        // 1) DB에 평문 저장되어 있었고 입력도 동일 평문인 경우 허용
-        // 2) DB에 해시가 저장되어 있고 사용자가 그 해시 문자열을 그대로 입력한 경우도 허용(정상화 목적)
+        // 1) DB???됰Ц ??λ릺???덉뿀怨??낅젰???숈씪 ?됰Ц??寃쎌슦 ?덉슜
+        // 2) DB???댁떆媛 ??λ릺???덇퀬 ?ъ슜?먭? 洹??댁떆 臾몄옄?댁쓣 洹몃?濡??낅젰??寃쎌슦???덉슜(?뺤긽??紐⑹쟻)
         if (
           currentPassword === user.password ||
           (storedLooksHashed &&
@@ -637,13 +632,13 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!isValid) {
         return res
           .status(401)
-          .json({ error: "현재 비밀번호가 일치하지 않습니다" });
+          .json({ error: "?꾩옱 鍮꾨?踰덊샇媛 ?쇱튂?섏? ?딆뒿?덈떎" });
       }
 
       if (typeof newPassword !== "string" || newPassword.length < 6) {
         return res
           .status(400)
-          .json({ error: "새 비밀번호는 6자 이상이어야 합니다" });
+          .json({ error: "??鍮꾨?踰덊샇??6???댁긽?댁뼱???⑸땲?? });
       }
 
       const hashedPassword = bcrypt.hashSync(newPassword, 10);
@@ -651,34 +646,33 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       return res.json({ success: true });
     } catch (error) {
-      console.error("비밀번호 변경 오류:", error);
-      return res.status(500).json({ error: "비밀번호 변경에 실패했습니다" });
+      console.error("鍮꾨?踰덊샇 蹂寃??ㅻ쪟:", error);
+      return res.status(500).json({ error: "鍮꾨?踰덊샇 蹂寃쎌뿉 ?ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // Kakao OAuth 로그인
-  app.post("/api/auth/kakao", async (req, res) => {
+  // Kakao OAuth 濡쒓렇??  app.post("/api/auth/kakao", async (req, res) => {
     try {
       const { code } = req.body as { code: string };
-      console.log("🔑 카카오 로그인 요청 받음, code:", code ? "있음" : "없음");
+      console.log("?뵎 移댁뭅??濡쒓렇???붿껌 諛쏆쓬, code:", code ? "?덉쓬" : "?놁쓬");
       
       if (!code) {
-        console.log("❌ 카카오 코드 누락");
+        console.log("??移댁뭅??肄붾뱶 ?꾨씫");
         return res.status(400).json({ error: "code required" });
       }
 
-      // 환경 변수 확인
-      console.log("🔧 카카오 환경 변수 확인:", {
-        KAKAO_REST_KEY: process.env.KAKAO_REST_KEY ? "설정됨" : "❌ 누락",
-        KAKAO_REDIRECT_URI: process.env.KAKAO_REDIRECT_URI || "❌ 누락"
+      // ?섍꼍 蹂???뺤씤
+      console.log("?뵩 移댁뭅???섍꼍 蹂???뺤씤:", {
+        KAKAO_REST_KEY: process.env.KAKAO_REST_KEY ? "?ㅼ젙?? : "???꾨씫",
+        KAKAO_REDIRECT_URI: process.env.KAKAO_REDIRECT_URI || "???꾨씫"
       });
 
       if (!process.env.KAKAO_REST_KEY || !process.env.KAKAO_REDIRECT_URI) {
-        console.error("❌ 카카오 환경 변수가 설정되지 않았습니다");
-        return res.status(500).json({ error: "카카오 로그인 설정이 완료되지 않았습니다" });
+        console.error("??移댁뭅???섍꼍 蹂?섍? ?ㅼ젙?섏? ?딆븯?듬땲??);
+        return res.status(500).json({ error: "移댁뭅??濡쒓렇???ㅼ젙???꾨즺?섏? ?딆븯?듬땲?? });
       }
 
-      console.log("📡 카카오 토큰 요청 중...");
+      console.log("?뱻 移댁뭅???좏겙 ?붿껌 以?..");
       const { data: tokenData } = await axios.post(
         "https://kauth.kakao.com/oauth/token",
         qs.stringify({
@@ -691,9 +685,9 @@ export async function registerRoutes(app: Express): Promise<void> {
       );
 
       const accessToken = tokenData.access_token;
-      console.log("✅ 카카오 액세스 토큰 받음");
+      console.log("??移댁뭅???≪꽭???좏겙 諛쏆쓬");
 
-      console.log("📡 카카오 사용자 정보 요청 중...");
+      console.log("?뱻 移댁뭅???ъ슜???뺣낫 ?붿껌 以?..");
       const { data: me } = await axios.get(
         "https://kapi.kakao.com/v2/user/me",
         {
@@ -701,67 +695,66 @@ export async function registerRoutes(app: Express): Promise<void> {
         },
       );
 
-      console.log("📦 카카오 API 원본 응답:", JSON.stringify(me, null, 2));
+      console.log("?벀 移댁뭅??API ?먮낯 ?묐떟:", JSON.stringify(me, null, 2));
 
       const kakaoId: string = me.id.toString();
       const email: string | undefined = me.kakao_account?.email;
       const nickname: string | undefined = me.properties?.nickname || me.kakao_account?.profile?.nickname;
       const photoURL: string | undefined = me.properties?.profile_image || me.kakao_account?.profile?.profile_image_url;
 
-      console.log("✅ 카카오 사용자 정보 받음:", {
+      console.log("??移댁뭅???ъ슜???뺣낫 諛쏆쓬:", {
         kakaoId,
-        email: email || "이메일 없음",
-        nickname: nickname || "닉네임 없음",
-        photoURL: photoURL ? photoURL.substring(0, 50) + "..." : "프로필 사진 없음"
+        email: email || "?대찓???놁쓬",
+        nickname: nickname || "?됰꽕???놁쓬",
+        photoURL: photoURL ? photoURL.substring(0, 50) + "..." : "?꾨줈???ъ쭊 ?놁쓬"
       });
 
-      // 사용자 찾기/생성
-      // 1. 실제 이메일이 있으면 실제 이메일로 찾기
+      // ?ъ슜??李얘린/?앹꽦
+      // 1. ?ㅼ젣 ?대찓?쇱씠 ?덉쑝硫??ㅼ젣 ?대찓?쇰줈 李얘린
       let user = email
         ? await storage.getUserByEmail(email).catch(() => undefined)
         : undefined;
 
-      // 2. 실제 이메일이 없거나 찾지 못한 경우, 임시 이메일로 찾기
+      // 2. ?ㅼ젣 ?대찓?쇱씠 ?녾굅??李얠? 紐삵븳 寃쎌슦, ?꾩떆 ?대찓?쇰줈 李얘린
       const tempEmail = `kakao_${kakaoId}@example.com`;
       if (!user) {
         user = await storage.getUserByEmail(tempEmail).catch(() => undefined);
         if (user) {
-          console.log("✅ 임시 이메일로 기존 카카오 사용자 찾음:", user.email);
+          console.log("???꾩떆 ?대찓?쇰줈 湲곗〈 移댁뭅???ъ슜??李얠쓬:", user.email);
         }
       } else {
-        console.log("✅ 실제 이메일로 기존 사용자 찾음:", user.email);
+        console.log("???ㅼ젣 ?대찓?쇰줈 湲곗〈 ?ъ슜??李얠쓬:", user.email);
       }
 
-      // 3. 사용자가 없으면 새로 생성
+      // 3. ?ъ슜?먭? ?놁쑝硫??덈줈 ?앹꽦
       if (!user) {
-        console.log("🆕 새 카카오 사용자 생성 중...");
-        // 랜덤 비밀번호 생성 (소셜 로그인이므로 실제 사용되지 않음)
+        console.log("?넅 ??移댁뭅???ъ슜???앹꽦 以?..");
+        // ?쒕뜡 鍮꾨?踰덊샇 ?앹꽦 (?뚯뀥 濡쒓렇?몄씠誘濡??ㅼ젣 ?ъ슜?섏? ?딆쓬)
         const randomPassword = Math.random().toString(36).slice(-10);
 
         const userData = {
           username: nickname || `kakao_${kakaoId.slice(-6)}`,
           email: email || tempEmail,
           password: randomPassword,
-          name: nickname || `카카오사용자_${kakaoId.slice(-6)}`, // null 대신 기본값 설정
+          name: nickname || `移댁뭅?ㅼ궗?⑹옄_${kakaoId.slice(-6)}`, // null ???湲곕낯媛??ㅼ젙
           phone: null,
-          userType: "customer" as const, // 타입 명시적 캐스팅
-        };
+          userType: "customer" as const, // ???紐낆떆??罹먯뒪??        };
 
-        // 비밀번호 암호화 적용
+        // 鍮꾨?踰덊샇 ?뷀샇???곸슜
         const userWithHashedPassword = await createUserWithHash(userData);
         
         try {
           user = await storage.createUser(userWithHashedPassword);
-          console.log("✅ 새 카카오 사용자 생성 완료:", user.email);
+          console.log("????移댁뭅???ъ슜???앹꽦 ?꾨즺:", user.email);
         } catch (createError: any) {
-          // 중복 키 에러인 경우 다시 조회
+          // 以묐났 ???먮윭??寃쎌슦 ?ㅼ떆 議고쉶
           if (createError.code === '23505') {
-            console.log("⚠️ 중복 에러 발생, 다시 조회 중...");
+            console.log("?좑툘 以묐났 ?먮윭 諛쒖깮, ?ㅼ떆 議고쉶 以?..");
             user = await storage.getUserByEmail(email || tempEmail);
             if (user) {
-              console.log("✅ 재조회로 기존 사용자 찾음:", user.email);
+              console.log("???ъ“?뚮줈 湲곗〈 ?ъ슜??李얠쓬:", user.email);
             } else {
-              throw new Error("사용자 생성 실패: 중복 에러 후 재조회 실패");
+              throw new Error("?ъ슜???앹꽦 ?ㅽ뙣: 以묐났 ?먮윭 ???ъ“???ㅽ뙣");
             }
           } else {
             throw createError;
@@ -769,9 +762,9 @@ export async function registerRoutes(app: Express): Promise<void> {
         }
       }
 
-      console.log("🔥 Firebase 커스텀 토큰 생성 중...");
-      // DB에 생성된 사용자 ID를 사용하여 Firebase 커스텀 토큰 생성
-      // 추가 클레임에 사용자 정보 포함
+      console.log("?뵦 Firebase 而ㅼ뒪? ?좏겙 ?앹꽦 以?..");
+      // DB???앹꽦???ъ슜??ID瑜??ъ슜?섏뿬 Firebase 而ㅼ뒪? ?좏겙 ?앹꽦
+      // 異붽? ?대젅?꾩뿉 ?ъ슜???뺣낫 ?ы븿
       const additionalClaims = {
         email: user.email,
         displayName: user.displayName || user.name,
@@ -780,14 +773,14 @@ export async function registerRoutes(app: Express): Promise<void> {
       };
       
       const customToken = await adminAuth.createCustomToken(user.id, additionalClaims);
-      console.log("✅ Firebase 커스텀 토큰 생성 완료, user.id:", user.id);
-      console.log("📝 토큰에 포함된 클레임:", additionalClaims);
+      console.log("??Firebase 而ㅼ뒪? ?좏겙 ?앹꽦 ?꾨즺, user.id:", user.id);
+      console.log("?뱷 ?좏겙???ы븿???대젅??", additionalClaims);
 
       res.json({
         token: customToken,
         user: {
           id: user.id,
-          uid: user.id, // Firebase uid로도 전달
+          uid: user.id, // Firebase uid濡쒕룄 ?꾨떖
           email: user.email,
           name: user.name,
           displayName: user.displayName || user.name,
@@ -797,34 +790,34 @@ export async function registerRoutes(app: Express): Promise<void> {
         },
       });
     } catch (err: any) {
-      console.error("❌ [KakaoAuth] 에러 발생:");
-      console.error("  - 메시지:", err.message);
-      console.error("  - 스택:", err.stack);
+      console.error("??[KakaoAuth] ?먮윭 諛쒖깮:");
+      console.error("  - 硫붿떆吏:", err.message);
+      console.error("  - ?ㅽ깮:", err.stack);
       if (err.response) {
-        console.error("  - 응답 상태:", err.response.status);
-        console.error("  - 응답 데이터:", JSON.stringify(err.response.data, null, 2));
+        console.error("  - ?묐떟 ?곹깭:", err.response.status);
+        console.error("  - ?묐떟 ?곗씠??", JSON.stringify(err.response.data, null, 2));
       }
       res.status(500).json({ error: "kakao auth failed", details: err.message });
     }
   });
 
-  // 사용자 유형 변경 API
+  // ?ъ슜???좏삎 蹂寃?API
   app.post("/api/users/:id/change-type", async (req, res) => {
     try {
       const userId = parseInt(req.params.id);
       const { userType } = req.body;
 
-      // 유효한 사용자 유형인지 확인
+      // ?좏슚???ъ슜???좏삎?몄? ?뺤씤
       if (!["customer", "careManager", "admin"].includes(userType)) {
         return res
           .status(400)
-          .json({ error: "유효하지 않은 사용자 유형입니다" });
+          .json({ error: "?좏슚?섏? ?딆? ?ъ슜???좏삎?낅땲?? });
       }
 
       const user = await storage.updateUserType(userId, userType);
 
       if (!user) {
-        return res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+        return res.status(404).json({ error: "?ъ슜?먮? 李얠쓣 ???놁뒿?덈떎" });
       }
 
       res.json({
@@ -836,27 +829,27 @@ export async function registerRoutes(app: Express): Promise<void> {
         },
       });
     } catch (error) {
-      console.error("사용자 유형 변경 오류:", error);
-      res.status(400).json({ error: "사용자 유형 변경에 실패했습니다" });
+      console.error("?ъ슜???좏삎 蹂寃??ㅻ쪟:", error);
+      res.status(400).json({ error: "?ъ슜???좏삎 蹂寃쎌뿉 ?ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // Firebase 사용자 프로필 사진 업데이트 API
+  // Firebase ?ъ슜???꾨줈???ъ쭊 ?낅뜲?댄듃 API
   app.put("/api/users/firebase/:uid/profile-photo", async (req, res) => {
     try {
       const firebaseUid = req.params.uid;
       const { photoURL } = req.body;
 
-      console.log("🖼️ Firebase 프로필 사진 업데이트:", {
+      console.log("?뼹截?Firebase ?꾨줈???ъ쭊 ?낅뜲?댄듃:", {
         firebaseUid,
         photoURL,
       });
 
       if (!photoURL) {
-        return res.status(400).json({ error: "프로필 사진 URL이 필요합니다." });
+        return res.status(400).json({ error: "?꾨줈???ъ쭊 URL???꾩슂?⑸땲??" });
       }
 
-      // Firebase UID로 사용자 찾기 (id 필드에 Firebase UID가 저장되어 있음)
+      // Firebase UID濡??ъ슜??李얘린 (id ?꾨뱶??Firebase UID媛 ??λ릺???덉쓬)
       const [user] = await db
         .select()
         .from(users)
@@ -864,47 +857,47 @@ export async function registerRoutes(app: Express): Promise<void> {
         .limit(1);
 
       if (user) {
-        // DB에 photoURL 업데이트
+        // DB??photoURL ?낅뜲?댄듃
         await db
           .update(users)
           .set({ photoURL })
           .where(eq(users.id, firebaseUid));
 
         console.log(
-          "✅ Firebase 사용자 프로필 사진 DB 업데이트 완료:",
+          "??Firebase ?ъ슜???꾨줈???ъ쭊 DB ?낅뜲?댄듃 ?꾨즺:",
           firebaseUid,
         );
       } else {
-        console.warn("⚠️ Firebase UID로 사용자를 찾을 수 없음:", firebaseUid);
+        console.warn("?좑툘 Firebase UID濡??ъ슜?먮? 李얠쓣 ???놁쓬:", firebaseUid);
       }
 
       return res.status(200).json({
         success: true,
-        message: "Firebase 사용자 프로필 사진 업데이트 완료",
+        message: "Firebase ?ъ슜???꾨줈???ъ쭊 ?낅뜲?댄듃 ?꾨즺",
         photoURL,
       });
     } catch (error: any) {
-      console.error("Firebase 프로필 사진 업데이트 오류:", error);
-      return res.status(500).json({ error: "서버 오류가 발생했습니다." });
+      console.error("Firebase ?꾨줈???ъ쭊 ?낅뜲?댄듃 ?ㅻ쪟:", error);
+      return res.status(500).json({ error: "?쒕쾭 ?ㅻ쪟媛 諛쒖깮?덉뒿?덈떎." });
     }
   });
 
-  // 기존 사용자 프로필 사진 업데이트 API (문자열 또는 숫자 ID 사용)
+  // 湲곗〈 ?ъ슜???꾨줈???ъ쭊 ?낅뜲?댄듃 API (臾몄옄???먮뒗 ?レ옄 ID ?ъ슜)
   app.put("/api/users/:id/profile-photo", async (req, res) => {
     try {
-      const userId = req.params.id; // 문자열 ID (Firebase UID 또는 일반 숫자 ID)
+      const userId = req.params.id; // 臾몄옄??ID (Firebase UID ?먮뒗 ?쇰컲 ?レ옄 ID)
       const { photoURL } = req.body;
 
-      console.log("🖼️ 프로필 사진 업데이트:", {
+      console.log("?뼹截??꾨줈???ъ쭊 ?낅뜲?댄듃:", {
         userId,
-        photoURL: photoURL ? photoURL.substring(0, 50) + "..." : "(삭제)",
+        photoURL: photoURL ? photoURL.substring(0, 50) + "..." : "(??젣)",
       });
 
       if (photoURL === undefined || photoURL === null) {
-        return res.status(400).json({ error: "프로필 사진 URL이 필요합니다." });
+        return res.status(400).json({ error: "?꾨줈???ъ쭊 URL???꾩슂?⑸땲??" });
       }
 
-      // DB에서 사용자 찾기 (문자열 ID로 검색)
+      // DB?먯꽌 ?ъ슜??李얘린 (臾몄옄??ID濡?寃??
       const [user] = await db
         .select()
         .from(users)
@@ -912,17 +905,16 @@ export async function registerRoutes(app: Express): Promise<void> {
         .limit(1);
 
       if (!user) {
-        return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
+        return res.status(404).json({ error: "?ъ슜?먮? 李얠쓣 ???놁뒿?덈떎." });
       }
 
-      // DB에 photoURL 업데이트 (빈 문자열이면 null로 저장)
+      // DB??photoURL ?낅뜲?댄듃 (鍮?臾몄옄?댁씠硫?null濡????
       const photoValue = photoURL || null;
       await db.update(users).set({ photoURL: photoValue }).where(eq(users.id, userId));
 
-      console.log("✅ 프로필 사진 DB 업데이트 완료:", userId);
+      console.log("???꾨줈???ъ쭊 DB ?낅뜲?댄듃 ?꾨즺:", userId);
 
-      // 응답 객체에 명시적으로 타입 지정
-      const result: {
+      // ?묐떟 媛앹껜??紐낆떆?곸쑝濡????吏??      const result: {
         success: boolean;
         photoURL: string;
         careManagerUpdated?: boolean;
@@ -931,33 +923,33 @@ export async function registerRoutes(app: Express): Promise<void> {
         photoURL,
       };
 
-      // 사용자가 케어 매니저인 경우 크리에이터프로필 이미지도 업데이트
+      // ?ъ슜?먭? 耳??留ㅻ땲???寃쎌슦 ?щ━?먯씠?고봽濡쒗븘 ?대?吏???낅뜲?댄듃
       if (user.userType === "careManager") {
         try {
-          // userId로 연결된 케어매니저 찾기
+          // userId濡??곌껐??耳?대ℓ?덉? 李얘린
           const careManager = await storage.getCareManagerByUserId(userId);
           if (careManager) {
             await storage.updateCareManager(careManager.id, {
               photoURL: photoURL,
             });
             result.careManagerUpdated = true;
-            console.log("✅ 크리에이터 프로필 이미지도 업데이트 완료");
+            console.log("???щ━?먯씠???꾨줈???대?吏???낅뜲?댄듃 ?꾨즺");
           }
         } catch (error) {
-          console.error("크리에이터프로필 사진 업데이트 실패:", error);
+          console.error("?щ━?먯씠?고봽濡쒗븘 ?ъ쭊 ?낅뜲?댄듃 ?ㅽ뙣:", error);
         }
       }
 
       res.json(result);
     } catch (error) {
-      console.error("프로필 사진 업데이트 오류:", error);
+      console.error("?꾨줈???ъ쭊 ?낅뜲?댄듃 ?ㅻ쪟:", error);
       res
         .status(500)
-        .json({ error: "프로필 사진 업데이트 중 오류가 발생했습니다." });
+        .json({ error: "?꾨줈???ъ쭊 ?낅뜲?댄듃 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎." });
     }
   });
 
-  // 크리에이터승인 API
+  // ?щ━?먯씠?곗듅??API
   app.post("/api/care-managers/:id/approve", async (req, res) => {
     try {
       const userId = parseInt(req.params.id);
@@ -965,12 +957,12 @@ export async function registerRoutes(app: Express): Promise<void> {
       const user = await storage.approveCareManager(userId);
 
       if (!user) {
-        return res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+        return res.status(404).json({ error: "?ъ슜?먮? 李얠쓣 ???놁뒿?덈떎" });
       }
 
       res.json({
         success: true,
-        message: "크리에이터승인이 완료되었습니다",
+        message: "?щ━?먯씠?곗듅?몄씠 ?꾨즺?섏뿀?듬땲??,
         user: {
           id: user.id,
           email: user.email,
@@ -980,12 +972,12 @@ export async function registerRoutes(app: Express): Promise<void> {
         },
       });
     } catch (error) {
-      console.error("크리에이터승인 오류:", error);
-      res.status(400).json({ error: "크리에이터승인에 실패했습니다" });
+      console.error("?щ━?먯씠?곗듅???ㅻ쪟:", error);
+      res.status(400).json({ error: "?щ━?먯씠?곗듅?몄뿉 ?ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 크리ot�이터예약 목록 조회 API
+  // ?щ━ot占쎌씠?곗삁??紐⑸줉 議고쉶 API
   app.get("/api/bookings/care-manager/:careManagerId", async (req, res) => {
     try {
       const careManagerId = parseInt(req.params.careManagerId);
@@ -993,28 +985,27 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (isNaN(careManagerId)) {
         return res
           .status(400)
-          .json({ error: "유효하지 않은 케어매니저 ID입니다" });
+          .json({ error: "?좏슚?섏? ?딆? 耳?대ℓ?덉? ID?낅땲?? });
       }
 
       const bookings = await storage.getBookingsByCareManager(careManagerId);
 
-      // 각 예약에 대한 의뢰자 정보 추가
+      // 媛??덉빟??????섎ː???뺣낫 異붽?
       const enrichedBookings = await Promise.all(
         bookings.map(async (booking) => {
-          // 의뢰자 정보 가져오기
-          let user = null;
+          // ?섎ː???뺣낫 媛?몄삤湲?          let user = null;
           if (booking.userId) {
             user = await storage.getUserByFirebaseId(booking.userId);
           }
 
           return {
             ...booking,
-            date: booking.bookingDate || booking.createdAt || new Date(), // bookingDate를 date로 매핑
+            date: booking.bookingDate || booking.createdAt || new Date(), // bookingDate瑜?date濡?留ㅽ븨
             userName:
               user?.username ||
               user?.displayName ||
               user?.email ||
-              booking.userId, // username 우선, 없으면 displayName, email, 마지막으로 UID
+              booking.userId, // username ?곗꽑, ?놁쑝硫?displayName, email, 留덉?留됱쑝濡?UID
             userEmail: user?.email || null,
             userPhone: user?.phone || null,
           };
@@ -1023,12 +1014,12 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.json(enrichedBookings);
     } catch (error) {
-      console.error("크리에이터예약 목록 조회 오류:", error);
-      res.status(500).json({ error: "예약 목록 조회에 실패했습니다" });
+      console.error("?щ━?먯씠?곗삁??紐⑸줉 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "?덉빟 紐⑸줉 議고쉶???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 날짜별 크리에이터예약 조회 API
+  // ?좎쭨蹂??щ━?먯씠?곗삁??議고쉶 API
   app.get(
     "/api/bookings/care-manager-date/:careManagerId/:date",
     async (req, res) => {
@@ -1041,23 +1032,22 @@ export async function registerRoutes(app: Express): Promise<void> {
           date,
         );
 
-        // 각 예약에 대한 의뢰자 정보 추가
+        // 媛??덉빟??????섎ː???뺣낫 異붽?
         const enrichedBookings = await Promise.all(
           bookings.map(async (booking) => {
-            // 의뢰자 정보 가져오기
-            let user = null;
+            // ?섎ː???뺣낫 媛?몄삤湲?            let user = null;
             if (booking.userId) {
               user = await storage.getUserByFirebaseId(booking.userId);
             }
 
             return {
               ...booking,
-              date: booking.bookingDate || booking.createdAt || new Date(), // bookingDate를 date로 매핑
+              date: booking.bookingDate || booking.createdAt || new Date(), // bookingDate瑜?date濡?留ㅽ븨
               userName:
                 user?.username ||
                 user?.displayName ||
                 user?.email ||
-                booking.userId, // username 우선, 없으면 displayName, email, 마지막으로 UID
+                booking.userId, // username ?곗꽑, ?놁쑝硫?displayName, email, 留덉?留됱쑝濡?UID
               userEmail: user?.email || null,
               userPhone: user?.phone || null,
             };
@@ -1066,24 +1056,24 @@ export async function registerRoutes(app: Express): Promise<void> {
 
         res.json(enrichedBookings);
       } catch (error) {
-        console.error("날짜별 크리에이터예약 조회 오류:", error);
-        res.status(500).json({ error: "날짜별 예약 조회에 실패했습니다" });
+        console.error("?좎쭨蹂??щ━?먯씠?곗삁??議고쉶 ?ㅻ쪟:", error);
+        res.status(500).json({ error: "?좎쭨蹂??덉빟 議고쉶???ㅽ뙣?덉뒿?덈떎" });
       }
     },
   );
 
-  // 예약 상태 변경 API
+  // ?덉빟 ?곹깭 蹂寃?API
   app.put("/api/bookings/:id/status", async (req, res) => {
     try {
       const bookingId = parseInt(req.params.id);
       const { status, completionFiles, completionNote, completedAt } = req.body;
 
-      // 유효한 상태 값인지 확인
+      // ?좏슚???곹깭 媛믪씤吏 ?뺤씤
       if (!["pending", "confirmed", "completed", "canceled"].includes(status)) {
-        return res.status(400).json({ error: "유효하지 않은 예약 상태입니다" });
+        return res.status(400).json({ error: "?좏슚?섏? ?딆? ?덉빟 ?곹깭?낅땲?? });
       }
 
-      // 작업 완료 시 추가 데이터 업데이트
+      // ?묒뾽 ?꾨즺 ??異붽? ?곗씠???낅뜲?댄듃
       if (
         status === "completed" &&
         (completionFiles || completionNote || completedAt)
@@ -1097,7 +1087,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         );
 
         if (!booking) {
-          return res.status(404).json({ error: "예약을 찾을 수 없습니다" });
+          return res.status(404).json({ error: "?덉빟??李얠쓣 ???놁뒿?덈떎" });
         }
 
         res.json(booking);
@@ -1105,29 +1095,29 @@ export async function registerRoutes(app: Express): Promise<void> {
         const booking = await storage.updateBookingStatus(bookingId, status);
 
         if (!booking) {
-          return res.status(404).json({ error: "예약을 찾을 수 없습니다" });
+          return res.status(404).json({ error: "?덉빟??李얠쓣 ???놁뒿?덈떎" });
         }
 
         res.json(booking);
       }
     } catch (error) {
-      console.error("예약 상태 변경 오류:", error);
-      res.status(400).json({ error: "예약 상태 변경에 실패했습니다" });
+      console.error("?덉빟 ?곹깭 蹂寃??ㅻ쪟:", error);
+      res.status(400).json({ error: "?덉빟 ?곹깭 蹂寃쎌뿉 ?ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
   // Care Manager routes
   app.get("/api/care-managers", async (req, res) => {
     try {
-      console.log("케어매니저 목록 요청 처리 중...");
+      console.log("耳?대ℓ?덉? 紐⑸줉 ?붿껌 泥섎━ 以?..");
       const careManagers = await storage.getAllCareManagers();
-      console.log(`케어매니저 ${careManagers.length}명 조회됨`);
+      console.log(`耳?대ℓ?덉? ${careManagers.length}紐?議고쉶??);
       res.json(careManagers);
     } catch (error) {
-      console.error("크리에이터목록 조회 오류:", error);
+      console.error("?щ━?먯씠?곕ぉ濡?議고쉶 ?ㅻ쪟:", error);
       res
         .status(500)
-        .json({ error: "크리에이터목록을 불러오는데 실패했습니다" });
+        .json({ error: "?щ━?먯씠?곕ぉ濡앹쓣 遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
@@ -1140,13 +1130,13 @@ export async function registerRoutes(app: Express): Promise<void> {
     res.send(careManager);
   });
 
-  // 크리에이터정보 업데이트 API
+  // ?щ━?먯씠?곗젙蹂??낅뜲?댄듃 API
   app.put("/api/care-managers/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const payload = req.body;
 
-      console.log("📝 크리에이터 업데이트 요청:", {
+      console.log("?뱷 ?щ━?먯씠???낅뜲?댄듃 ?붿껌:", {
         id,
         name: payload.name,
         age: payload.age,
@@ -1158,10 +1148,10 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       let updated = await storage.updateCareManager(id, payload);
       if (!updated) {
-        // 레코드가 없으면 새로 생성
+        // ?덉퐫?쒓? ?놁쑝硫??덈줈 ?앹꽦
         const user = await storage.getUser(id);
         const insertData: any = {
-          // 필수 필드 기본값+payload
+          // ?꾩닔 ?꾨뱶 湲곕낯媛?payload
           name: user?.name || `CareManager#${id}`,
           age: payload.age ?? 0,
           rating: 0,
@@ -1176,11 +1166,11 @@ export async function registerRoutes(app: Express): Promise<void> {
           isApproved: false,
         };
         updated = await storage.createCareManager(insertData);
-        console.log("✅ 크리에이터 생성 완료 (description 포함)");
+        console.log("???щ━?먯씠???앹꽦 ?꾨즺 (description ?ы븿)");
         return res.status(201).json(updated);
       }
 
-      console.log("✅ 크리에이터 업데이트 완료:", {
+      console.log("???щ━?먯씠???낅뜲?댄듃 ?꾨즺:", {
         name: updated.name,
         age: updated.age,
         description: updated.description?.substring(0, 50),
@@ -1190,8 +1180,8 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.json(updated);
     } catch (error) {
-      console.error("크리에이터업데이트 오류:", error);
-      res.status(400).json({ error: "크리에이터업데이트에 실패했습니다" });
+      console.error("?щ━?먯씠?곗뾽?곗씠???ㅻ쪟:", error);
+      res.status(400).json({ error: "?щ━?먯씠?곗뾽?곗씠?몄뿉 ?ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
@@ -1201,16 +1191,16 @@ export async function registerRoutes(app: Express): Promise<void> {
       const services = await storage.getAllServices();
       res.json(services);
     } catch (error) {
-      res.status(500).json({ error: "서비스 목록을 불러오는데 실패했습니다" });
+      res.status(500).json({ error: "?쒕퉬??紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
   // Booking routes
   app.post("/api/bookings", async (req, res) => {
     try {
-      console.log("예약 요청 데이터:", req.body);
+      console.log("?덉빟 ?붿껌 ?곗씠??", req.body);
 
-      // date 필드를 bookingDate로 변환 (클라이언트 호환성)
+      // date ?꾨뱶瑜?bookingDate濡?蹂??(?대씪?댁뼵???명솚??
       if (req.body.date) {
         req.body.bookingDate =
           typeof req.body.date === "string"
@@ -1219,50 +1209,49 @@ export async function registerRoutes(app: Express): Promise<void> {
         delete req.body.date;
       }
 
-      // bookingDate가 없으면 현재 시간으로 설정
+      // bookingDate媛 ?놁쑝硫??꾩옱 ?쒓컙?쇰줈 ?ㅼ젙
       if (!req.body.bookingDate) {
         req.body.bookingDate = new Date();
       }
 
-      // totalAmount를 문자열로 변환
-      if (req.body.totalAmount && typeof req.body.totalAmount === "number") {
+      // totalAmount瑜?臾몄옄?대줈 蹂??      if (req.body.totalAmount && typeof req.body.totalAmount === "number") {
         req.body.totalAmount = req.body.totalAmount.toString();
       }
 
       const bookingData = insertBookingSchema.parse(req.body);
-      console.log("스키마 검증 후 데이터:", bookingData);
+      console.log("?ㅽ궎留?寃利????곗씠??", bookingData);
 
-      // 케어매니저 존재 여부 확인
+      // 耳?대ℓ?덉? 議댁옱 ?щ? ?뺤씤
       const careManager = await storage.getCareManager(
         bookingData.careManagerId,
       );
       if (!careManager) {
         return res.status(400).json({
-          error: `AI 크리에이터 ID ${bookingData.careManagerId}가 존재하지 않습니다`,
+          error: `AI ?щ━?먯씠??ID ${bookingData.careManagerId}媛 議댁옱?섏? ?딆뒿?덈떎`,
         });
       }
 
-      // 서비스 존재 여부 확인 (선택 사항 - AI 아바타 플랫폼에서는 서비스가 필요하지 않을 수 있음)
+      // ?쒕퉬??議댁옱 ?щ? ?뺤씤 (?좏깮 ?ы빆 - AI ?꾨컮? ?뚮옯?쇱뿉?쒕뒗 ?쒕퉬?ㅺ? ?꾩슂?섏? ?딆쓣 ???덉쓬)
       if (bookingData.serviceId) {
         const service = await storage.getService(bookingData.serviceId);
         if (!service) {
           console.warn(
-            `서비스 ID ${bookingData.serviceId}가 존재하지 않지만, 예약을 계속 진행합니다.`,
+            `?쒕퉬??ID ${bookingData.serviceId}媛 議댁옱?섏? ?딆?留? ?덉빟??怨꾩냽 吏꾪뻾?⑸땲??`,
           );
-          // 서비스가 없어도 예약을 계속 진행 (AI 크리에이터 의뢰는 서비스 없이 가능)
+          // ?쒕퉬?ㅺ? ?놁뼱???덉빟??怨꾩냽 吏꾪뻾 (AI ?щ━?먯씠???섎ː???쒕퉬???놁씠 媛??
         }
       }
 
       const booking = await storage.createBooking(bookingData);
       res.json(booking);
     } catch (error) {
-      console.error("예약 생성 오류:", error);
+      console.error("?덉빟 ?앹꽦 ?ㅻ쪟:", error);
       if (error instanceof Error) {
         res
           .status(400)
-          .json({ error: `예약 생성에 실패했습니다: ${error.message}` });
+          .json({ error: `?덉빟 ?앹꽦???ㅽ뙣?덉뒿?덈떎: ${error.message}` });
       } else {
-        res.status(400).json({ error: "예약 생성에 실패했습니다" });
+        res.status(400).json({ error: "?덉빟 ?앹꽦???ㅽ뙣?덉뒿?덈떎" });
       }
     }
   });
@@ -1271,18 +1260,16 @@ export async function registerRoutes(app: Express): Promise<void> {
     try {
       const userId = req.params.userId;
 
-      // 예약 목록 가져오기
-      const bookings = await storage.getBookingsByUser(userId);
+      // ?덉빟 紐⑸줉 媛?몄삤湲?      const bookings = await storage.getBookingsByUser(userId);
 
-      // 각 예약에 대한 케어매니저 정보와 서비스 정보, 사용자 정보 추가
+      // 媛??덉빟?????耳?대ℓ?덉? ?뺣낫? ?쒕퉬???뺣낫, ?ъ슜???뺣낫 異붽?
       const enrichedBookings = await Promise.all(
         bookings.map(async (booking) => {
-          // 케어매니저 정보 가져오기
-          let careManager = await storage.getCareManager(booking.careManagerId);
+          // 耳?대ℓ?덉? ?뺣낫 媛?몄삤湲?          let careManager = await storage.getCareManager(booking.careManagerId);
           if (!careManager) {
             careManager = {
               id: booking.careManagerId,
-              name: `크리에이터#${booking.careManagerId}`,
+              name: `?щ━?먯씠??${booking.careManagerId}`,
               imageUrl: null,
               age: 0,
               rating: 0,
@@ -1300,12 +1287,11 @@ export async function registerRoutes(app: Express): Promise<void> {
           }
           const careManagerSafe = careManager as any;
 
-          // 서비스 정보 가져오기
-          let service = await storage.getService(booking.serviceId);
+          // ?쒕퉬???뺣낫 媛?몄삤湲?          let service = await storage.getService(booking.serviceId);
           if (!service) {
             service = {
               id: booking.serviceId,
-              name: "서비스 정보 없음",
+              name: "?쒕퉬???뺣낫 ?놁쓬",
               icon: "fas fa-question",
               color: "bg-gray-500",
               description: null,
@@ -1313,21 +1299,19 @@ export async function registerRoutes(app: Express): Promise<void> {
             };
           }
 
-          // 사용자 정보 가져오기
-          let user = null;
+          // ?ъ슜???뺣낫 媛?몄삤湲?          let user = null;
           if (booking.userId) {
             user = await storage.getUserByFirebaseId(booking.userId);
           }
 
-          // 정보 합치기
-          return {
+          // ?뺣낫 ?⑹튂湲?          return {
             ...booking,
-            date: booking.bookingDate || booking.createdAt || new Date(), // bookingDate를 date로 매핑
+            date: booking.bookingDate || booking.createdAt || new Date(), // bookingDate瑜?date濡?留ㅽ븨
             userName:
               user?.username ||
               user?.displayName ||
               user?.email ||
-              booking.userId, // username 우선
+              booking.userId, // username ?곗꽑
             userEmail: user?.email || null,
             userPhone: user?.phone || null,
             careManager: {
@@ -1344,25 +1328,23 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.json(enrichedBookings);
     } catch (error) {
-      console.error("예약 목록 조회 오류:", error);
-      res.status(500).json({ error: "예약 목록을 불러오는데 실패했습니다" });
+      console.error("?덉빟 紐⑸줉 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "?덉빟 紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 특정 날짜에 케어 매니저의 예약 정보 가져오기
-  app.get("/api/bookings/manager/:managerId/date/:date", async (req, res) => {
+  // ?뱀젙 ?좎쭨??耳??留ㅻ땲????덉빟 ?뺣낫 媛?몄삤湲?  app.get("/api/bookings/manager/:managerId/date/:date", async (req, res) => {
     try {
       const managerId = parseInt(req.params.managerId);
-      const date = req.params.date; // YYYY-MM-DD 형식
+      const date = req.params.date; // YYYY-MM-DD ?뺤떇
 
-      // 해당 날짜의 모든 예약 가져오기
-      const bookings = await storage.getBookingsByCareManagerAndDate(
+      // ?대떦 ?좎쭨??紐⑤뱺 ?덉빟 媛?몄삤湲?      const bookings = await storage.getBookingsByCareManagerAndDate(
         managerId,
         date,
       );
       res.json(bookings);
     } catch (error) {
-      res.status(500).json({ error: "예약 정보를 불러오는데 실패했습니다" });
+      res.status(500).json({ error: "?덉빟 ?뺣낫瑜?遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
@@ -1373,7 +1355,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       const message = await storage.createMessage(messageData);
       res.json(message);
     } catch (error) {
-      res.status(400).json({ error: "메시지 전송에 실패했습니다" });
+      res.status(400).json({ error: "硫붿떆吏 ?꾩넚???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
@@ -1384,53 +1366,53 @@ export async function registerRoutes(app: Express): Promise<void> {
       const messages = await storage.getMessagesBetweenUsers(userId1, userId2);
       res.json(messages);
     } catch (error) {
-      res.status(500).json({ error: "메시지 목록을 불러오는데 실패했습니다" });
+      res.status(500).json({ error: "硫붿떆吏 紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 사용자 목록 조회 API
+  // ?ъ슜??紐⑸줉 議고쉶 API
   app.get("/api/users", async (req, res) => {
     try {
       const users = await storage.getUsers();
       res.json(users);
     } catch (error) {
-      res.status(500).json({ error: "사용자 목록을 불러오는데 실패했습니다" });
+      res.status(500).json({ error: "?ъ슜??紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 사용자 정보 업데이트 API
+  // ?ъ슜???뺣낫 ?낅뜲?댄듃 API
   app.put("/api/users/:id", async (req, res) => {
     try {
       const userId = req.params.id;
       const payload = req.body;
 
-      console.log("사용자 업데이트 요청:", { userId, payload });
+      console.log("?ъ슜???낅뜲?댄듃 ?붿껌:", { userId, payload });
 
       const updatedUser = await storage.updateUser(userId, payload);
 
       if (!updatedUser) {
-        return res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+        return res.status(404).json({ error: "?ъ슜?먮? 李얠쓣 ???놁뒿?덈떎" });
       }
 
       res.json(updatedUser);
     } catch (error) {
-      console.error("사용자 업데이트 오류:", error);
-      res.status(500).json({ error: "사용자 정보 업데이트에 실패했습니다" });
+      console.error("?ъ슜???낅뜲?댄듃 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "?ъ슜???뺣낫 ?낅뜲?댄듃???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 데이터베이스 마이그레이션 실행 (관리자 전용)
+  // ?곗씠?곕쿋?댁뒪 留덉씠洹몃젅?댁뀡 ?ㅽ뻾 (愿由ъ옄 ?꾩슜)
   app.post("/api/admin/run-migration", async (req, res) => {
     try {
       const { sql: sqlStatement } = req.body;
 
       if (!sqlStatement) {
-        return res.status(400).json({ error: "SQL 문이 필요합니다" });
+        return res.status(400).json({ error: "SQL 臾몄씠 ?꾩슂?⑸땲?? });
       }
 
-      console.log("마이그레이션 실행:", sqlStatement);
+      console.log("留덉씠洹몃젅?댁뀡 ?ㅽ뻾:", sqlStatement);
 
-      // Neon 데이터베이스에 직접 SQL 실행
+      // Neon ?곗씠?곕쿋?댁뒪??吏곸젒 SQL ?ㅽ뻾
       const { neon } = await import("@neondatabase/serverless");
       const sql = neon(process.env.DATABASE_URL!);
 
@@ -1438,17 +1420,17 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.json({
         success: true,
-        message: "마이그레이션이 성공적으로 실행되었습니다",
+        message: "留덉씠洹몃젅?댁뀡???깃났?곸쑝濡??ㅽ뻾?섏뿀?듬땲??,
       });
     } catch (error: any) {
-      console.error("마이그레이션 실행 오류:", error);
+      console.error("留덉씠洹몃젅?댁뀡 ?ㅽ뻾 ?ㅻ쪟:", error);
       res
         .status(500)
-        .json({ error: error.message || "마이그레이션 실행에 실패했습니다" });
+        .json({ error: error.message || "留덉씠洹몃젅?댁뀡 ?ㅽ뻾???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 관리자 대시보드 통계
+  // 愿由ъ옄 ??쒕낫???듦퀎
   app.get("/api/admin/stats", async (req, res) => {
     try {
       const [users, careManagers, bookings] = await Promise.all([
@@ -1465,33 +1447,33 @@ export async function registerRoutes(app: Express): Promise<void> {
         totalRevenue,
       });
     } catch (error) {
-      res.status(500).json({ error: "통계 정보를 불러오는데 실패했습니다" });
+      res.status(500).json({ error: "?듦퀎 ?뺣낫瑜?遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 분쟁 목록 조회
+  // 遺꾩웳 紐⑸줉 議고쉶
   app.get("/api/disputes", async (req, res) => {
     try {
       const disputes = await storage.getAllDisputes();
       res.json(disputes);
     } catch (error) {
-      console.error("분쟁 목록 조회 오류", error);
-      res.status(500).json({ error: "분쟁 목록을 불러오는데 실패했습니다" });
+      console.error("遺꾩웳 紐⑸줉 議고쉶 ?ㅻ쪟", error);
+      res.status(500).json({ error: "遺꾩웳 紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 분쟁 상태 업데이트
+  // 遺꾩웳 ?곹깭 ?낅뜲?댄듃
   app.put("/api/disputes/:id/status", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { status } = req.body;
       const updated = await storage.updateDisputeStatus(id, status);
       if (!updated)
-        return res.status(404).json({ error: "분쟁을 찾을 수 없습니다" });
+        return res.status(404).json({ error: "遺꾩웳??李얠쓣 ???놁뒿?덈떎" });
       res.json(updated);
     } catch (error) {
-      console.error("분쟁 상태 업데이트 오류", error);
-      res.status(400).json({ error: "분쟁 상태 업데이트에 실패했습니다" });
+      console.error("遺꾩웳 ?곹깭 ?낅뜲?댄듃 ?ㅻ쪟", error);
+      res.status(400).json({ error: "遺꾩웳 ?곹깭 ?낅뜲?댄듃???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
@@ -1509,7 +1491,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       const notice = await storage.createNotice({ title, content });
       res.status(201).json(notice);
     } catch (e) {
-      res.status(400).json({ error: "공지 생성 실패" });
+      res.status(400).json({ error: "怨듭? ?앹꽦 ?ㅽ뙣" });
     }
   });
 
@@ -1529,45 +1511,45 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   /* -------------------- Product Routes -------------------- */
 
-  // 상품 카테고리 목록 조회 (상품 상세 라우트보다 먼저 와야 함)
+  // ?곹뭹 移댄뀒怨좊━ 紐⑸줉 議고쉶 (?곹뭹 ?곸꽭 ?쇱슦?몃낫??癒쇱? ?????
   app.get("/api/products/categories", async (req, res) => {
     try {
       const categories = await storage.getAllProductCategories();
       res.json({ categories });
     } catch (error) {
-      console.error("상품 카테고리 목록 조회 오류:", error);
+      console.error("?곹뭹 移댄뀒怨좊━ 紐⑸줉 議고쉶 ?ㅻ쪟:", error);
       res
         .status(500)
-        .json({ error: "상품 카테고리 목록을 불러오는데 실패했습니다" });
+        .json({ error: "?곹뭹 移댄뀒怨좊━ 紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 상품 카테고리 상세 조회
+  // ?곹뭹 移댄뀒怨좊━ ?곸꽭 議고쉶
   app.get("/api/products/categories/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res
           .status(400)
-          .json({ error: "유효하지 않은 카테고리 ID입니다" });
+          .json({ error: "?좏슚?섏? ?딆? 移댄뀒怨좊━ ID?낅땲?? });
       }
 
       const category = await storage.getProductCategory(id);
 
       if (!category) {
-        return res.status(404).json({ error: "카테고리를 찾을 수 없습니다" });
+        return res.status(404).json({ error: "移댄뀒怨좊━瑜?李얠쓣 ???놁뒿?덈떎" });
       }
 
       res.json(category);
     } catch (error) {
-      console.error("상품 카테고리 상세 조회 오류:", error);
+      console.error("?곹뭹 移댄뀒怨좊━ ?곸꽭 議고쉶 ?ㅻ쪟:", error);
       res
         .status(500)
-        .json({ error: "카테고리 정보를 불러오는데 실패했습니다" });
+        .json({ error: "移댄뀒怨좊━ ?뺣낫瑜?遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 상품 목록 조회
+  // ?곹뭹 紐⑸줉 議고쉶
   app.get("/api/products", async (req, res) => {
     try {
       const {
@@ -1583,9 +1565,9 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (seller_id) params.sellerId = String(seller_id);
       if (category_id) params.categoryId = parseInt(category_id as string);
 
-      // 카테고리 이름을 직접 storage로 전달 (매핑 제거)
+      // 移댄뀒怨좊━ ?대쫫??吏곸젒 storage濡??꾨떖 (留ㅽ븨 ?쒓굅)
       if (category) {
-        console.log("[SERVER] 카테고리 이름 전달:", category);
+        console.log("[SERVER] 移댄뀒怨좊━ ?대쫫 ?꾨떖:", category);
         params.category = category as string;
       }
 
@@ -1593,13 +1575,12 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (limit) params.limit = parseInt(limit as string);
       if (offset) params.offset = parseInt(offset as string);
 
-      console.log("[SERVER] 상품 목록 조회 파라미터:", params);
+      console.log("[SERVER] ?곹뭹 紐⑸줉 議고쉶 ?뚮씪誘명꽣:", params);
 
       const products = await storage.getAllProducts(params);
-      console.log(`[SERVER] 조회된 상품 개수: ${products.length}`);
+      console.log(`[SERVER] 議고쉶???곹뭹 媛쒖닔: ${products.length}`);
 
-      // 클라이언트 호환성을 위해 모든 상품에 status 필드 추가 및 가격 숫자 변환
-      const productsWithStatus = products.map((product) => ({
+      // ?대씪?댁뼵???명솚?깆쓣 ?꾪빐 紐⑤뱺 ?곹뭹??status ?꾨뱶 異붽? 諛?媛寃??レ옄 蹂??      const productsWithStatus = products.map((product) => ({
         ...product,
         status: product.isActive ? "active" : "hidden",
         price: product.price ? Math.floor(Number(product.price)) : 0,
@@ -1610,27 +1591,26 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.json(productsWithStatus);
     } catch (error) {
-      console.error("상품 목록 조회 오류:", error);
-      res.status(500).json({ error: "상품 목록을 불러오는데 실패했습니다" });
+      console.error("?곹뭹 紐⑸줉 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "?곹뭹 紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 상품 상세 조회
+  // ?곹뭹 ?곸꽭 議고쉶
   app.get("/api/products/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
-        return res.status(400).json({ error: "유효하지 않은 상품 ID입니다" });
+        return res.status(400).json({ error: "?좏슚?섏? ?딆? ?곹뭹 ID?낅땲?? });
       }
 
       const product = await storage.getProduct(id);
 
       if (!product) {
-        return res.status(404).json({ error: "상품을 찾을 수 없습니다" });
+        return res.status(404).json({ error: "?곹뭹??李얠쓣 ???놁뒿?덈떎" });
       }
 
-      // 클라이언트 호환성을 위해 status 필드 추가 및 가격 숫자 변환
-      const productWithStatus = {
+      // ?대씪?댁뼵???명솚?깆쓣 ?꾪빐 status ?꾨뱶 異붽? 諛?媛寃??レ옄 蹂??      const productWithStatus = {
         ...product,
         status: product.isActive ? "active" : "hidden",
         price: product.price ? Math.floor(Number(product.price)) : 0,
@@ -1641,34 +1621,32 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.json(productWithStatus);
     } catch (error) {
-      console.error("상품 상세 조회 오류:", error);
-      res.status(500).json({ error: "상품 정보를 불러오는데 실패했습니다" });
+      console.error("?곹뭹 ?곸꽭 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "?곹뭹 ?뺣낫瑜?遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 상품 등록
+  // ?곹뭹 ?깅줉
   app.post("/api/products", async (req, res) => {
     try {
       const productData = req.body;
 
-      console.log("📦 상품 등록 요청 받음:", {
+      console.log("?벀 ?곹뭹 ?깅줉 ?붿껌 諛쏆쓬:", {
         title: productData.title,
         price: productData.price,
         category_id: productData.category_id,
         images: productData.images,
       });
 
-      // 필수 필드 검증
-      if (!productData.title || !productData.price) {
+      // ?꾩닔 ?꾨뱶 寃利?      if (!productData.title || !productData.price) {
         return res
           .status(400)
-          .json({ error: "상품명과 가격은 필수 항목입니다" });
+          .json({ error: "?곹뭹紐낃낵 媛寃⑹? ?꾩닔 ??ぉ?낅땲?? });
       }
 
-      // 데이터베이스 스키마에 맞게 필드명 변환
-      const dbProductData: any = {
-        name: productData.title, // DB의 name 필드 (필수)
-        title: productData.title, // DB의 title 필드 (선택)
+      // ?곗씠?곕쿋?댁뒪 ?ㅽ궎留덉뿉 留욊쾶 ?꾨뱶紐?蹂??      const dbProductData: any = {
+        name: productData.title, // DB??name ?꾨뱶 (?꾩닔)
+        title: productData.title, // DB??title ?꾨뱶 (?좏깮)
         description: productData.description,
         price: Number(productData.price),
         discountPrice: productData.discount_price
@@ -1676,34 +1654,31 @@ export async function registerRoutes(app: Express): Promise<void> {
           : null,
         stock: Number(productData.stock) || 0,
         images: productData.images,
-        digitalFiles: productData.digital_files || [], // 디지털 파일 URL 배열
-        isDigital: productData.is_digital || false, // 디지털 상품 여부
-        // status를 isActive로 변환
-        isActive: !productData.status || productData.status === "active",
+        digitalFiles: productData.digital_files || [], // ?붿????뚯씪 URL 諛곗뿴
+        isDigital: productData.is_digital || false, // ?붿????곹뭹 ?щ?
+        // status瑜?isActive濡?蹂??        isActive: !productData.status || productData.status === "active",
       };
 
-      // seller_id를 sellerId로 변환 (varchar 타입)
+      // seller_id瑜?sellerId濡?蹂??(varchar ???
       if (productData.seller_id) {
         dbProductData.sellerId = String(productData.seller_id);
       }
 
-      // category_id를 categoryId로 변환
-      if (productData.category_id) {
+      // category_id瑜?categoryId濡?蹂??      if (productData.category_id) {
         dbProductData.categoryId = parseInt(productData.category_id);
       }
 
-      console.log("📦 DB에 저장할 데이터:", dbProductData);
+      console.log("?벀 DB????ν븷 ?곗씠??", dbProductData);
 
       const product = await storage.createProduct(dbProductData);
 
-      console.log("📦 상품 등록 성공:", {
+      console.log("?벀 ?곹뭹 ?깅줉 ?깃났:", {
         id: product.id,
         name: product.name,
         title: product.title,
       });
 
-      // 클라이언트 호환성을 위해 status 필드 추가 및 가격 숫자 변환
-      const productWithStatus = {
+      // ?대씪?댁뼵???명솚?깆쓣 ?꾪빐 status ?꾨뱶 異붽? 諛?媛寃??レ옄 蹂??      const productWithStatus = {
         ...product,
         status: product.isActive ? "active" : "hidden",
         price: product.price ? Math.floor(Number(product.price)) : 0,
@@ -1714,27 +1689,26 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.status(201).json(productWithStatus);
     } catch (error) {
-      console.error("상품 등록 오류:", error);
-      res.status(400).json({ error: "상품 등록에 실패했습니다" });
+      console.error("?곹뭹 ?깅줉 ?ㅻ쪟:", error);
+      res.status(400).json({ error: "?곹뭹 ?깅줉???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 상품 수정
+  // ?곹뭹 ?섏젙
   app.put("/api/products/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
-        return res.status(400).json({ error: "유효하지 않은 상품 ID입니다" });
+        return res.status(400).json({ error: "?좏슚?섏? ?딆? ?곹뭹 ID?낅땲?? });
       }
 
       const productData = req.body;
 
-      // 데이터베이스 스키마에 맞게 필드명 변환
-      const dbProductData: any = {};
+      // ?곗씠?곕쿋?댁뒪 ?ㅽ궎留덉뿉 留욊쾶 ?꾨뱶紐?蹂??      const dbProductData: any = {};
 
-      // 기본 필드들 복사
+      // 湲곕낯 ?꾨뱶??蹂듭궗
       if (productData.title) {
-        dbProductData.name = productData.title; // DB의 name 필드도 함께 업데이트
+        dbProductData.name = productData.title; // DB??name ?꾨뱶???④퍡 ?낅뜲?댄듃
         dbProductData.title = productData.title;
       }
       if (productData.description !== undefined)
@@ -1750,20 +1724,19 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (productData.images !== undefined)
         dbProductData.images = productData.images;
       if (productData.digital_files !== undefined)
-        dbProductData.digitalFiles = productData.digital_files; // 디지털 파일
+        dbProductData.digitalFiles = productData.digital_files; // ?붿????뚯씪
       if (productData.is_digital !== undefined)
-        dbProductData.isDigital = productData.is_digital; // 디지털 상품 여부
-      // status를 isActive로 변환
-      if (productData.status !== undefined) {
+        dbProductData.isDigital = productData.is_digital; // ?붿????곹뭹 ?щ?
+      // status瑜?isActive濡?蹂??      if (productData.status !== undefined) {
         dbProductData.isActive = productData.status === "active";
       }
 
-      // seller_id를 sellerId로 변환 (varchar 타입)
+      // seller_id瑜?sellerId濡?蹂??(varchar ???
       if (productData.seller_id) {
         dbProductData.sellerId = String(productData.seller_id);
       }
 
-      // category_id를 categoryId로 변환 (0도 유효한 값으로 처리)
+      // category_id瑜?categoryId濡?蹂??(0???좏슚??媛믪쑝濡?泥섎━)
       if (
         productData.category_id !== undefined &&
         productData.category_id !== null &&
@@ -1775,11 +1748,10 @@ export async function registerRoutes(app: Express): Promise<void> {
       const updated = await storage.updateProduct(id, dbProductData);
 
       if (!updated) {
-        return res.status(404).json({ error: "상품을 찾을 수 없습니다" });
+        return res.status(404).json({ error: "?곹뭹??李얠쓣 ???놁뒿?덈떎" });
       }
 
-      // 클라이언트 호환성을 위해 status 필드 추가 및 가격 숫자 변환
-      const productWithStatus = {
+      // ?대씪?댁뼵???명솚?깆쓣 ?꾪빐 status ?꾨뱶 異붽? 諛?媛寃??レ옄 蹂??      const productWithStatus = {
         ...updated,
         status: updated.isActive ? "active" : "hidden",
         price: updated.price ? Math.floor(Number(updated.price)) : 0,
@@ -1790,58 +1762,57 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.json(productWithStatus);
     } catch (error) {
-      console.error("상품 수정 오류:", error);
-      res.status(400).json({ error: "상품 수정에 실패했습니다" });
+      console.error("?곹뭹 ?섏젙 ?ㅻ쪟:", error);
+      res.status(400).json({ error: "?곹뭹 ?섏젙???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 상품 삭제
+  // ?곹뭹 ??젣
   app.delete("/api/products/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
-        return res.status(400).json({ error: "유효하지 않은 상품 ID입니다" });
+        return res.status(400).json({ error: "?좏슚?섏? ?딆? ?곹뭹 ID?낅땲?? });
       }
 
       const deleted = await storage.deleteProduct(id);
 
       if (!deleted) {
-        return res.status(404).json({ error: "상품을 찾을 수 없습니다" });
+        return res.status(404).json({ error: "?곹뭹??李얠쓣 ???놁뒿?덈떎" });
       }
 
       res.json({ success: true });
     } catch (error) {
-      console.error("상품 삭제 오류:", error);
-      res.status(400).json({ error: "상품 삭제에 실패했습니다" });
+      console.error("?곹뭹 ??젣 ?ㅻ쪟:", error);
+      res.status(400).json({ error: "?곹뭹 ??젣???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 상품 카테고리 등록
+  // ?곹뭹 移댄뀒怨좊━ ?깅줉
   app.post("/api/products/categories", async (req, res) => {
     try {
       const categoryData = req.body;
 
-      // 필수 필드 검증
-      if (!categoryData.name) {
-        return res.status(400).json({ error: "카테고리명은 필수 항목입니다" });
+      // ?꾩닔 ?꾨뱶 寃利?      if (!categoryData.name) {
+        return res.status(400).json({ error: "移댄뀒怨좊━紐낆? ?꾩닔 ??ぉ?낅땲?? });
       }
 
       const category = await storage.createProductCategory(categoryData);
       res.status(201).json(category);
     } catch (error) {
-      console.error("상품 카테고리 등록 오류:", error);
-      res.status(400).json({ error: "카테고리 등록에 실패했습니다" });
+      console.error("?곹뭹 移댄뀒怨좊━ ?깅줉 ?ㅻ쪟:", error);
+      res.status(400).json({ error: "移댄뀒怨좊━ ?깅줉???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 상품 카테고리 수정
+  // ?곹뭹 移댄뀒怨좊━ ?섏젙
   app.put("/api/products/categories/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res
           .status(400)
-          .json({ error: "유효하지 않은 카테고리 ID입니다" });
+          .json({ error: "?좏슚?섏? ?딆? 移댄뀒怨좊━ ID?낅땲?? });
       }
 
       const payload = req.body;
@@ -1849,42 +1820,42 @@ export async function registerRoutes(app: Express): Promise<void> {
       const updated = await storage.updateProductCategory(id, payload);
 
       if (!updated) {
-        return res.status(404).json({ error: "카테고리를 찾을 수 없습니다" });
+        return res.status(404).json({ error: "移댄뀒怨좊━瑜?李얠쓣 ???놁뒿?덈떎" });
       }
 
       res.json(updated);
     } catch (error) {
-      console.error("상품 카테고리 수정 오류:", error);
-      res.status(400).json({ error: "카테고리 수정에 실패했습니다" });
+      console.error("?곹뭹 移댄뀒怨좊━ ?섏젙 ?ㅻ쪟:", error);
+      res.status(400).json({ error: "移댄뀒怨좊━ ?섏젙???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 상품 카테고리 삭제
+  // ?곹뭹 移댄뀒怨좊━ ??젣
   app.delete("/api/products/categories/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res
           .status(400)
-          .json({ error: "유효하지 않은 카테고리 ID입니다" });
+          .json({ error: "?좏슚?섏? ?딆? 移댄뀒怨좊━ ID?낅땲?? });
       }
 
       const deleted = await storage.deleteProductCategory(id);
 
       if (!deleted) {
-        return res.status(404).json({ error: "카테고리를 찾을 수 없습니다" });
+        return res.status(404).json({ error: "移댄뀒怨좊━瑜?李얠쓣 ???놁뒿?덈떎" });
       }
 
       res.json({ success: true });
     } catch (error) {
-      console.error("상품 카테고리 삭제 오류:", error);
-      res.status(400).json({ error: "카테고리 삭제에 실패했습니다" });
+      console.error("?곹뭹 移댄뀒怨좊━ ??젣 ?ㅻ쪟:", error);
+      res.status(400).json({ error: "移댄뀒怨좊━ ??젣???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // ==================== 새로운 기능 API 핸들러들 ====================
+  // ==================== ?덈줈??湲곕뒫 API ?몃뱾?щ뱾 ====================
 
-  // 찜한 크리에이터API
+  // 李쒗븳 ?щ━?먯씠?캚PI
   app.get("/api/favorites/:userId", async (req, res) => {
     try {
       const userId = req.params.userId;
@@ -1897,10 +1868,10 @@ export async function registerRoutes(app: Express): Promise<void> {
       );
       res.json(enriched);
     } catch (error) {
-      console.error("찜한 크리에이터조회 오류:", error);
+      console.error("李쒗븳 ?щ━?먯씠?곗“???ㅻ쪟:", error);
       res
         .status(500)
-        .json({ error: "찜한 크리에이터목록을 불러오는데 실패했습니다" });
+        .json({ error: "李쒗븳 ?щ━?먯씠?곕ぉ濡앹쓣 遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
@@ -1911,14 +1882,14 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!favoriteData.userId || !favoriteData.careManagerId) {
         return res
           .status(400)
-          .json({ error: "사용자 ID와 크리에이터ID는 필수 항목입니다" });
+          .json({ error: "?ъ슜??ID? ?щ━?먯씠?캧D???꾩닔 ??ぉ?낅땲?? });
       }
 
       const favorite = await storage.addFavorite(favoriteData);
       res.status(201).json(favorite);
     } catch (error) {
-      console.error("찜하기 추가 오류:", error);
-      res.status(400).json({ error: "찜하기 추가에 실패했습니다" });
+      console.error("李쒗븯湲?異붽? ?ㅻ쪟:", error);
+      res.status(400).json({ error: "李쒗븯湲?異붽????ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
@@ -1926,23 +1897,23 @@ export async function registerRoutes(app: Express): Promise<void> {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
-        return res.status(400).json({ error: "유효하지 않은 찜하기 ID입니다" });
+        return res.status(400).json({ error: "?좏슚?섏? ?딆? 李쒗븯湲?ID?낅땲?? });
       }
 
       const deleted = await storage.removeFavorite(id);
 
       if (!deleted) {
-        return res.status(404).json({ error: "찜하기를 찾을 수 없습니다" });
+        return res.status(404).json({ error: "李쒗븯湲곕? 李얠쓣 ???놁뒿?덈떎" });
       }
 
       res.json({ success: true });
     } catch (error) {
-      console.error("찜하기 삭제 오류:", error);
-      res.status(400).json({ error: "찜하기 삭제에 실패했습니다" });
+      console.error("李쒗븯湲???젣 ?ㅻ쪟:", error);
+      res.status(400).json({ error: "李쒗븯湲???젣???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 사용자 설정 API (알림 설정 + 개인정보 보호 설정)
+  // ?ъ슜???ㅼ젙 API (?뚮┝ ?ㅼ젙 + 媛쒖씤?뺣낫 蹂댄샇 ?ㅼ젙)
   app.get("/api/user-settings/:userId", async (req, res) => {
     try {
       const userId = req.params.userId;
@@ -1955,7 +1926,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         const settings = await storage.getUserPrivacySettings(userId);
         res.json(settings || {});
       } else {
-        // 둘 다 반환
+        // ????諛섑솚
         const [notificationSettings, privacySettings] = await Promise.all([
           storage.getUserNotificationSettings(userId),
           storage.getUserPrivacySettings(userId),
@@ -1967,8 +1938,8 @@ export async function registerRoutes(app: Express): Promise<void> {
         });
       }
     } catch (error) {
-      console.error("사용자 설정 조회 오류:", error);
-      res.status(500).json({ error: "사용자 설정을 불러오는데 실패했습니다" });
+      console.error("?ъ슜???ㅼ젙 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "?ъ슜???ㅼ젙??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
@@ -1992,25 +1963,25 @@ export async function registerRoutes(app: Express): Promise<void> {
         res.json(settings);
       } else {
         return res.status(400).json({
-          error: "설정 타입(type)을 지정해주세요: notification 또는 privacy",
+          error: "?ㅼ젙 ???type)??吏?뺥빐二쇱꽭?? notification ?먮뒗 privacy",
         });
       }
     } catch (error) {
-      console.error("사용자 설정 업데이트 오류:", error);
-      res.status(400).json({ error: "사용자 설정 업데이트에 실패했습니다" });
+      console.error("?ъ슜???ㅼ젙 ?낅뜲?댄듃 ?ㅻ쪟:", error);
+      res.status(400).json({ error: "?ъ슜???ㅼ젙 ?낅뜲?댄듃???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 문의 관리 API
+  // 臾몄쓽 愿由?API
   app.get("/api/inquiries", async (req, res) => {
     try {
       const inquiries = await storage.getAllInquiries();
       res.json(inquiries);
     } catch (error) {
-      console.error("문의사항 목록 조회 오류:", error);
+      console.error("臾몄쓽?ы빆 紐⑸줉 議고쉶 ?ㅻ쪟:", error);
       res
         .status(500)
-        .json({ error: "문의사항 목록을 불러오는데 실패했습니다" });
+        .json({ error: "臾몄쓽?ы빆 紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
@@ -2020,8 +1991,8 @@ export async function registerRoutes(app: Express): Promise<void> {
       const inquiries = await storage.getUserInquiries(userId);
       res.json(inquiries);
     } catch (error) {
-      console.error("사용자 문의사항 조회 오류:", error);
-      res.status(500).json({ error: "문의사항을 불러오는데 실패했습니다" });
+      console.error("?ъ슜??臾몄쓽?ы빆 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "臾몄쓽?ы빆??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
@@ -2037,14 +2008,14 @@ export async function registerRoutes(app: Express): Promise<void> {
       ) {
         return res
           .status(400)
-          .json({ error: "사용자 ID, 제목, 내용, 카테고리는 필수 항목입니다" });
+          .json({ error: "?ъ슜??ID, ?쒕ぉ, ?댁슜, 移댄뀒怨좊━???꾩닔 ??ぉ?낅땲?? });
       }
 
       const inquiry = await storage.createInquiry(inquiryData);
       res.status(201).json(inquiry);
     } catch (error) {
-      console.error("문의사항 생성 오류:", error);
-      res.status(400).json({ error: "문의사항 등록에 실패했습니다" });
+      console.error("臾몄쓽?ы빆 ?앹꽦 ?ㅻ쪟:", error);
+      res.status(400).json({ error: "臾몄쓽?ы빆 ?깅줉???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
@@ -2056,25 +2027,25 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (isNaN(id)) {
         return res
           .status(400)
-          .json({ error: "유효하지 않은 문의사항 ID입니다" });
+          .json({ error: "?좏슚?섏? ?딆? 臾몄쓽?ы빆 ID?낅땲?? });
       }
 
       if (!answer || !answeredBy) {
         return res
           .status(400)
-          .json({ error: "답변 내용과 답변자는 필수 항목입니다" });
+          .json({ error: "?듬? ?댁슜怨??듬??먮뒗 ?꾩닔 ??ぉ?낅땲?? });
       }
 
       const inquiry = await storage.answerInquiry(id, answer, answeredBy);
 
       if (!inquiry) {
-        return res.status(404).json({ error: "문의사항을 찾을 수 없습니다" });
+        return res.status(404).json({ error: "臾몄쓽?ы빆??李얠쓣 ???놁뒿?덈떎" });
       }
 
       res.json(inquiry);
     } catch (error) {
-      console.error("문의사항 답변 오류:", error);
-      res.status(400).json({ error: "문의사항 답변에 실패했습니다" });
+      console.error("臾몄쓽?ы빆 ?듬? ?ㅻ쪟:", error);
+      res.status(400).json({ error: "臾몄쓽?ы빆 ?듬????ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
@@ -2086,88 +2057,87 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (isNaN(id)) {
         return res
           .status(400)
-          .json({ error: "유효하지 않은 문의사항 ID입니다" });
+          .json({ error: "?좏슚?섏? ?딆? 臾몄쓽?ы빆 ID?낅땲?? });
       }
 
       if (!status) {
-        return res.status(400).json({ error: "상태는 필수 항목입니다" });
+        return res.status(400).json({ error: "?곹깭???꾩닔 ??ぉ?낅땲?? });
       }
 
-      // 유효한 상태 값인지 확인
+      // ?좏슚???곹깭 媛믪씤吏 ?뺤씤
       if (!["pending", "in_progress", "answered", "closed"].includes(status)) {
-        return res.status(400).json({ error: "유효하지 않은 상태입니다" });
+        return res.status(400).json({ error: "?좏슚?섏? ?딆? ?곹깭?낅땲?? });
       }
 
       const inquiry = await storage.updateInquiryStatus(id, status);
 
       if (!inquiry) {
-        return res.status(404).json({ error: "문의사항을 찾을 수 없습니다" });
+        return res.status(404).json({ error: "臾몄쓽?ы빆??李얠쓣 ???놁뒿?덈떎" });
       }
 
       res.json(inquiry);
     } catch (error) {
-      console.error("문의사항 상태 업데이트 오류:", error);
-      res.status(400).json({ error: "문의사항 상태 업데이트에 실패했습니다" });
+      console.error("臾몄쓽?ы빆 ?곹깭 ?낅뜲?댄듃 ?ㅻ쪟:", error);
+      res.status(400).json({ error: "臾몄쓽?ы빆 ?곹깭 ?낅뜲?댄듃???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // ==================== 주문 관리 API ====================
+  // ==================== 二쇰Ц 愿由?API ====================
 
-  // 관리자 주문 목록 조회
-  // 고객 주문 조회 API
+  // 愿由ъ옄 二쇰Ц 紐⑸줉 議고쉶
+  // 怨좉컼 二쇰Ц 議고쉶 API
   app.get("/api/orders/customer/:customerId", async (req, res) => {
     try {
       const { customerId } = req.params;
-      console.log("고객 주문 조회 API 호출:", customerId);
+      console.log("怨좉컼 二쇰Ц 議고쉶 API ?몄텧:", customerId);
 
       if (!customerId) {
-        return res.status(400).json({ error: "고객 ID가 필요합니다." });
+        return res.status(400).json({ error: "怨좉컼 ID媛 ?꾩슂?⑸땲??" });
       }
 
       const orders = await storage.getOrdersByCustomer(customerId);
-      console.log("조회된 주문:", orders.length, "개");
+      console.log("議고쉶??二쇰Ц:", orders.length, "媛?);
       res.json(orders);
     } catch (error) {
-      console.error("고객 주문 조회 오류:", error);
-      res.status(500).json({ error: "주문 목록을 불러오는데 실패했습니다" });
+      console.error("怨좉컼 二쇰Ц 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "二쇰Ц 紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 판매자 주문 조회 API
+  // ?먮ℓ??二쇰Ц 議고쉶 API
   app.get("/api/orders/seller/:sellerId", async (req, res) => {
     try {
       const { sellerId } = req.params;
-      console.log("판매자 주문 조회 API 호출:", sellerId);
+      console.log("?먮ℓ??二쇰Ц 議고쉶 API ?몄텧:", sellerId);
 
       if (!sellerId) {
-        return res.status(400).json({ error: "판매자 ID가 필요합니다." });
+        return res.status(400).json({ error: "?먮ℓ??ID媛 ?꾩슂?⑸땲??" });
       }
 
       const orders = await storage.getOrdersBySeller(sellerId);
-      console.log("조회된 주문:", orders.length, "개");
+      console.log("議고쉶??二쇰Ц:", orders.length, "媛?);
       res.json(orders);
     } catch (error) {
-      console.error("판매자 주문 조회 오류:", error);
-      res.status(500).json({ error: "주문 목록을 불러오는데 실패했습니다" });
+      console.error("?먮ℓ??二쇰Ц 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "二쇰Ц 紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
   app.get("/api/orders/admin", async (req, res) => {
     try {
-      // 실제 구현에서는 인증 확인 필요
+      // ?ㅼ젣 援ы쁽?먯꽌???몄쬆 ?뺤씤 ?꾩슂
       // const user = await verifyAuthToken(req);
-      // if (user.userType !== 'admin') return res.status(403).json({ error: "권한이 없습니다" });
+      // if (user.userType !== 'admin') return res.status(403).json({ error: "沅뚰븳???놁뒿?덈떎" });
 
       const orders = await storage.getAllOrders();
       res.json(orders);
     } catch (error) {
-      console.error("주문 목록 조회 오류:", error);
-      res.status(500).json({ error: "주문 목록을 불러오는데 실패했습니다" });
+      console.error("二쇰Ц 紐⑸줉 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "二쇰Ц 紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 주문 상태 변경
-  app.put("/api/orders/:orderId/status", async (req, res) => {
+  // 二쇰Ц ?곹깭 蹂寃?  app.put("/api/orders/:orderId/status", async (req, res) => {
     try {
       const { orderId } = req.params;
       const { status } = req.body;
@@ -2175,26 +2145,26 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!orderId || !status) {
         return res
           .status(400)
-          .json({ error: "주문 ID와 상태는 필수 항목입니다." });
+          .json({ error: "二쇰Ц ID? ?곹깭???꾩닔 ??ぉ?낅땲??" });
       }
 
       const updated = await storage.updateOrderStatus(String(orderId), status);
 
       if (!updated) {
-        return res.status(404).json({ error: "주문을 찾을 수 없습니다." });
+        return res.status(404).json({ error: "二쇰Ц??李얠쓣 ???놁뒿?덈떎." });
       }
 
-      // 입금대기 → 결제완료로 변경 시 디지털 상품 다운로드 링크 자동 제공
+      // ?낃툑?湲???寃곗젣?꾨즺濡?蹂寃????붿????곹뭹 ?ㅼ슫濡쒕뱶 留곹겕 ?먮룞 ?쒓났
       if (status === "pending") {
         try {
-          // 주문 정보 조회
+          // 二쇰Ц ?뺣낫 議고쉶
           const numericOrderId = parseInt(
             String(orderId).replace(/^ORD-0*/, ""),
           );
           const order = await storage.getOrderById(numericOrderId);
 
           if (order && order.orderItems && order.orderItems.length > 0) {
-            // 주문한 상품들의 정보 조회
+            // 二쇰Ц???곹뭹?ㅼ쓽 ?뺣낫 議고쉶
             const productIds = order.orderItems
               .map((item: any) => item.productId)
               .filter(Boolean);
@@ -2203,7 +2173,7 @@ export async function registerRoutes(app: Express): Promise<void> {
                 productIds.map((pid: number) => storage.getProduct(pid)),
               );
 
-              // 디지털 상품이 있는지 확인
+              // ?붿????곹뭹???덈뒗吏 ?뺤씤
               const digitalProduct = products.find(
                 (p: any) =>
                   p &&
@@ -2217,26 +2187,26 @@ export async function registerRoutes(app: Express): Promise<void> {
                 digitalProduct.digitalFiles &&
                 digitalProduct.digitalFiles.length > 0
               ) {
-                // 첫 번째 디지털 파일을 다운로드 링크로 제공
+                // 泥?踰덉㎏ ?붿????뚯씪???ㅼ슫濡쒕뱶 留곹겕濡??쒓났
                 const downloadUrl = digitalProduct.digitalFiles[0];
 
                 console.log(
-                  "입금 확인됨, 디지털 상품 다운로드 링크 제공:",
+                  "?낃툑 ?뺤씤?? ?붿????곹뭹 ?ㅼ슫濡쒕뱶 留곹겕 ?쒓났:",
                   downloadUrl,
                 );
 
-                // 자동으로 배송 정보 업데이트 (다운로드 링크)
+                // ?먮룞?쇰줈 諛곗넚 ?뺣낫 ?낅뜲?댄듃 (?ㅼ슫濡쒕뱶 留곹겕)
                 await storage.updateOrderShipping(
                   orderId,
                   downloadUrl,
-                  "직접 다운로드",
+                  "吏곸젒 ?ㅼ슫濡쒕뱶",
                 );
               }
             }
           }
         } catch (digitalProductError) {
           console.error(
-            "디지털 상품 처리 오류 (상태 변경은 완료됨):",
+            "?붿????곹뭹 泥섎━ ?ㅻ쪟 (?곹깭 蹂寃쎌? ?꾨즺??:",
             digitalProductError,
           );
         }
@@ -2244,41 +2214,41 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.json({ success: true, order: updated });
 
-      // 알림 생성
+      // ?뚮┝ ?앹꽦
       if (status === "processing") {
         await storage.createAdminNotification({
           type: "order_processing",
-          message: `주문 #${orderId}이(가) 처리 중입니다.`,
+          message: `二쇰Ц #${orderId}??媛) 泥섎━ 以묒엯?덈떎.`,
           order_id: String(orderId),
         });
       } else if (status === "shipped") {
         await storage.createAdminNotification({
           type: "order_shipped",
-          message: `주문 #${orderId}이(가) 발송되었습니다.`,
+          message: `二쇰Ц #${orderId}??媛) 諛쒖넚?섏뿀?듬땲??`,
           order_id: String(orderId),
         });
       } else if (status === "delivered") {
         await storage.createAdminNotification({
           type: "order_delivered",
-          message: `주문 #${orderId}이(가) 배송 완료되었습니다.`,
+          message: `二쇰Ц #${orderId}??媛) 諛곗넚 ?꾨즺?섏뿀?듬땲??`,
           order_id: String(orderId),
         });
       } else if (status === "canceled") {
         await storage.createAdminNotification({
           type: "order_canceled",
-          message: `주문 #${orderId}이(가) 취소되었습니다.`,
+          message: `二쇰Ц #${orderId}??媛) 痍⑥냼?섏뿀?듬땲??`,
           order_id: String(orderId),
         });
       }
     } catch (error) {
-      console.error("주문 상태 업데이트 오류:", error);
+      console.error("二쇰Ц ?곹깭 ?낅뜲?댄듃 ?ㅻ쪟:", error);
       res
         .status(500)
-        .json({ error: "주문 상태 업데이트 중 오류가 발생했습니다." });
+        .json({ error: "二쇰Ц ?곹깭 ?낅뜲?댄듃 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎." });
     }
   });
 
-  // 배송 정보 업데이트
+  // 諛곗넚 ?뺣낫 ?낅뜲?댄듃
   app.put("/api/orders/:orderId/shipping", async (req, res) => {
     try {
       const { orderId } = req.params;
@@ -2287,7 +2257,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!orderId || !trackingNumber || !shippingCompany) {
         return res
           .status(400)
-          .json({ error: "주문 ID, 운송장 번호, 배송사는 필수 항목입니다." });
+          .json({ error: "二쇰Ц ID, ?댁넚??踰덊샇, 諛곗넚?щ뒗 ?꾩닔 ??ぉ?낅땲??" });
       }
 
       const updated = await storage.updateOrderShipping(
@@ -2297,29 +2267,29 @@ export async function registerRoutes(app: Express): Promise<void> {
       );
 
       if (!updated) {
-        return res.status(404).json({ error: "주문을 찾을 수 없습니다." });
+        return res.status(404).json({ error: "二쇰Ц??李얠쓣 ???놁뒿?덈떎." });
       }
 
       res.json({ success: true, order: updated });
 
-      // 배송 시작 알림 생성
+      // 諛곗넚 ?쒖옉 ?뚮┝ ?앹꽦
       await storage.createAdminNotification({
         type: "shipping_started",
-        message: `주문 #${orderId}의 배송이 시작되었습니다. (${shippingCompany}, ${trackingNumber})`,
+        message: `二쇰Ц #${orderId}??諛곗넚???쒖옉?섏뿀?듬땲?? (${shippingCompany}, ${trackingNumber})`,
         order_id: String(orderId),
       });
     } catch (error) {
-      console.error("배송 정보 업데이트 오류:", error);
+      console.error("諛곗넚 ?뺣낫 ?낅뜲?댄듃 ?ㅻ쪟:", error);
       res
         .status(500)
-        .json({ error: "배송 정보 업데이트 중 오류가 발생했습니다." });
+        .json({ error: "諛곗넚 ?뺣낫 ?낅뜲?댄듃 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎." });
     }
   });
 
-  // 주문 생성 API 추가
+  // 二쇰Ц ?앹꽦 API 異붽?
   app.post("/api/orders", async (req, res) => {
     try {
-      console.log("주문 생성 요청:", req.body);
+      console.log("二쇰Ц ?앹꽦 ?붿껌:", req.body);
       const {
         items,
         shipping_address_id,
@@ -2329,28 +2299,26 @@ export async function registerRoutes(app: Express): Promise<void> {
         seller_id,
       } = req.body;
 
-      // 필수 정보 검증
-      if (!items || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({ error: "주문할 상품 정보가 없습니다." });
+      // ?꾩닔 ?뺣낫 寃利?      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: "二쇰Ц???곹뭹 ?뺣낫媛 ?놁뒿?덈떎." });
       }
 
       if (!shipping_address_id) {
-        return res.status(400).json({ error: "배송지 정보가 누락되었습니다." });
+        return res.status(400).json({ error: "諛곗넚吏 ?뺣낫媛 ?꾨씫?섏뿀?듬땲??" });
       }
 
       if (!payment_method) {
-        return res.status(400).json({ error: "결제 방법이 누락되었습니다." });
+        return res.status(400).json({ error: "寃곗젣 諛⑸쾿???꾨씫?섏뿀?듬땲??" });
       }
 
-      // 주문 생성 데이터
-      const orderData = {
+      // 二쇰Ц ?앹꽦 ?곗씠??      const orderData = {
         customer_id: customer_id || req.body.user_id,
         seller_id: seller_id,
         items,
         shipping_address_id,
         payment_method,
         total_amount: total_amount || 0,
-        customer_name: req.body.customer_name || "고객",
+        customer_name: req.body.customer_name || "怨좉컼",
         customer_phone: req.body.customer_phone || "",
         shipping_address: req.body.shipping_address || {},
         notes: req.body.notes || "",
@@ -2366,18 +2334,18 @@ export async function registerRoutes(app: Express): Promise<void> {
               : "pending",
       };
 
-      console.log("주문 생성 데이터 (변환 전):", orderData);
+      console.log("二쇰Ц ?앹꽦 ?곗씠??(蹂????:", orderData);
 
-      // 주문 생성
+      // 二쇰Ц ?앹꽦
       const order = await storage.createOrder(orderData);
 
-      console.log("주문 생성 완료:", order);
+      console.log("二쇰Ц ?앹꽦 ?꾨즺:", order);
 
-      // 디지털 상품인 경우 자동으로 다운로드 링크 제공 (카드 결제만)
-      // 무통장입금은 입금 확인 후 상태 변경 시 제공
+      // ?붿????곹뭹??寃쎌슦 ?먮룞?쇰줈 ?ㅼ슫濡쒕뱶 留곹겕 ?쒓났 (移대뱶 寃곗젣留?
+      // 臾댄넻?μ엯湲덉? ?낃툑 ?뺤씤 ???곹깭 蹂寃????쒓났
       if (payment_method === "card") {
         try {
-          // 주문한 상품들의 정보 조회
+          // 二쇰Ц???곹뭹?ㅼ쓽 ?뺣낫 議고쉶
           const productIds = items
             .map((item: any) => item.product_id)
             .filter(Boolean);
@@ -2386,7 +2354,7 @@ export async function registerRoutes(app: Express): Promise<void> {
               productIds.map((pid: number) => storage.getProduct(pid)),
             );
 
-            // 디지털 상품이 있는지 확인
+            // ?붿????곹뭹???덈뒗吏 ?뺤씤
             const digitalProduct = products.find(
               (p: any) =>
                 p && p.isDigital && p.digitalFiles && p.digitalFiles.length > 0,
@@ -2397,25 +2365,25 @@ export async function registerRoutes(app: Express): Promise<void> {
               digitalProduct.digitalFiles &&
               digitalProduct.digitalFiles.length > 0
             ) {
-              // 첫 번째 디지털 파일을 다운로드 링크로 제공
+              // 泥?踰덉㎏ ?붿????뚯씪???ㅼ슫濡쒕뱶 留곹겕濡??쒓났
               const downloadUrl = digitalProduct.digitalFiles[0];
 
               console.log(
-                "디지털 상품 감지, 자동 다운로드 링크 제공:",
+                "?붿????곹뭹 媛먯?, ?먮룞 ?ㅼ슫濡쒕뱶 留곹겕 ?쒓났:",
                 downloadUrl,
               );
 
-              // 자동으로 배송 정보 업데이트 (다운로드 링크)
+              // ?먮룞?쇰줈 諛곗넚 ?뺣낫 ?낅뜲?댄듃 (?ㅼ슫濡쒕뱶 留곹겕)
               await storage.updateOrderShipping(
                 order.id,
                 downloadUrl,
-                "직접 다운로드",
+                "吏곸젒 ?ㅼ슫濡쒕뱶",
               );
             }
           }
         } catch (digitalProductError) {
           console.error(
-            "디지털 상품 처리 오류 (주문은 생성됨):",
+            "?붿????곹뭹 泥섎━ ?ㅻ쪟 (二쇰Ц? ?앹꽦??:",
             digitalProductError,
           );
         }
@@ -2423,27 +2391,27 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.status(201).json(order);
     } catch (error) {
-      console.error("주문 생성 오류:", error);
+      console.error("二쇰Ц ?앹꽦 ?ㅻ쪟:", error);
       res
         .status(500)
-        .json({ error: "주문 생성에 실패했습니다.", details: error.message });
+        .json({ error: "二쇰Ц ?앹꽦???ㅽ뙣?덉뒿?덈떎.", details: error.message });
     }
   });
 
-  // ==================== 알림 관리 API ====================
+  // ==================== ?뚮┝ 愿由?API ====================
 
-  // 관리자 알림 목록 조회
+  // 愿由ъ옄 ?뚮┝ 紐⑸줉 議고쉶
   app.get("/api/notifications/admin", async (req, res) => {
     try {
       const notifications = await storage.getAdminNotifications();
       res.json(notifications);
     } catch (error) {
-      console.error("알림 목록 조회 오류:", error);
-      res.status(500).json({ error: "알림 목록을 불러오는데 실패했습니다" });
+      console.error("?뚮┝ 紐⑸줉 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "?뚮┝ 紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 알림 읽음 처리
+  // ?뚮┝ ?쎌쓬 泥섎━
   app.put("/api/notifications/:id/read", async (req, res) => {
     try {
       const { id } = req.params;
@@ -2451,44 +2419,44 @@ export async function registerRoutes(app: Express): Promise<void> {
       const updatedNotification = await storage.markAdminNotificationAsRead(id);
 
       if (!updatedNotification) {
-        return res.status(404).json({ error: "알림을 찾을 수 없습니다" });
+        return res.status(404).json({ error: "?뚮┝??李얠쓣 ???놁뒿?덈떎" });
       }
 
       res.json(updatedNotification);
     } catch (error) {
-      console.error("알림 읽음 처리 오류:", error);
-      res.status(400).json({ error: "알림 읽음 처리에 실패했습니다" });
+      console.error("?뚮┝ ?쎌쓬 泥섎━ ?ㅻ쪟:", error);
+      res.status(400).json({ error: "?뚮┝ ?쎌쓬 泥섎━???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // ==================== 판매자(케어 매니저) API ====================
+  // ==================== ?먮ℓ??耳??留ㅻ땲?) API ====================
 
-  // 판매자 주문 목록 조회
+  // ?먮ℓ??二쇰Ц 紐⑸줉 議고쉶
   app.get("/api/orders/seller/:sellerId", async (req, res) => {
     try {
       const { sellerId } = req.params;
 
-      // 실제 구현에서는 인증 확인 필요
+      // ?ㅼ젣 援ы쁽?먯꽌???몄쬆 ?뺤씤 ?꾩슂
       // const user = await verifyAuthToken(req);
-      // if (user.uid !== sellerId && user.userType !== 'admin') return res.status(403).json({ error: "권한이 없습니다" });
+      // if (user.uid !== sellerId && user.userType !== 'admin') return res.status(403).json({ error: "沅뚰븳???놁뒿?덈떎" });
 
-      // 임시 더미 데이터 반환 (실제 구현 시 DB에서 조회)
+      // ?꾩떆 ?붾? ?곗씠??諛섑솚 (?ㅼ젣 援ы쁽 ??DB?먯꽌 議고쉶)
       const orders = [
         {
           id: "ORD-001",
           createdAt: new Date().toISOString(),
-          customer_name: "김영희",
+          customer_name: "源?곹씗",
           customer_phone: "010-1234-5678",
           orderItems: [
-            { product: { title: "테크노" }, quantity: 2, price: 15000 },
+            { product: { title: "?뚰겕?? }, quantity: 2, price: 15000 },
           ],
           total_amount: 30000,
-          payment_method: "카드결제",
+          payment_method: "移대뱶寃곗젣",
           order_status: "pending",
           shipping_address: {
-            name: "김영희",
+            name: "源?곹씗",
             phone: "010-1234-5678",
-            address: "서울시 강남구 테헤란로 123",
+            address: "?쒖슱??媛뺣궓援??뚰뿤?濡?123",
           },
           tracking_number: "",
           shipping_company: "",
@@ -2497,52 +2465,52 @@ export async function registerRoutes(app: Express): Promise<void> {
         {
           id: "ORD-002",
           createdAt: new Date(Date.now() - 86400000).toISOString(),
-          customer_name: "박철수",
+          customer_name: "諛뺤쿋??,
           customer_phone: "010-9876-5432",
           orderItems: [
-            { product: { title: "사쿠라" }, quantity: 1, price: 25000 },
+            { product: { title: "?ъ퓼?? }, quantity: 1, price: 25000 },
           ],
           total_amount: 25000,
-          payment_method: "무통장입금",
+          payment_method: "臾댄넻?μ엯湲?,
           order_status: "shipped",
           shipping_address: {
-            name: "박철수",
+            name: "諛뺤쿋??,
             phone: "010-9876-5432",
-            address: "부산시 해운대구 센텀중앙로 456",
+            address: "遺?곗떆 ?댁슫?援??쇳?以묒븰濡?456",
           },
           tracking_number: "123456789",
-          shipping_company: "CJ대한통운",
+          shipping_company: "CJ??쒗넻??,
           seller_id: sellerId,
         },
       ];
 
       res.json(orders);
     } catch (error) {
-      console.error("판매자 주문 목록 조회 오류:", error);
-      res.status(500).json({ error: "주문 목록을 불러오는데 실패했습니다" });
+      console.error("?먮ℓ??二쇰Ц 紐⑸줉 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "二쇰Ц 紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 판매자 알림 목록 조회
+  // ?먮ℓ???뚮┝ 紐⑸줉 議고쉶
   app.get("/api/notifications/seller/:sellerId", async (req, res) => {
     try {
       const { sellerId } = req.params;
 
-      // 실제 구현에서는 인증 확인 필요
+      // ?ㅼ젣 援ы쁽?먯꽌???몄쬆 ?뺤씤 ?꾩슂
       // const user = await verifyAuthToken(req);
-      // if (user.uid !== sellerId && user.userType !== 'admin') return res.status(403).json({ error: "권한이 없습니다" });
+      // if (user.uid !== sellerId && user.userType !== 'admin') return res.status(403).json({ error: "沅뚰븳???놁뒿?덈떎" });
 
-      // 데이터베이스에서 판매자 알림 조회
+      // ?곗씠?곕쿋?댁뒪?먯꽌 ?먮ℓ???뚮┝ 議고쉶
       const notifications = await storage.getSellerNotifications(sellerId);
 
       res.json(notifications);
     } catch (error) {
-      console.error("판매자 알림 목록 조회 오류:", error);
-      res.status(500).json({ error: "알림 목록을 불러오는데 실패했습니다" });
+      console.error("?먮ℓ???뚮┝ 紐⑸줉 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "?뚮┝ 紐⑸줉??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 판매자 알림 읽음 처리
+  // ?먮ℓ???뚮┝ ?쎌쓬 泥섎━
   app.put(
     "/api/notifications/seller/:notificationId/read",
     async (req, res) => {
@@ -2554,44 +2522,43 @@ export async function registerRoutes(app: Express): Promise<void> {
         );
 
         if (!updated) {
-          return res.status(404).json({ error: "알림을 찾을 수 없습니다" });
+          return res.status(404).json({ error: "?뚮┝??李얠쓣 ???놁뒿?덈떎" });
         }
 
         res.json(updated);
       } catch (error) {
-        console.error("알림 읽음 처리 오류:", error);
-        res.status(500).json({ error: "알림 처리에 실패했습니다" });
+        console.error("?뚮┝ ?쎌쓬 泥섎━ ?ㅻ쪟:", error);
+        res.status(500).json({ error: "?뚮┝ 泥섎━???ㅽ뙣?덉뒿?덈떎" });
       }
     },
   );
 
-  // ==================== 상품 리뷰 및 문의 API ====================
+  // ==================== ?곹뭹 由щ럭 諛?臾몄쓽 API ====================
 
-  // 상품 리뷰 목록 조회
+  // ?곹뭹 由щ럭 紐⑸줉 議고쉶
   app.get("/api/products/:productId/reviews", async (req, res) => {
     try {
       const productId = parseInt(req.params.productId);
       if (isNaN(productId)) {
-        return res.status(400).json({ error: "유효하지 않은 상품 ID입니다." });
+        return res.status(400).json({ error: "?좏슚?섏? ?딆? ?곹뭹 ID?낅땲??" });
       }
 
       const reviews = await storage.getProductReviews(productId);
 
-      // 리뷰와 함께 작성자 정보 가져오기
-      const reviewsWithUser = await Promise.all(
+      // 由щ럭? ?④퍡 ?묒꽦???뺣낫 媛?몄삤湲?      const reviewsWithUser = await Promise.all(
         reviews.map(async (review) => {
           try {
             const user = await storage.getUser(review.userId);
             return {
               ...review,
-              username: user?.name || "알 수 없음",
-              display_name: user?.name || "알 수 없음",
+              username: user?.name || "?????놁쓬",
+              display_name: user?.name || "?????놁쓬",
             };
           } catch (error) {
             return {
               ...review,
-              username: "알 수 없음",
-              display_name: "알 수 없음",
+              username: "?????놁쓬",
+              display_name: "?????놁쓬",
             };
           }
         }),
@@ -2599,12 +2566,12 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.json(reviewsWithUser);
     } catch (error) {
-      console.error("상품 리뷰 조회 오류:", error);
-      res.status(500).json({ error: "상품 리뷰를 불러오는데 실패했습니다." });
+      console.error("?곹뭹 由щ럭 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "?곹뭹 由щ럭瑜?遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎." });
     }
   });
 
-  // 사용자 상품 구매 여부 확인 (리뷰 작성 자격 확인)
+  // ?ъ슜???곹뭹 援щℓ ?щ? ?뺤씤 (由щ럭 ?묒꽦 ?먭꺽 ?뺤씤)
   app.get(
     "/api/users/:userId/purchases/verify/:productId",
     async (req, res) => {
@@ -2615,51 +2582,51 @@ export async function registerRoutes(app: Express): Promise<void> {
         if (isNaN(userId) || isNaN(productId)) {
           return res
             .status(400)
-            .json({ error: "유효하지 않은 사용자 ID 또는 상품 ID입니다." });
+            .json({ error: "?좏슚?섏? ?딆? ?ъ슜??ID ?먮뒗 ?곹뭹 ID?낅땲??" });
         }
 
-        // 실제 구현에서는 사용자 인증도 필요
+        // ?ㅼ젣 援ы쁽?먯꽌???ъ슜???몄쬆???꾩슂
         // const user = await verifyAuthToken(req);
-        // if (user.id !== userId) return res.status(403).json({ error: "권한이 없습니다." });
+        // if (user.id !== userId) return res.status(403).json({ error: "沅뚰븳???놁뒿?덈떎." });
 
-        // 사용자의 해당 상품 구매 여부 확인
+        // ?ъ슜?먯쓽 ?대떦 ?곹뭹 援щℓ ?щ? ?뺤씤
         const hasPurchased = await storage.checkUserPurchase(userId, productId);
 
-        // 개발용 임시 코드 (항상 구매한 것으로 처리)
-        // 실제 운영에서는 제거 필요
+        // 媛쒕컻???꾩떆 肄붾뱶 (??긽 援щℓ??寃껋쑝濡?泥섎━)
+        // ?ㅼ젣 ?댁쁺?먯꽌???쒓굅 ?꾩슂
         const verified = true; // hasPurchased;
 
         res.json({ verified });
       } catch (error) {
-        console.error("구매 확인 오류:", error);
-        res.status(500).json({ error: "구매 여부 확인에 실패했습니다." });
+        console.error("援щℓ ?뺤씤 ?ㅻ쪟:", error);
+        res.status(500).json({ error: "援щℓ ?щ? ?뺤씤???ㅽ뙣?덉뒿?덈떎." });
       }
     },
   );
 
-  // 사용자 구매 내역 조회 (리뷰 작성 가능한 상품 확인)
+  // ?ъ슜??援щℓ ?댁뿭 議고쉶 (由щ럭 ?묒꽦 媛?ν븳 ?곹뭹 ?뺤씤)
   app.get("/api/users/:userId/purchases", async (req, res) => {
     try {
-      const userId = req.params.userId; // 문자열 형태로 받음
+      const userId = req.params.userId; // 臾몄옄???뺥깭濡?諛쏆쓬
 
       if (!userId) {
         return res
           .status(400)
-          .json({ error: "유효하지 않은 사용자 ID입니다." });
+          .json({ error: "?좏슚?섏? ?딆? ?ъ슜??ID?낅땲??" });
       }
 
-      // 실제 구현에서는 사용자 인증도 필요
+      // ?ㅼ젣 援ы쁽?먯꽌???ъ슜???몄쬆???꾩슂
       // const user = await verifyAuthToken(req);
-      // if (user.id !== userId) return res.status(403).json({ error: "권한이 없습니다." });
+      // if (user.id !== userId) return res.status(403).json({ error: "沅뚰븳???놁뒿?덈떎." });
 
-      // 개발용 임시 코드 (항상 모든 상품을 구매한 것으로 처리)
-      // 실제 구현에서는 주석 해제하여 실제 구매 내역을 조회
+      // 媛쒕컻???꾩떆 肄붾뱶 (??긽 紐⑤뱺 ?곹뭹??援щℓ??寃껋쑝濡?泥섎━)
+      // ?ㅼ젣 援ы쁽?먯꽌??二쇱꽍 ?댁젣?섏뿬 ?ㅼ젣 援щℓ ?댁뿭??議고쉶
       // const orderItems = await storage.getUserOrderItems(userId);
 
       const products = await storage.getAllProducts();
       const purchases = products.map((product) => ({
         productId: product.id,
-        product_id: product.id, // 호환성을 위해 두 형태 모두 제공
+        product_id: product.id, // ?명솚?깆쓣 ?꾪빐 ???뺥깭 紐⑤몢 ?쒓났
         title: product.title,
         purchaseDate: new Date().toISOString(),
         orderId: "temp-order-" + Math.floor(Math.random() * 1000),
@@ -2667,27 +2634,27 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.json(purchases);
     } catch (error) {
-      console.error("구매 내역 조회 오류:", error);
-      res.status(500).json({ error: "구매 내역을 불러오는데 실패했습니다." });
+      console.error("援щℓ ?댁뿭 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "援щℓ ?댁뿭??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎." });
     }
   });
 
-  // 리뷰 작성 API
+  // 由щ럭 ?묒꽦 API
   app.post("/api/products/:productId/reviews", async (req, res) => {
     try {
       const productId = parseInt(req.params.productId);
       const { userId, rating, comment } = req.body;
 
       if (isNaN(productId) || !userId || !rating || !comment) {
-        return res.status(400).json({ error: "필수 입력값이 누락되었습니다." });
+        return res.status(400).json({ error: "?꾩닔 ?낅젰媛믪씠 ?꾨씫?섏뿀?듬땲??" });
       }
 
-      // 실제 구현에서는 사용자 인증도 필요
+      // ?ㅼ젣 援ы쁽?먯꽌???ъ슜???몄쬆???꾩슂
       // const user = await verifyAuthToken(req);
-      // if (user.id !== userId) return res.status(403).json({ error: "권한이 없습니다." });
+      // if (user.id !== userId) return res.status(403).json({ error: "沅뚰븳???놁뒿?덈떎." });
 
-      // 사용자의 해당 상품 구매 여부 확인
-      // 개발용으로 항상 true 반환하도록 설정되어 있음
+      // ?ъ슜?먯쓽 ?대떦 ?곹뭹 援щℓ ?щ? ?뺤씤
+      // 媛쒕컻?⑹쑝濡???긽 true 諛섑솚?섎룄濡??ㅼ젙?섏뼱 ?덉쓬
       const hasPurchased = await storage.checkUserPurchase(
         parseInt(userId),
         productId,
@@ -2698,11 +2665,11 @@ export async function registerRoutes(app: Express): Promise<void> {
         productId,
         rating: parseInt(rating),
         comment,
-        isVerifiedPurchase: true, // 항상 구매 확인으로 표시 (실제에서는 hasPurchased 사용)
+        isVerifiedPurchase: true, // ??긽 援щℓ ?뺤씤?쇰줈 ?쒖떆 (?ㅼ젣?먯꽌??hasPurchased ?ъ슜)
         status: "active",
       });
 
-      // 상품의 평점 업데이트
+      // ?곹뭹???됱젏 ?낅뜲?댄듃
       const product = await storage.getProduct(productId);
       if (product) {
         const reviews = await storage.getProductReviews(productId);
@@ -2720,26 +2687,26 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.status(201).json({
         ...newReview,
-        username: user?.name || "알 수 없음",
-        display_name: user?.name || "알 수 없음",
+        username: user?.name || "?????놁쓬",
+        display_name: user?.name || "?????놁쓬",
       });
     } catch (error) {
-      console.error("리뷰 작성 오류:", error);
-      res.status(500).json({ error: "리뷰 작성에 실패했습니다." });
+      console.error("由щ럭 ?묒꽦 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "由щ럭 ?묒꽦???ㅽ뙣?덉뒿?덈떎." });
     }
   });
 
-  // 상품 문의 목록 조회
+  // ?곹뭹 臾몄쓽 紐⑸줉 議고쉶
   app.get("/api/products/:productId/comments", async (req, res) => {
     try {
       const productId = parseInt(req.params.productId);
       if (isNaN(productId)) {
-        return res.status(400).json({ error: "유효하지 않은 상품 ID입니다." });
+        return res.status(400).json({ error: "?좏슚?섏? ?딆? ?곹뭹 ID?낅땲??" });
       }
 
       const comments = await storage.getProductComments(productId);
 
-      // 문의사항 그룹화 (부모 문의와 답변들)
+      // 臾몄쓽?ы빆 洹몃９??(遺紐?臾몄쓽? ?듬???
       const parentComments = comments.filter((comment) => !comment.parentId);
       const groupedComments = parentComments.map((parent) => {
         const replies = comments.filter(
@@ -2751,29 +2718,28 @@ export async function registerRoutes(app: Express): Promise<void> {
         };
       });
 
-      // 문의와 함께 작성자 정보 가져오기
-      const commentsWithUser = await Promise.all(
+      // 臾몄쓽? ?④퍡 ?묒꽦???뺣낫 媛?몄삤湲?      const commentsWithUser = await Promise.all(
         groupedComments.map(async (comment) => {
           try {
             const user = await storage.getUser(comment.userId);
 
-            // 답글에도 사용자 정보 추가
+            // ?듦??먮룄 ?ъ슜???뺣낫 異붽?
             const repliesWithUser = await Promise.all(
               (comment.replies || []).map(async (reply) => {
                 try {
                   const replyUser = await storage.getUser(reply.userId);
                   return {
                     ...reply,
-                    username: replyUser?.name || "알 수 없음",
+                    username: replyUser?.name || "?????놁쓬",
                     display_name:
                       replyUser?.name ||
-                      (reply.isAdmin ? "관리자" : "알 수 없음"),
+                      (reply.isAdmin ? "愿由ъ옄" : "?????놁쓬"),
                   };
                 } catch (error) {
                   return {
                     ...reply,
-                    username: "알 수 없음",
-                    display_name: reply.isAdmin ? "관리자" : "알 수 없음",
+                    username: "?????놁쓬",
+                    display_name: reply.isAdmin ? "愿由ъ옄" : "?????놁쓬",
                   };
                 }
               }),
@@ -2781,15 +2747,15 @@ export async function registerRoutes(app: Express): Promise<void> {
 
             return {
               ...comment,
-              username: user?.name || "알 수 없음",
-              display_name: user?.name || "알 수 없음",
+              username: user?.name || "?????놁쓬",
+              display_name: user?.name || "?????놁쓬",
               replies: repliesWithUser,
             };
           } catch (error) {
             return {
               ...comment,
-              username: "알 수 없음",
-              display_name: "알 수 없음",
+              username: "?????놁쓬",
+              display_name: "?????놁쓬",
               replies: comment.replies || [],
             };
           }
@@ -2798,24 +2764,24 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.json(commentsWithUser);
     } catch (error) {
-      console.error("상품 문의 조회 오류:", error);
-      res.status(500).json({ error: "상품 문의를 불러오는데 실패했습니다." });
+      console.error("?곹뭹 臾몄쓽 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "?곹뭹 臾몄쓽瑜?遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎." });
     }
   });
 
-  // 문의 작성 API
+  // 臾몄쓽 ?묒꽦 API
   app.post("/api/products/:productId/comments", async (req, res) => {
     try {
       const productId = parseInt(req.params.productId);
       const { userId, content, isPrivate } = req.body;
 
       if (isNaN(productId) || !userId || !content) {
-        return res.status(400).json({ error: "필수 입력값이 누락되었습니다." });
+        return res.status(400).json({ error: "?꾩닔 ?낅젰媛믪씠 ?꾨씫?섏뿀?듬땲??" });
       }
 
-      // 실제 구현에서는 사용자 인증도 필요
+      // ?ㅼ젣 援ы쁽?먯꽌???ъ슜???몄쬆???꾩슂
       // const user = await verifyAuthToken(req);
-      // if (user.id !== userId) return res.status(403).json({ error: "권한이 없습니다." });
+      // if (user.id !== userId) return res.status(403).json({ error: "沅뚰븳???놁뒿?덈떎." });
 
       const newComment = await storage.createProductComment({
         userId: parseInt(userId),
@@ -2829,17 +2795,17 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.status(201).json({
         ...newComment,
-        username: user?.name || "알 수 없음",
-        display_name: user?.name || "알 수 없음",
+        username: user?.name || "?????놁쓬",
+        display_name: user?.name || "?????놁쓬",
         replies: [],
       });
     } catch (error) {
-      console.error("문의 작성 오류:", error);
-      res.status(500).json({ error: "문의 작성에 실패했습니다." });
+      console.error("臾몄쓽 ?묒꽦 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "臾몄쓽 ?묒꽦???ㅽ뙣?덉뒿?덈떎." });
     }
   });
 
-  // 문의 답글 작성 API
+  // 臾몄쓽 ?듦? ?묒꽦 API
   app.post(
     "/api/products/:productId/comments/:commentId/replies",
     async (req, res) => {
@@ -2851,10 +2817,10 @@ export async function registerRoutes(app: Express): Promise<void> {
         if (isNaN(productId) || isNaN(commentId) || !userId || !content) {
           return res
             .status(400)
-            .json({ error: "필수 입력값이 누락되었습니다." });
+            .json({ error: "?꾩닔 ?낅젰媛믪씠 ?꾨씫?섏뿀?듬땲??" });
         }
 
-        // 원본 문의 확인
+        // ?먮낯 臾몄쓽 ?뺤씤
         const parentComment = (
           await storage.getProductComments(productId)
         ).find((comment) => comment.id === commentId);
@@ -2862,15 +2828,15 @@ export async function registerRoutes(app: Express): Promise<void> {
         if (!parentComment) {
           return res
             .status(404)
-            .json({ error: "원본 문의를 찾을 수 없습니다." });
+            .json({ error: "?먮낯 臾몄쓽瑜?李얠쓣 ???놁뒿?덈떎." });
         }
 
-        // 실제 구현에서는 사용자 인증과 관리자 여부 확인
+        // ?ㅼ젣 援ы쁽?먯꽌???ъ슜???몄쬆怨?愿由ъ옄 ?щ? ?뺤씤
         // const user = await verifyAuthToken(req);
-        // if (user.id !== userId) return res.status(403).json({ error: "권한이 없습니다." });
+        // if (user.id !== userId) return res.status(403).json({ error: "沅뚰븳???놁뒿?덈떎." });
         // const isAdmin = user.userType === 'admin';
 
-        // 개발용 임시 코드 - 사용자 이메일에 'admin'이 포함되면 관리자로 간주
+        // 媛쒕컻???꾩떆 肄붾뱶 - ?ъ슜???대찓?쇱뿉 'admin'???ы븿?섎㈃ 愿由ъ옄濡?媛꾩＜
         const user = await storage.getUser(userId);
         const isAdmin = user?.email?.includes("admin") || false;
 
@@ -2884,24 +2850,23 @@ export async function registerRoutes(app: Express): Promise<void> {
           status: "active",
         });
 
-        // 원본 문의의 상태를 '답변 완료'로 변경
-        if (isAdmin) {
+        // ?먮낯 臾몄쓽???곹깭瑜?'?듬? ?꾨즺'濡?蹂寃?        if (isAdmin) {
           await storage.updateProductComment(commentId, { status: "answered" });
         }
 
         res.status(201).json({
           ...newReply,
-          username: user?.name || "알 수 없음",
-          display_name: isAdmin ? "관리자" : user?.name || "알 수 없음",
+          username: user?.name || "?????놁쓬",
+          display_name: isAdmin ? "愿由ъ옄" : user?.name || "?????놁쓬",
         });
       } catch (error) {
-        console.error("답글 작성 오류:", error);
-        res.status(500).json({ error: "답글 작성에 실패했습니다." });
+        console.error("?듦? ?묒꽦 ?ㅻ쪟:", error);
+        res.status(500).json({ error: "?듦? ?묒꽦???ㅽ뙣?덉뒿?덈떎." });
       }
     },
   );
 
-  // 크리에이터소개글 콘텐츠 API
+  // ?щ━?먯씠?곗냼媛쒓? 肄섑뀗痢?API
   app.post("/api/caremanager/:id/intro-contents", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -2910,62 +2875,59 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!introContents || !Array.isArray(introContents)) {
         return res
           .status(400)
-          .json({ error: "올바른 소개글 콘텐츠 형식이 아닙니다." });
+          .json({ error: "?щ컮瑜??뚭컻湲 肄섑뀗痢??뺤떇???꾨떃?덈떎." });
       }
 
-      // 기존 크리에이터확인
-      const careManager = await storage.getCareManager(id);
+      // 湲곗〈 ?щ━?먯씠?고솗??      const careManager = await storage.getCareManager(id);
       if (!careManager) {
         return res
           .status(404)
-          .json({ error: "케어 매니저를 찾을 수 없습니다." });
+          .json({ error: "耳??留ㅻ땲?瑜?李얠쓣 ???놁뒿?덈떎." });
       }
 
-      // 소개글 콘텐츠 저장
-      await storage.updateCareManagerIntroContents(id, introContents);
+      // ?뚭컻湲 肄섑뀗痢????      await storage.updateCareManagerIntroContents(id, introContents);
 
       res.json({
         success: true,
-        message: "소개글 콘텐츠가 성공적으로 저장되었습니다.",
+        message: "?뚭컻湲 肄섑뀗痢좉? ?깃났?곸쑝濡???λ릺?덉뒿?덈떎.",
       });
     } catch (error) {
-      console.error("소개글 콘텐츠 저장 오류:", error);
+      console.error("?뚭컻湲 肄섑뀗痢?????ㅻ쪟:", error);
       res.status(500).json({
-        error: "소개글 콘텐츠 저장 중 오류가 발생했습니다.",
+        error: "?뚭컻湲 肄섑뀗痢????以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.",
       });
     }
   });
 
-  // 크리에이터소개글 콘텐츠 조회 API (uid 지원)
+  // ?щ━?먯씠?곗냼媛쒓? 肄섑뀗痢?議고쉶 API (uid 吏??
   app.get("/api/caremanager/:id/intro-contents", async (req, res) => {
     try {
       const idParam = req.params.id;
       let careManagerId: number | undefined;
 
-      // uid인지 숫자 ID인지 확인
+      // uid?몄? ?レ옄 ID?몄? ?뺤씤
       if (isNaN(parseInt(idParam))) {
-        // uid로 케어매니저 찾기
+        // uid濡?耳?대ℓ?덉? 李얘린
         const allManagers = await storage.getAllCareManagers();
         const manager = allManagers.find((m) => (m as any).uid === idParam);
         if (!manager) {
           return res
             .status(404)
-            .json({ error: "케어 매니저를 찾을 수 없습니다." });
+            .json({ error: "耳??留ㅻ땲?瑜?李얠쓣 ???놁뒿?덈떎." });
         }
         careManagerId = manager.id;
       } else {
         careManagerId = parseInt(idParam);
       }
 
-      // 크리에이터확인
-      const careManager = await storage.getCareManager(careManagerId);
+      // ?щ━?먯씠?고솗??      const careManager = await storage.getCareManager(careManagerId);
       if (!careManager) {
         return res
           .status(404)
-          .json({ error: "케어 매니저를 찾을 수 없습니다." });
+          .json({ error: "耳??留ㅻ땲?瑜?李얠쓣 ???놁뒿?덈떎." });
       }
 
-      // 소개글 콘텐츠 조회
+      // ?뚭컻湲 肄섑뀗痢?議고쉶
       const introContents =
         await storage.getCareManagerIntroContents(careManagerId);
 
@@ -2974,14 +2936,14 @@ export async function registerRoutes(app: Express): Promise<void> {
         introContents: introContents || [],
       });
     } catch (error) {
-      console.error("소개글 콘텐츠 조회 오류:", error);
+      console.error("?뚭컻湲 肄섑뀗痢?議고쉶 ?ㅻ쪟:", error);
       res.status(500).json({
-        error: "소개글 콘텐츠 조회 중 오류가 발생했습니다.",
+        error: "?뚭컻湲 肄섑뀗痢?議고쉶 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.",
       });
     }
   });
 
-  // 서비스 패키지 저장 API
+  // ?쒕퉬???⑦궎吏 ???API
   app.post("/api/caremanager/:id/service-packages", async (req, res) => {
     try {
       const idParam = req.params.id;
@@ -2991,33 +2953,32 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!packages || !Array.isArray(packages)) {
         return res
           .status(400)
-          .json({ error: "올바른 패키지 형식이 아닙니다." });
+          .json({ error: "?щ컮瑜??⑦궎吏 ?뺤떇???꾨떃?덈떎." });
       }
 
-      // uid인지 숫자 ID인지 확인
+      // uid?몄? ?レ옄 ID?몄? ?뺤씤
       if (isNaN(parseInt(idParam))) {
         const allManagers = await storage.getAllCareManagers();
         const manager = allManagers.find((m) => (m as any).uid === idParam);
         if (!manager) {
           return res
             .status(404)
-            .json({ error: "케어 매니저를 찾을 수 없습니다." });
+            .json({ error: "耳??留ㅻ땲?瑜?李얠쓣 ???놁뒿?덈떎." });
         }
         careManagerId = manager.id;
       } else {
         careManagerId = parseInt(idParam);
       }
 
-      // 케어매니저 확인
+      // 耳?대ℓ?덉? ?뺤씤
       const careManager = await storage.getCareManager(careManagerId);
       if (!careManager) {
         return res
           .status(404)
-          .json({ error: "케어 매니저를 찾을 수 없습니다." });
+          .json({ error: "耳??留ㅻ땲?瑜?李얠쓣 ???놁뒿?덈떎." });
       }
 
-      // 서비스 패키지 저장
-      const success = await storage.updateCareManagerServicePackages(
+      // ?쒕퉬???⑦궎吏 ???      const success = await storage.updateCareManagerServicePackages(
         careManagerId,
         packages,
       );
@@ -3025,48 +2986,48 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (success) {
         res.json({
           success: true,
-          message: "서비스 패키지가 저장되었습니다.",
+          message: "?쒕퉬???⑦궎吏媛 ??λ릺?덉뒿?덈떎.",
         });
       } else {
-        res.status(500).json({ error: "서비스 패키지 저장에 실패했습니다." });
+        res.status(500).json({ error: "?쒕퉬???⑦궎吏 ??μ뿉 ?ㅽ뙣?덉뒿?덈떎." });
       }
     } catch (error) {
-      console.error("서비스 패키지 저장 오류:", error);
+      console.error("?쒕퉬???⑦궎吏 ????ㅻ쪟:", error);
       res.status(500).json({
-        error: "서비스 패키지 저장 중 오류가 발생했습니다.",
+        error: "?쒕퉬???⑦궎吏 ???以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.",
       });
     }
   });
 
-  // 서비스 패키지 조회 API
+  // ?쒕퉬???⑦궎吏 議고쉶 API
   app.get("/api/caremanager/:id/service-packages", async (req, res) => {
     try {
       const idParam = req.params.id;
       let careManagerId: number | undefined;
 
-      // uid인지 숫자 ID인지 확인
+      // uid?몄? ?レ옄 ID?몄? ?뺤씤
       if (isNaN(parseInt(idParam))) {
         const allManagers = await storage.getAllCareManagers();
         const manager = allManagers.find((m) => (m as any).uid === idParam);
         if (!manager) {
           return res
             .status(404)
-            .json({ error: "케어 매니저를 찾을 수 없습니다." });
+            .json({ error: "耳??留ㅻ땲?瑜?李얠쓣 ???놁뒿?덈떎." });
         }
         careManagerId = manager.id;
       } else {
         careManagerId = parseInt(idParam);
       }
 
-      // 케어매니저 확인
+      // 耳?대ℓ?덉? ?뺤씤
       const careManager = await storage.getCareManager(careManagerId);
       if (!careManager) {
         return res
           .status(404)
-          .json({ error: "케어 매니저를 찾을 수 없습니다." });
+          .json({ error: "耳??留ㅻ땲?瑜?李얠쓣 ???놁뒿?덈떎." });
       }
 
-      // 서비스 패키지 조회
+      // ?쒕퉬???⑦궎吏 議고쉶
       const packages =
         await storage.getCareManagerServicePackages(careManagerId);
 
@@ -3075,9 +3036,9 @@ export async function registerRoutes(app: Express): Promise<void> {
         packages: packages || [],
       });
     } catch (error) {
-      console.error("서비스 패키지 조회 오류:", error);
+      console.error("?쒕퉬???⑦궎吏 議고쉶 ?ㅻ쪟:", error);
       res.status(500).json({
-        error: "서비스 패키지 조회 중 오류가 발생했습니다.",
+        error: "?쒕퉬???⑦궎吏 議고쉶 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.",
       });
     }
   });
@@ -3087,23 +3048,23 @@ export async function registerRoutes(app: Express): Promise<void> {
       const userId = parseInt(req.params.id);
       const user = await storage.getUser(userId);
       if (!user) {
-        return res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+        return res.status(404).json({ error: "?ъ슜?먮? 李얠쓣 ???놁뒿?덈떎" });
       }
       res.json(user);
     } catch (error) {
-      console.error("사용자 정보 조회 오류:", error);
-      res.status(500).json({ error: "사용자 정보를 불러오는데 실패했습니다" });
+      console.error("?ъ슜???뺣낫 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "?ъ슜???뺣낫瑜?遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 사용자 인증 상태 조회 API
+  // ?ъ슜???몄쬆 ?곹깭 議고쉶 API
   app.get("/api/users/:id/certification", async (req, res) => {
     try {
       const userId = parseInt(req.params.id);
       const user = await storage.getUser(userId);
 
       if (!user) {
-        return res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+        return res.status(404).json({ error: "?ъ슜?먮? 李얠쓣 ???놁뒿?덈떎" });
       }
 
       res.json({
@@ -3112,27 +3073,27 @@ export async function registerRoutes(app: Express): Promise<void> {
         certificationPaymentId: user.certificationPaymentId || null,
       });
     } catch (error) {
-      console.error("인증 상태 조회 오류:", error);
-      res.status(500).json({ error: "인증 상태를 조회하는데 실패했습니다" });
+      console.error("?몄쬆 ?곹깭 議고쉶 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "?몄쬆 ?곹깭瑜?議고쉶?섎뒗???ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // 사용자 인증 활성화 API
+  // ?ъ슜???몄쬆 ?쒖꽦??API
   app.post("/api/users/:id/certification", async (req, res) => {
     try {
       const userId = parseInt(req.params.id);
       const { paymentId } = req.body;
 
       if (!paymentId) {
-        return res.status(400).json({ error: "결제 ID가 필요합니다" });
+        return res.status(400).json({ error: "寃곗젣 ID媛 ?꾩슂?⑸땲?? });
       }
 
       const user = await storage.getUser(userId);
       if (!user) {
-        return res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+        return res.status(404).json({ error: "?ъ슜?먮? 李얠쓣 ???놁뒿?덈떎" });
       }
 
-      // 인증 활성화 처리
+      // ?몄쬆 ?쒖꽦??泥섎━
       await db
         .update(users)
         .set({
@@ -3144,32 +3105,32 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.json({
         success: true,
-        message: "인증이 성공적으로 활성화되었습니다",
+        message: "?몄쬆???깃났?곸쑝濡??쒖꽦?붾릺?덉뒿?덈떎",
         isCertified: true,
         certificationDate: new Date(),
         certificationPaymentId: paymentId,
       });
     } catch (error) {
-      console.error("인증 활성화 오류:", error);
-      res.status(500).json({ error: "인증 활성화에 실패했습니다" });
+      console.error("?몄쬆 ?쒖꽦???ㅻ쪟:", error);
+      res.status(500).json({ error: "?몄쬆 ?쒖꽦?붿뿉 ?ㅽ뙣?덉뒿?덈떎" });
     }
   });
 
-  // ==================== 장바구니 API ====================
+  // ==================== ?λ컮援щ땲 API ====================
   app.get("/api/users/:userId/cart", async (req, res) => {
     try {
       const { userId } = req.params;
 
       if (!userId) {
-        return res.status(400).json({ error: "사용자 ID가 필요합니다." });
+        return res.status(400).json({ error: "?ъ슜??ID媛 ?꾩슂?⑸땲??" });
       }
 
-      console.log(`[SERVER] Firebase UID ${userId}의 장바구니 조회 요청`);
+      console.log(`[SERVER] Firebase UID ${userId}???λ컮援щ땲 議고쉶 ?붿껌`);
 
-      // Firebase UID를 그대로 사용하여 장바구니 조회
+      // Firebase UID瑜?洹몃?濡??ъ슜?섏뿬 ?λ컮援щ땲 議고쉶
       const items = await storage.getCartItemsByFirebaseId(userId);
 
-      // 각 아이템에 상품 정보 합쳐서 반환
+      // 媛??꾩씠?쒖뿉 ?곹뭹 ?뺣낫 ?⑹퀜??諛섑솚
       const enriched = await Promise.all(
         items.map(async (item: any) => {
           const product = await storage.getProduct(item.productId);
@@ -3179,10 +3140,10 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       return res.status(200).json({ cartItems: enriched });
     } catch (error) {
-      console.error("장바구니 조회 오류:", error);
+      console.error("?λ컮援щ땲 議고쉶 ?ㅻ쪟:", error);
       return res
         .status(500)
-        .json({ error: "장바구니 조회 중 오류가 발생했습니다." });
+        .json({ error: "?λ컮援щ땲 議고쉶 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎." });
     }
   });
 
@@ -3196,17 +3157,17 @@ export async function registerRoutes(app: Express): Promise<void> {
       };
 
       if (!userId || !productId) {
-        return res.status(400).json({ error: "필수 입력값이 누락되었습니다." });
+        return res.status(400).json({ error: "?꾩닔 ?낅젰媛믪씠 ?꾨씫?섏뿀?듬땲??" });
       }
 
       const pid = parseInt(productId as any);
       const qty = Math.max(1, Number(quantity || 1));
 
       console.log(
-        `[SERVER] Firebase UID ${userId}의 장바구니에 상품 ${pid} 추가 요청`,
+        `[SERVER] Firebase UID ${userId}???λ컮援щ땲???곹뭹 ${pid} 異붽? ?붿껌`,
       );
 
-      // 동일 옵션 상품 존재 시 수량만 증가
+      // ?숈씪 ?듭뀡 ?곹뭹 議댁옱 ???섎웾留?利앷?
       const existing = await storage.findCartItemByFirebaseId(
         userId,
         pid,
@@ -3220,7 +3181,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(200).json({ ...updated, product });
       }
 
-      // Firebase UID를 사용하여 새 아이템 추가
+      // Firebase UID瑜??ъ슜?섏뿬 ???꾩씠??異붽?
       const inserted = await storage.addCartItemByFirebaseId(
         userId,
         pid,
@@ -3230,8 +3191,8 @@ export async function registerRoutes(app: Express): Promise<void> {
       const product = await storage.getProduct(pid);
       res.status(201).json({ ...inserted, product });
     } catch (error) {
-      console.error("장바구니 추가 오류:", error);
-      res.status(500).json({ error: "장바구니 추가에 실패했습니다." });
+      console.error("?λ컮援щ땲 異붽? ?ㅻ쪟:", error);
+      res.status(500).json({ error: "?λ컮援щ땲 異붽????ㅽ뙣?덉뒿?덈떎." });
     }
   });
 
@@ -3241,12 +3202,12 @@ export async function registerRoutes(app: Express): Promise<void> {
       const itemId = parseInt(req.params.itemId);
       const { quantity } = req.body as { quantity?: number };
       if (isNaN(userId) || isNaN(itemId))
-        return res.status(400).json({ error: "유효하지 않은 요청입니다." });
+        return res.status(400).json({ error: "?좏슚?섏? ?딆? ?붿껌?낅땲??" });
       if (quantity == null || Number(quantity) < 1)
-        return res.status(400).json({ error: "수량은 1 이상이어야 합니다." });
+        return res.status(400).json({ error: "?섎웾? 1 ?댁긽?댁뼱???⑸땲??" });
 
       console.log(
-        `[SERVER] 사용자 ${userId}의 장바구니 상품 ${itemId} 수정 요청`,
+        `[SERVER] ?ъ슜??${userId}???λ컮援щ땲 ?곹뭹 ${itemId} ?섏젙 ?붿껌`,
       );
 
       const updated = await storage.updateCartItem(itemId, {
@@ -3255,11 +3216,11 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!updated)
         return res
           .status(404)
-          .json({ error: "장바구니 항목을 찾을 수 없습니다." });
+          .json({ error: "?λ컮援щ땲 ??ぉ??李얠쓣 ???놁뒿?덈떎." });
       res.json(updated);
     } catch (error) {
-      console.error("장바구니 업데이트 오류:", error);
-      res.status(500).json({ error: "장바구니 업데이트에 실패했습니다." });
+      console.error("?λ컮援щ땲 ?낅뜲?댄듃 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "?λ컮援щ땲 ?낅뜲?댄듃???ㅽ뙣?덉뒿?덈떎." });
     }
   });
 
@@ -3268,21 +3229,21 @@ export async function registerRoutes(app: Express): Promise<void> {
       const userId = parseInt(req.params.userId);
       const itemId = parseInt(req.params.itemId);
       if (isNaN(userId) || isNaN(itemId))
-        return res.status(400).json({ error: "유효하지 않은 요청입니다." });
+        return res.status(400).json({ error: "?좏슚?섏? ?딆? ?붿껌?낅땲??" });
 
       console.log(
-        `[SERVER] 사용자 ${userId}의 장바구니에서 상품 ${itemId} 삭제 요청`,
+        `[SERVER] ?ъ슜??${userId}???λ컮援щ땲?먯꽌 ?곹뭹 ${itemId} ??젣 ?붿껌`,
       );
 
       const ok = await storage.removeCartItem(itemId);
       if (!ok)
         return res
           .status(404)
-          .json({ error: "장바구니 항목을 찾을 수 없습니다." });
+          .json({ error: "?λ컮援щ땲 ??ぉ??李얠쓣 ???놁뒿?덈떎." });
       res.json({ success: true });
     } catch (error) {
-      console.error("장바구니 삭제 오류:", error);
-      res.status(500).json({ error: "장바구니 삭제에 실패했습니다." });
+      console.error("?λ컮援щ땲 ??젣 ?ㅻ쪟:", error);
+      res.status(500).json({ error: "?λ컮援щ땲 ??젣???ㅽ뙣?덉뒿?덈떎." });
     }
   });
 
@@ -3291,25 +3252,24 @@ export async function registerRoutes(app: Express): Promise<void> {
       const { userId } = req.params;
 
       if (!userId) {
-        return res.status(400).json({ error: "사용자 ID가 필요합니다." });
+        return res.status(400).json({ error: "?ъ슜??ID媛 ?꾩슂?⑸땲??" });
       }
 
-      console.log(`[SERVER] Firebase UID ${userId}의 장바구니 비우기 요청`);
+      console.log(`[SERVER] Firebase UID ${userId}???λ컮援щ땲 鍮꾩슦湲??붿껌`);
 
-      // Firebase UID를 사용하여 장바구니 비우기
-      const success = await storage.clearCartByFirebaseId(userId);
+      // Firebase UID瑜??ъ슜?섏뿬 ?λ컮援щ땲 鍮꾩슦湲?      const success = await storage.clearCartByFirebaseId(userId);
       if (success) {
         res.json({ success: true });
       } else {
-        res.status(500).json({ error: "장바구니 비우기에 실패했습니다." });
+        res.status(500).json({ error: "?λ컮援щ땲 鍮꾩슦湲곗뿉 ?ㅽ뙣?덉뒿?덈떎." });
       }
     } catch (error) {
-      console.error("장바구니 비우기 오류:", error);
-      res.status(500).json({ error: "장바구니 비우기에 실패했습니다." });
+      console.error("?λ컮援щ땲 鍮꾩슦湲??ㅻ쪟:", error);
+      res.status(500).json({ error: "?λ컮援щ땲 鍮꾩슦湲곗뿉 ?ㅽ뙣?덉뒿?덈떎." });
     }
   });
 
-  // 장바구니 상품 수정
+  // ?λ컮援щ땲 ?곹뭹 ?섏젙
   app.put("/api/users/:userId/cart/:itemId", async (req, res) => {
     try {
       const { userId, itemId } = req.params;
@@ -3318,14 +3278,14 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!userId || !itemId) {
         return res
           .status(400)
-          .json({ error: "사용자 ID와 상품 ID가 필요합니다." });
+          .json({ error: "?ъ슜??ID? ?곹뭹 ID媛 ?꾩슂?⑸땲??" });
       }
 
       console.log(
-        `[SERVER] 사용자 ${userId}의 장바구니 상품 ${itemId} 수정 요청`,
+        `[SERVER] ?ъ슜??${userId}???λ컮援щ땲 ?곹뭹 ${itemId} ?섏젙 ?붿껌`,
       );
 
-      // 메모리 기반 장바구니 데이터 (실제로는 DB에서 수정해야 함)
+      // 硫붾え由?湲곕컲 ?λ컮援щ땲 ?곗씠??(?ㅼ젣濡쒕뒗 DB?먯꽌 ?섏젙?댁빞 ??
       const cartItem = {
         id: itemId,
         userId,
@@ -3336,14 +3296,14 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       return res.status(200).json(cartItem);
     } catch (error) {
-      console.error("장바구니 상품 수정 오류:", error);
+      console.error("?λ컮援щ땲 ?곹뭹 ?섏젙 ?ㅻ쪟:", error);
       return res
         .status(500)
-        .json({ error: "장바구니 상품을 수정하는 중 오류가 발생했습니다." });
+        .json({ error: "?λ컮援щ땲 ?곹뭹???섏젙?섎뒗 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎." });
     }
   });
 
-  // 장바구니 상품 삭제
+  // ?λ컮援щ땲 ?곹뭹 ??젣
   app.delete("/api/users/:userId/cart/:itemId", async (req, res) => {
     try {
       const { userId, itemId } = req.params;
@@ -3351,100 +3311,90 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!userId || !itemId) {
         return res
           .status(400)
-          .json({ error: "사용자 ID와 상품 ID가 필요합니다." });
+          .json({ error: "?ъ슜??ID? ?곹뭹 ID媛 ?꾩슂?⑸땲??" });
       }
 
       console.log(
-        `[SERVER] 사용자 ${userId}의 장바구니에서 상품 ${itemId} 삭제 요청`,
+        `[SERVER] ?ъ슜??${userId}???λ컮援щ땲?먯꽌 ?곹뭹 ${itemId} ??젣 ?붿껌`,
       );
 
-      // 메모리 기반 장바구니 데이터 (실제로는 DB에서 삭제해야 함)
+      // 硫붾え由?湲곕컲 ?λ컮援щ땲 ?곗씠??(?ㅼ젣濡쒕뒗 DB?먯꽌 ??젣?댁빞 ??
 
       return res.status(200).json({
         success: true,
-        message: "상품이 장바구니에서 삭제되었습니다.",
+        message: "?곹뭹???λ컮援щ땲?먯꽌 ??젣?섏뿀?듬땲??",
       });
     } catch (error) {
-      console.error("장바구니 상품 삭제 오류:", error);
+      console.error("?λ컮援щ땲 ?곹뭹 ??젣 ?ㅻ쪟:", error);
       return res.status(500).json({
-        error: "장바구니에서 상품을 삭제하는 중 오류가 발생했습니다.",
+        error: "?λ컮援щ땲?먯꽌 ?곹뭹????젣?섎뒗 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.",
       });
     }
   });
 
-  // 장바구니 비우기
-  app.delete("/api/users/:userId/cart", async (req, res) => {
+  // ?λ컮援щ땲 鍮꾩슦湲?  app.delete("/api/users/:userId/cart", async (req, res) => {
     try {
       const { userId } = req.params;
 
       if (!userId) {
-        return res.status(400).json({ error: "사용자 ID가 필요합니다." });
+        return res.status(400).json({ error: "?ъ슜??ID媛 ?꾩슂?⑸땲??" });
       }
 
-      console.log(`[SERVER] 사용자 ${userId}의 장바구니 비우기 요청`);
+      console.log(`[SERVER] ?ъ슜??${userId}???λ컮援щ땲 鍮꾩슦湲??붿껌`);
 
-      // 메모리 기반 장바구니 데이터 (실제로는 DB에서 삭제해야 함)
+      // 硫붾え由?湲곕컲 ?λ컮援щ땲 ?곗씠??(?ㅼ젣濡쒕뒗 DB?먯꽌 ??젣?댁빞 ??
 
       return res
         .status(200)
-        .json({ success: true, message: "장바구니가 비워졌습니다." });
+        .json({ success: true, message: "?λ컮援щ땲媛 鍮꾩썙議뚯뒿?덈떎." });
     } catch (error) {
-      console.error("장바구니 비우기 오류:", error);
+      console.error("?λ컮援щ땲 鍮꾩슦湲??ㅻ쪟:", error);
       return res
         .status(500)
-        .json({ error: "장바구니를 비우는 중 오류가 발생했습니다." });
+        .json({ error: "?λ컮援щ땲瑜?鍮꾩슦??以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎." });
     }
   });
 
-  // 음성 인식 API 엔드포인트
+  // ?뚯꽦 ?몄떇 API ?붾뱶?ъ씤??(Gemini 湲곕컲)
   app.post("/api/speech/transcribe", multer().single('audio'), async (req, res) => {
     try {
-      console.log("🎤 음성 인식 요청 받음");
-      
-      // OpenAI Whisper 서비스 가져오기
-      const { getOpenAIWhisperService } = await import("./speech/openai-whisper.js");
-      const whisperService = getOpenAIWhisperService();
-      
-      if (!whisperService) {
-        console.error("❌ OpenAI Whisper 서비스가 초기화되지 않음");
-        return res.status(500).json({ 
-          error: "음성 인식 서비스가 사용할 수 없습니다. OpenAI API 키를 확인해주세요." 
+      console.log("?렎 ?뚯꽦 ?몄떇 ?붿껌 諛쏆쓬");
+
+      // ?대씪?댁뼵?멸? FormData濡??④퍡 ?꾩넚??Gemini API ??      const geminiApiKey = (req.body?.geminiApiKey as string) || "";
+
+      if (!geminiApiKey) {
+        return res.status(400).json({
+          error: "Gemini API ?ㅺ? ?꾩슂?⑸땲?? ?꾨컮? 媛쒖꽦 ?ㅼ젙?먯꽌 Gemini API ?ㅻ? ?낅젰?댁＜?몄슂."
         });
       }
 
-      // FormData에서 오디오 파일 추출
       if (!req.file) {
-        return res.status(400).json({ error: "오디오 파일이 필요합니다." });
+        return res.status(400).json({ error: "?ㅻ뵒???뚯씪???꾩슂?⑸땲??" });
       }
+
+      const { GeminiSpeechService } = await import("./speech/openai-whisper.js");
+      const speechService = new GeminiSpeechService(geminiApiKey);
 
       const audioFile = req.file;
       const filename = audioFile.originalname || "audio.webm";
-      
-      console.log(`🎧 음성 인식 시작: ${filename} (${audioFile.size} bytes)`);
 
-      // 파일 버퍼로 음성 인식 실행
-      const transcription = await whisperService.transcribeBuffer(audioFile.buffer, filename);
-      
-      console.log(`✅ 음성 인식 완료: "${transcription}"`);
-      
-      res.json({ 
-        success: true, 
-        text: transcription,  // 클라이언트에서 기대하는 필드명
+      console.log(`?렒 Gemini ?뚯꽦 ?몄떇 ?쒖옉: ${filename} (${audioFile.size} bytes)`);
+
+      const transcription = await speechService.transcribeBuffer(audioFile.buffer, filename);
+
+      console.log(`???뚯꽦 ?몄떇 ?꾨즺: "${transcription}"`);
+
+      res.json({
+        success: true,
+        text: transcription,
         transcription: transcription,
         filename: filename
       });
-      
+
     } catch (error) {
-      console.error("❌ 음성 인식 오류:", error);
-      
-      let errorMessage = "음성 인식 중 오류가 발생했습니다.";
-      
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      
-      res.status(500).json({ 
-        error: errorMessage,
+      console.error("???뚯꽦 ?몄떇 ?ㅻ쪟:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "?뚯꽦 ?몄떇 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.",
         details: error instanceof Error ? error.message : String(error)
       });
     }

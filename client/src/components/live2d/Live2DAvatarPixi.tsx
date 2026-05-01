@@ -1,16 +1,16 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+﻿import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as PIXI from 'pixi.js';
 import { Live2DModel } from 'pixi-live2d-display';
 import { useSpeechAndAnimation } from '@/hooks/useSpeechAndAnimation';
 import { useMotionCapture, type TrackingMode } from '@/hooks/useMotionCapture';
 
-// PIXI를 글로벌로 설정 (pixi-live2d-display 필요)
+// PIXI瑜?湲濡쒕쾶濡??ㅼ젙 (pixi-live2d-display ?꾩슂)
 if (typeof window !== 'undefined') {
   (window as any).PIXI = PIXI;
-  console.log('🔧 PIXI global 설정됨 (pixi-live2d-display):', !!(window as any).PIXI);
+  console.log('?뵩 PIXI global ?ㅼ젙??(pixi-live2d-display):', !!(window as any).PIXI);
 }
 
-// Live2D 모델 정보 타입 정의
+// Live2D 紐⑤뜽 ?뺣낫 ????뺤쓽
 interface ModelInfo {
   name: string;
   description: string;
@@ -37,12 +37,12 @@ interface Live2DAvatarPixiProps {
   onSpeakingChange?: (isSpeaking: boolean) => void;
 }
 
-// 모델 정의 로드 함수
+// 紐⑤뜽 ?뺤쓽 濡쒕뱶 ?⑥닔
 const fetchModelDefinitions = async (): Promise<{ [key: string]: ModelInfo }> => {
   try {
-    // 1. 서버 API로 모든 모델 자동 감지 (우선순위)
+    // 1. ?쒕쾭 API濡?紐⑤뱺 紐⑤뜽 ?먮룞 媛먯? (?곗꽑?쒖쐞)
     try {
-      console.log('🔍 서버에서 모델 목록 자동 스캔 중...');
+      console.log('?뵇 ?쒕쾭?먯꽌 紐⑤뜽 紐⑸줉 ?먮룞 ?ㅼ틪 以?..');
       const apiResponse = await fetch('/api/model-editor/scan-models');
 
       if (apiResponse.ok) {
@@ -64,14 +64,14 @@ const fetchModelDefinitions = async (): Promise<{ [key: string]: ModelInfo }> =>
           };
         });
 
-        console.log('✅ pixi-live2d-display 모델 정의 로드 완료 (API):', Object.keys(modelDefinitions));
+        console.log('??pixi-live2d-display 紐⑤뜽 ?뺤쓽 濡쒕뱶 ?꾨즺 (API):', Object.keys(modelDefinitions));
         return modelDefinitions;
       }
     } catch (apiError) {
-      console.warn('⚠️ API 모델 로드 실패, model_dict.json 시도 중...', apiError);
+      console.warn('?좑툘 API 紐⑤뜽 濡쒕뱶 ?ㅽ뙣, model_dict.json ?쒕룄 以?..', apiError);
     }
 
-    // 2. 폴백: model_dict.json 파일
+    // 2. ?대갚: model_dict.json ?뚯씪
     const response = await fetch('/model_dict.json');
     if (!response.ok) {
       throw new Error('Model definitions not found');
@@ -95,12 +95,12 @@ const fetchModelDefinitions = async (): Promise<{ [key: string]: ModelInfo }> =>
       };
     });
 
-    console.log('✅ pixi-live2d-display 모델 정의 로드 완료 (JSON):', Object.keys(modelDefinitions));
+    console.log('??pixi-live2d-display 紐⑤뜽 ?뺤쓽 濡쒕뱶 ?꾨즺 (JSON):', Object.keys(modelDefinitions));
     return modelDefinitions;
 
   } catch (error) {
-    console.error('❌ 모델 정의 로드 실패:', error);
-    // 최후 폴백: 기본 모델 정의
+    console.error('??紐⑤뜽 ?뺤쓽 濡쒕뱶 ?ㅽ뙣:', error);
+    // 理쒗썑 ?대갚: 湲곕낯 紐⑤뜽 ?뺤쓽
     return {
       'mao': {
         name: 'mao',
@@ -142,28 +142,25 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
-  const [selectedModel, setSelectedModel] = useState(modelName || ''); // 빈 문자열을 기본값으로
-  const [modelDefinitions, setModelDefinitions] = useState<{ [key: string]: ModelInfo }>({});
+  const [selectedModel, setSelectedModel] = useState(modelName || ''); // 鍮?臾몄옄?댁쓣 湲곕낯媛믪쑝濡?  const [modelDefinitions, setModelDefinitions] = useState<{ [key: string]: ModelInfo }>({});
   const [isInitializing, setIsInitializing] = useState(false);
   const [lastInitializedModel, setLastInitializedModel] = useState<string | null>(null);
-  const [isUserAvatarActive, setIsUserAvatarActive] = useState(false); // 개인 아바타 활성 상태
+  const [isUserAvatarActive, setIsUserAvatarActive] = useState(false); // 媛쒖씤 ?꾨컮? ?쒖꽦 ?곹깭
 
-  // 인터랙션 상태
+  // ?명꽣?숈뀡 ?곹깭
   const [isDragging, setIsDragging] = useState(false);
   const [isWindowDragging, setIsWindowDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [modelPosition, setModelPosition] = useState({ x: 0, y: 0 });
   const [modelScale, setModelScale] = useState(1);
   const [windowPosition, setWindowPosition] = useState({ x: 20, y: 80 });
-  const [isTTSReady, setIsTTSReady] = useState(false); // TTS 준비 상태 추가
-  const [isMotionCaptureEnabled, setIsMotionCaptureEnabled] = useState(false); // 모션 캡처 활성화
-  const [trackingMode, setTrackingMode] = useState<TrackingMode>('face'); // 추적 모드
-  const [showModeSelector, setShowModeSelector] = useState(false); // 모드 선택 메뉴
+  const [isTTSReady, setIsTTSReady] = useState(false); // TTS 以鍮??곹깭 異붽?
+  const [isMotionCaptureEnabled, setIsMotionCaptureEnabled] = useState(false); // 紐⑥뀡 罹≪쿂 ?쒖꽦??  const [trackingMode, setTrackingMode] = useState<TrackingMode>('face'); // 異붿쟻 紐⑤뱶
+  const [showModeSelector, setShowModeSelector] = useState(false); // 紐⑤뱶 ?좏깮 硫붾돱
 
-  // TTS와 입 움직임 애니메이션
-  const { speak, stopSpeaking, isSpeaking, cleanup } = useSpeechAndAnimation(live2dModelRef.current);
+  // TTS? ???吏곸엫 ?좊땲硫붿씠??  const { speak, stopSpeaking, isSpeaking, cleanup } = useSpeechAndAnimation(live2dModelRef.current);
 
-  // 전신 모션 캡처 (얼굴 + 신체 + 손)
+  // ?꾩떊 紐⑥뀡 罹≪쿂 (?쇨뎬 + ?좎껜 + ??
   const {
     facePose,
     bodyPose,
@@ -174,7 +171,7 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
     videoRef,
   } = useMotionCapture(isMotionCaptureEnabled, trackingMode);
 
-  // 부드러운 보간을 위한 이전 값 ref
+  // 遺?쒕윭??蹂닿컙???꾪븳 ?댁쟾 媛?ref
   const prevBodyRef = useRef<{
     bodyAngleX: number; bodyAngleY: number; bodyAngleZ: number;
     armL: number; armR: number; armLB: number; armRB: number;
@@ -187,15 +184,14 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
     shoulder: 0, leg: 0,
   });
 
-  // 보간 유틸 (부드러운 전환)
+  // 蹂닿컙 ?좏떥 (遺?쒕윭???꾪솚)
   const lerp = (current: number, target: number, factor: number) =>
     current + (target - current) * factor;
 
-  // 값을 지정된 범위로 클램핑
-  const clamp = (value: number, min: number, max: number) =>
+  // 媛믪쓣 吏?뺣맂 踰붿쐞濡??대옩??  const clamp = (value: number, min: number, max: number) =>
     Math.max(min, Math.min(max, value));
 
-  // ===== 얼굴 모션 캡처 데이터를 Live2D 모델에 적용 =====
+  // ===== ?쇨뎬 紐⑥뀡 罹≪쿂 ?곗씠?곕? Live2D 紐⑤뜽???곸슜 =====
   useEffect(() => {
     if (!isMotionCaptureEnabled || !facePose || !live2dModelRef.current) return;
 
@@ -205,28 +201,26 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
     try {
       const core = model.internalModel.coreModel;
 
-      // 머리 회전
+      // 癒몃━ ?뚯쟾
       core.setParameterValueById('ParamAngleX', facePose.head.x * 30);
       core.setParameterValueById('ParamAngleY', facePose.head.y * 30);
       core.setParameterValueById('ParamAngleZ', facePose.head.z * 30);
 
-      // 눈 깜빡임
-      core.setParameterValueById('ParamEyeLOpen', facePose.eye.l);
+      // ??源쒕묀??      core.setParameterValueById('ParamEyeLOpen', facePose.eye.l);
       core.setParameterValueById('ParamEyeROpen', facePose.eye.r);
 
-      // 눈동자
-      core.setParameterValueById('ParamEyeBallX', facePose.pupil.x);
+      // ?덈룞??      core.setParameterValueById('ParamEyeBallX', facePose.pupil.x);
       core.setParameterValueById('ParamEyeBallY', facePose.pupil.y);
 
-      // 눈썹
+      // ?덉뜾
       core.setParameterValueById('ParamBrowLY', facePose.brow);
       core.setParameterValueById('ParamBrowRY', facePose.brow);
 
-      // 입 모양 (TTS 말하는 중이 아닐 때만)
+      // ??紐⑥뼇 (TTS 留먰븯??以묒씠 ?꾨땺 ?뚮쭔)
       if (!isSpeaking) {
         core.setParameterValueById('ParamMouthOpenY', facePose.mouth.y);
         core.setParameterValueById('ParamMouthForm', facePose.mouth.x);
-        // 모음 형태
+        // 紐⑥쓬 ?뺥깭
         core.setParameterValueById('ParamMouthA', facePose.mouth.shape.A);
         core.setParameterValueById('ParamMouthI', facePose.mouth.shape.I);
         core.setParameterValueById('ParamMouthU', facePose.mouth.shape.U);
@@ -234,11 +228,11 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
         core.setParameterValueById('ParamMouthO', facePose.mouth.shape.O);
       }
     } catch (err) {
-      // 파라미터가 없는 모델에서는 무시
+      // ?뚮씪誘명꽣媛 ?녿뒗 紐⑤뜽?먯꽌??臾댁떆
     }
   }, [facePose, isMotionCaptureEnabled, isSpeaking]);
 
-  // ===== 신체 모션 캡처 데이터를 Live2D 모델에 적용 =====
+  // ===== ?좎껜 紐⑥뀡 罹≪쿂 ?곗씠?곕? Live2D 紐⑤뜽???곸슜 =====
   useEffect(() => {
     if (!isMotionCaptureEnabled || !bodyPose || !live2dModelRef.current) return;
     if (trackingMode === 'face') return;
@@ -249,12 +243,12 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
     try {
       const core = model.internalModel.coreModel;
       const prev = prevBodyRef.current;
-      const smoothing = 0.35; // 보간 팩터 (낮을수록 부드러움)
+      const smoothing = 0.35; // 蹂닿컙 ?⑺꽣 (??쓣?섎줉 遺?쒕윭?)
 
       // ============================
-      // --- 1) 몸통 회전 ---
-      // Kalidokit Spine 값은 라디안 (-1 ~ 1 범위)
-      // ParamBodyAngleX/Y/Z 범위: 약 -10 ~ 10
+      // --- 1) 紐명넻 ?뚯쟾 ---
+      // Kalidokit Spine 媛믪? ?쇰뵒??(-1 ~ 1 踰붿쐞)
+      // ParamBodyAngleX/Y/Z 踰붿쐞: ??-10 ~ 10
       // ============================
       const bodyAngleX = lerp(prev.bodyAngleX, clamp(bodyPose.spine.x * 20, -10, 10), smoothing);
       const bodyAngleY = lerp(prev.bodyAngleY, clamp(bodyPose.spine.y * 20, -10, 10), smoothing);
@@ -265,9 +259,9 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
       core.setParameterValueById('ParamBodyAngleZ', bodyAngleZ);
 
       // ============================
-      // --- 2) 어깨 ---
-      // ParamShoulder: 어깨 움츠림 (0 ~ 1)
-      // 양 어깨의 Y축 평균으로 계산
+      // --- 2) ?닿묠 ---
+      // ParamShoulder: ?닿묠 ?痢좊┝ (0 ~ 1)
+      // ???닿묠??Y異??됯퇏?쇰줈 怨꾩궛
       // ============================
       const shoulderRaw = clamp(
         (Math.abs(bodyPose.leftUpperArm.z) + Math.abs(bodyPose.rightUpperArm.z)) / 2,
@@ -277,9 +271,9 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
       core.setParameterValueById('ParamShoulder', shoulder);
 
       // ============================
-      // --- 3) 팔 (상완 A / 하완 B) ---
-      // ParamArmLA/RA: 팔 올림/내림 (0 ~ 1, 0=내림, 1=올림)
-      // Kalidokit UpperArm.z: 팔을 올리면 값이 커짐
+      // --- 3) ??(?곸셿 A / ?섏셿 B) ---
+      // ParamArmLA/RA: ???щ┝/?대┝ (0 ~ 1, 0=?대┝, 1=?щ┝)
+      // Kalidokit UpperArm.z: ?붿쓣 ?щ━硫?媛믪씠 而ㅼ쭚
       // ============================
       const leftArmRaw = clamp(1.0 - (bodyPose.leftUpperArm.z + Math.PI / 2) / Math.PI, 0, 1);
       const rightArmRaw = clamp(1.0 - (bodyPose.rightUpperArm.z + Math.PI / 2) / Math.PI, 0, 1);
@@ -290,7 +284,7 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
       core.setParameterValueById('ParamArmLA', armL);
       core.setParameterValueById('ParamArmRA', armR);
 
-      // ParamArmLB/RB: 하완(팔꿈치 아래) (0 ~ 1)
+      // ParamArmLB/RB: ?섏셿(?붽퓞移??꾨옒) (0 ~ 1)
       const leftLowerArmRaw = clamp(Math.abs(bodyPose.leftLowerArm.y) / Math.PI, 0, 1);
       const rightLowerArmRaw = clamp(Math.abs(bodyPose.rightLowerArm.y) / Math.PI, 0, 1);
 
@@ -301,9 +295,9 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
       core.setParameterValueById('ParamArmRB', armRB);
 
       // ============================
-      // --- 4) 손 위치 + 손 회전 ---
-      // ParamHandL/R: 손 위치 (0 ~ 1)
-      // ParamHandLB/RB: 손 회전 (-1 ~ 1)
+      // --- 4) ???꾩튂 + ???뚯쟾 ---
+      // ParamHandL/R: ???꾩튂 (0 ~ 1)
+      // ParamHandLB/RB: ???뚯쟾 (-1 ~ 1)
       // ============================
       const handLRaw = clamp((bodyPose.leftHand.y + 1) / 2, 0, 1);
       const handRRaw = clamp((bodyPose.rightHand.y + 1) / 2, 0, 1);
@@ -314,7 +308,7 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
       core.setParameterValueById('ParamHandL', handL);
       core.setParameterValueById('ParamHandR', handR);
 
-      // 손 회전 (z축 = 손목 비틀기)
+      // ???뚯쟾 (z異?= ?먮ぉ 鍮꾪?湲?
       const handLBRaw = clamp(bodyPose.leftHand.z, -1, 1);
       const handRBRaw = clamp(bodyPose.rightHand.z, -1, 1);
 
@@ -325,9 +319,9 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
       core.setParameterValueById('ParamHandRB', handRB);
 
       // ============================
-      // --- 5) 다리 ---
-      // ParamLeg: 다리 움직임 (0 ~ 1)
-      // 양다리 상완(허벅지) 각도의 평균
+      // --- 5) ?ㅻ━ ---
+      // ParamLeg: ?ㅻ━ ?吏곸엫 (0 ~ 1)
+      // ?묐떎由??곸셿(?덈쾮吏) 媛곷룄???됯퇏
       // ============================
       const legRaw = clamp(
         (Math.abs(bodyPose.leftUpperLeg.x) + Math.abs(bodyPose.rightUpperLeg.x)) / Math.PI,
@@ -336,7 +330,7 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
       const leg = lerp(prev.leg, legRaw, smoothing);
       core.setParameterValueById('ParamLeg', leg);
 
-      // 이전 값 업데이트
+      // ?댁쟾 媛??낅뜲?댄듃
       prevBodyRef.current = {
         bodyAngleX, bodyAngleY, bodyAngleZ,
         armL, armR, armLB, armRB,
@@ -344,14 +338,14 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
         shoulder, leg,
       };
     } catch (err) {
-      // 파라미터가 없는 모델에서는 무시
+      // ?뚮씪誘명꽣媛 ?녿뒗 紐⑤뜽?먯꽌??臾댁떆
     }
   }, [bodyPose, isMotionCaptureEnabled, trackingMode]);
 
-  // ===== 손 상세 모션 캡처 (full-body 모드: HandLandmarker 결과) =====
+  // ===== ???곸꽭 紐⑥뀡 罹≪쿂 (upper-body / full-body 紐⑤뱶: HandLandmarker 寃곌낵) =====
   useEffect(() => {
     if (!isMotionCaptureEnabled || !handPose || !live2dModelRef.current) return;
-    if (trackingMode !== 'full-body') return;
+    if (trackingMode === 'face') return;
 
     const model = live2dModelRef.current as any;
     if (!model.internalModel) return;
@@ -359,39 +353,45 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
     try {
       const core = model.internalModel.coreModel;
 
-      // HandLandmarker의 상세 손 데이터를 손 파라미터에 추가 매핑
-      // 손가락을 쥐면(curl 값 높음) → ParamHandL/R 값 증가
-      // 손가락을 펼치면 → ParamHandL/R 값 감소
       if (handPose.left) {
-        // 전체 손가락 curl 평균 → 주먹 쥔 정도
-        const leftGrip = (handPose.left.thumb + handPose.left.index +
-          handPose.left.middle + handPose.left.ring + handPose.left.little) / 5;
-        core.setParameterValueById('ParamHandL', clamp(leftGrip, 0, 1));
-        // 손목 z축 회전 → 손 회전 B
-        core.setParameterValueById('ParamHandLB', clamp(handPose.left.wrist.z, -1, 1));
+        // ?먭????꾩껜 curl ?됯퇏 ??二쇰㉨ 伊??뺣룄 (0=?쇱묠, 1=二쇰㉨)
+        const leftGrip = (
+          handPose.left.thumb  +
+          handPose.left.index  +
+          handPose.left.middle +
+          handPose.left.ring   +
+          handPose.left.little
+        ) / 5;
+        core.setParameterValueById('ParamHandL',  clamp(leftGrip, 0, 1));
+        core.setParameterValueById('ParamHandLB', clamp(handPose.left.wrist.z / Math.PI, -1, 1));
       }
 
       if (handPose.right) {
-        const rightGrip = (handPose.right.thumb + handPose.right.index +
-          handPose.right.middle + handPose.right.ring + handPose.right.little) / 5;
-        core.setParameterValueById('ParamHandR', clamp(rightGrip, 0, 1));
-        core.setParameterValueById('ParamHandRB', clamp(handPose.right.wrist.z, -1, 1));
+        const rightGrip = (
+          handPose.right.thumb  +
+          handPose.right.index  +
+          handPose.right.middle +
+          handPose.right.ring   +
+          handPose.right.little
+        ) / 5;
+        core.setParameterValueById('ParamHandR',  clamp(rightGrip, 0, 1));
+        core.setParameterValueById('ParamHandRB', clamp(handPose.right.wrist.z / Math.PI, -1, 1));
       }
-    } catch (err) {
-      // 파라미터가 없는 모델에서는 무시
+    } catch {
+      // ?뚮씪誘명꽣媛 ?녿뒗 紐⑤뜽?먯꽌??臾댁떆
     }
   }, [handPose, isMotionCaptureEnabled, trackingMode]);
-  //   console.log('🎭 Live2DAvatarPixi 렌더링:', { selectedModel, isLoading, error, isInitializing, lastInitializedModel, isSpeaking });
+  //   console.log('?렚 Live2DAvatarPixi ?뚮뜑留?', { selectedModel, isLoading, error, isInitializing, lastInitializedModel, isSpeaking });
 
-  // 감정을 Live2D 모델에 적용하는 함수 (Expression + Motion 시스템)
+  // 媛먯젙??Live2D 紐⑤뜽???곸슜?섎뒗 ?⑥닔 (Expression + Motion ?쒖뒪??
   const applyEmotionToModel = useCallback((live2dModel: any, emotionState: string) => {
     if (!live2dModel) return;
 
     try {
-      // 감정 키워드 매칭 (소문자로 통일)
+      // 媛먯젙 ?ㅼ썙??留ㅼ묶 (?뚮Ц?먮줈 ?듭씪)
       const emotion = emotionState.toLowerCase();
 
-      // 유사 감정 매핑 (Expression 이름에 맞춤)
+      // ?좎궗 媛먯젙 留ㅽ븨 (Expression ?대쫫??留욎땄)
       const emotionMappings: Record<string, string> = {
         'happy': 'joy',
         'smile': 'joy',
@@ -405,29 +405,29 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
         'disgust': 'anger'
       };
 
-      // 최종 감정 결정
+      // 理쒖쥌 媛먯젙 寃곗젙
       let finalEmotion = emotion;
       if (emotionMappings[emotion]) {
         finalEmotion = emotionMappings[emotion];
       }
 
-      console.log('🎭 감정 처리:', {
+      console.log('?렚 媛먯젙 泥섎━:', {
         originalEmotion: emotionState,
         processedEmotion: finalEmotion,
         modelName: selectedModel
       });
 
-      // 1. Expression 적용 (이름으로 직접)
+      // 1. Expression ?곸슜 (?대쫫?쇰줈 吏곸젒)
       if (live2dModel.internalModel?.motionManager?.expressionManager) {
         const expressionManager = live2dModel.internalModel.motionManager.expressionManager;
 
         try {
-          // Expression을 이름으로 설정 (더 정확함)
+          // Expression???대쫫?쇰줈 ?ㅼ젙 (???뺥솗??
           if (expressionManager.setExpressionByName) {
             expressionManager.setExpressionByName(finalEmotion);
-            console.log('✅ Expression 이름으로 설정:', finalEmotion);
+            console.log('??Expression ?대쫫?쇰줈 ?ㅼ젙:', finalEmotion);
           } else if (expressionManager.startMotion && live2dModel.internalModel?.settings?.expressions) {
-            // 백업: Expression 파일을 직접 찾아서 설정
+            // 諛깆뾽: Expression ?뚯씪??吏곸젒 李얠븘???ㅼ젙
             const expressions = live2dModel.internalModel.settings.expressions;
             const expressionIndex = expressions.findIndex((exp: any) =>
               exp.Name?.toLowerCase() === finalEmotion ||
@@ -436,95 +436,92 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
 
             if (expressionIndex >= 0) {
               expressionManager.setExpression(expressionIndex);
-              console.log('✅ Expression 인덱스로 설정:', expressionIndex, finalEmotion);
+              console.log('??Expression ?몃뜳?ㅻ줈 ?ㅼ젙:', expressionIndex, finalEmotion);
             } else {
-              console.warn('⚠️ Expression을 찾을 수 없음:', finalEmotion);
+              console.warn('?좑툘 Expression??李얠쓣 ???놁쓬:', finalEmotion);
             }
           }
         } catch (expError) {
-          console.warn('Expression 설정 오류:', expError);
+          console.warn('Expression ?ㅼ젙 ?ㅻ쪟:', expError);
         }
       }
 
-      // 2. Motion 재생 (감정에 따른 애니메이션)
+      // 2. Motion ?ъ깮 (媛먯젙???곕Ⅸ ?좊땲硫붿씠??
       if (live2dModel.internalModel?.motionManager) {
         const motionManager = live2dModel.internalModel.motionManager;
 
         try {
-          // 감정별 Motion 그룹 및 인덱스 선택
+          // 媛먯젙蹂?Motion 洹몃９ 諛??몃뜳???좏깮
           let motionGroup = '';
           let motionIndex = 0;
 
           switch (finalEmotion) {
             case 'joy':
             case 'surprise':
-              // 활발한 감정 - 특별한 모션들
-              motionGroup = '';
+              // ?쒕컻??媛먯젙 - ?밸퀎??紐⑥뀡??              motionGroup = '';
               motionIndex = Math.floor(Math.random() * 3) + 1; // mtn_02, mtn_03, mtn_04
               break;
             case 'sadness':
             case 'anger':
-              // 강한 감정 - 특수 모션들
-              motionGroup = '';
+              // 媛뺥븳 媛먯젙 - ?뱀닔 紐⑥뀡??              motionGroup = '';
               motionIndex = Math.floor(Math.random() * 3) + 4; // special_01, special_02, special_03
               break;
             default:
-              // 기본 모션
+              // 湲곕낯 紐⑥뀡
               motionGroup = 'Idle';
               motionIndex = 0;
           }
 
-          // Motion 재생
+          // Motion ?ъ깮
           if (motionManager.startMotion) {
             const motionPromise = motionManager.startMotion(motionGroup, motionIndex, 3); // priority 3
-            console.log('🎬 Motion 시작:', {
+            console.log('?렗 Motion ?쒖옉:', {
               group: motionGroup,
               index: motionIndex,
               emotion: finalEmotion
             });
 
-            // Motion 완료 후 처리 (optional)
+            // Motion ?꾨즺 ??泥섎━ (optional)
             if (motionPromise && typeof motionPromise.then === 'function') {
               motionPromise.then(() => {
-                console.log('🎬 Motion 완료:', finalEmotion);
+                console.log('?렗 Motion ?꾨즺:', finalEmotion);
               }).catch((motionError: any) => {
-                console.warn('Motion 재생 오류:', motionError);
+                console.warn('Motion ?ъ깮 ?ㅻ쪟:', motionError);
               });
             }
           }
         } catch (motionError) {
-          console.warn('Motion 재생 오류:', motionError);
+          console.warn('Motion ?ъ깮 ?ㅻ쪟:', motionError);
         }
       }
 
     } catch (error) {
-      console.warn('감정 적용 중 전체 오류:', error);
+      console.warn('媛먯젙 ?곸슜 以??꾩껜 ?ㅻ쪟:', error);
     }
   }, [selectedModel]);
 
-  // 인터랙션 핸들러들 (마우스 + 터치)
+  // ?명꽣?숈뀡 ?몃뱾?щ뱾 (留덉슦??+ ?곗튂)
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button === 0) { // 왼쪽 클릭
-      // Shift 클릭으로 감정 + TTS 테스트
-      if (e.shiftKey) {
+    if (e.button === 0) { // ?쇱そ ?대┃
+      // Shift ?대┃?쇰줈 媛먯젙 + TTS ?뚯뒪??      if (e.shiftKey) {
         e.preventDefault();
         const testEmotions = [
-          { emotion: 'joy', text: '[joy] 안녕하세요! 저는 기쁜 AI 아바타입니다!' },
-          { emotion: 'sadness', text: '[sadness] 오늘은 조금 슬픈 기분이에요...' },
-          { emotion: 'anger', text: '[anger] 화가 나는 일이 있었어요!' },
-          { emotion: 'surprise', text: '[surprise] 와! 정말 놀라워요!' },
-          { emotion: 'neutral', text: '[neutral] 평상시 모습으로 인사드려요.' }
+          { emotion: 'joy', text: '[joy] ?덈뀞?섏꽭?? ???湲곗걶 AI ?꾨컮??낅땲??' },
+          { emotion: 'sadness', text: '[sadness] ?ㅻ뒛? 議곌툑 ?ы뵂 湲곕텇?댁뿉??..' },
+          { emotion: 'anger', text: '[anger] ?붽? ?섎뒗 ?쇱씠 ?덉뿀?댁슂!' },
+          { emotion: 'surprise', text: '[surprise] ?! ?뺣쭚 ??쇱썙??' },
+          { emotion: 'neutral', text: '[neutral] ?됱긽??紐⑥뒿?쇰줈 ?몄궗?쒕젮??' }
         ];
         const randomTest = testEmotions[Math.floor(Math.random() * testEmotions.length)];
 
-        console.log('감정 + TTS 테스트 실행:', randomTest);
+        console.log('媛먯젙 + TTS ?뚯뒪???ㅽ뻾:', randomTest);
 
-        // 감정 적용 (MainContent로 전달)
+        // 媛먯젙 ?곸슜 (MainContent濡??꾨떖)
         if (live2dModelRef.current) {
           applyEmotionToModel(live2dModelRef.current, randomTest.emotion);
         }
 
-        // TTS 실행 (감정 명령 포함된 텍스트)
+        // TTS ?ㅽ뻾 (媛먯젙 紐낅졊 ?ы븿???띿뒪??
         speak(randomTest.text);
         return;
       }
@@ -534,16 +531,13 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
     }
   }, [modelPosition, speak]);
 
-  // 터치 이벤트 핸들러
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+  // ?곗튂 ?대깽???몃뱾??  const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 1) {
-      // 단일 터치 - 드래그
-      const touch = e.touches[0];
+      // ?⑥씪 ?곗튂 - ?쒕옒洹?      const touch = e.touches[0];
       setIsDragging(true);
       setDragStart({ x: touch.clientX - modelPosition.x, y: touch.clientY - modelPosition.y });
     } else if (e.touches.length === 2) {
-      // 두 손가락 터치 - 확대/축소 준비
-      e.preventDefault();
+      // ???먭????곗튂 - ?뺣?/異뺤냼 以鍮?      e.preventDefault();
       const touch1 = e.touches[0];
       const touch2 = e.touches[1];
       const distance = Math.hypot(
@@ -555,7 +549,7 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
   }, [modelPosition, modelScale]);
 
   const handleWindowMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button === 0) { // 왼쪽 클릭
+    if (e.button === 0) { // ?쇱そ ?대┃
       setIsWindowDragging(true);
       setDragStart({ x: e.clientX - windowPosition.x, y: e.clientY - windowPosition.y });
     }
@@ -567,7 +561,7 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
       const newY = e.clientY - dragStart.y;
       setModelPosition({ x: newX, y: newY });
 
-      // Live2D 모델 위치 업데이트
+      // Live2D 紐⑤뜽 ?꾩튂 ?낅뜲?댄듃
       if (live2dModelRef.current) {
         live2dModelRef.current.x = width / 2 + newX;
         live2dModelRef.current.y = height * 0.9 + newY;
@@ -581,23 +575,20 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
     }
   }, [isDragging, isWindowDragging, dragStart, width, height]);
 
-  // 터치 이동 핸들러
-  const handleTouchMove = useCallback((e: TouchEvent) => {
+  // ?곗튂 ?대룞 ?몃뱾??  const handleTouchMove = useCallback((e: TouchEvent) => {
     if (e.touches.length === 1 && isDragging) {
-      // 단일 터치 드래그
-      const touch = e.touches[0];
+      // ?⑥씪 ?곗튂 ?쒕옒洹?      const touch = e.touches[0];
       const newX = touch.clientX - dragStart.x;
       const newY = touch.clientY - dragStart.y;
       setModelPosition({ x: newX, y: newY });
 
-      // Live2D 모델 위치 업데이트
+      // Live2D 紐⑤뜽 ?꾩튂 ?낅뜲?댄듃
       if (live2dModelRef.current) {
         live2dModelRef.current.x = width / 2 + newX;
         live2dModelRef.current.y = height * 0.9 + newY;
       }
     } else if (e.touches.length === 2) {
-      // 두 손가락 핀치 줌
-      e.preventDefault();
+      // ???먭????移?以?      e.preventDefault();
       const touch1 = e.touches[0];
       const touch2 = e.touches[1];
       const currentDistance = Math.hypot(
@@ -612,7 +603,7 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
 
       setModelScale(newScale);
 
-      // Live2D 모델 스케일 업데이트
+      // Live2D 紐⑤뜽 ?ㅼ????낅뜲?댄듃
       if (live2dModelRef.current) {
         let baseScale;
         switch (selectedModel) {
@@ -635,19 +626,18 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
     setIsWindowDragging(false);
   }, []);
 
-  // 터치 종료 핸들러
-  const handleTouchEnd = useCallback(() => {
+  // ?곗튂 醫낅즺 ?몃뱾??  const handleTouchEnd = useCallback(() => {
     setIsDragging(false);
     setIsWindowDragging(false);
   }, []);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1; // 휠 방향에 따라 축소/확대
-    const newScale = Math.max(0.1, Math.min(3, modelScale * delta)); // 0.1 ~ 3 배 제한
+    const delta = e.deltaY > 0 ? 0.9 : 1.1; // ??諛⑺뼢???곕씪 異뺤냼/?뺣?
+    const newScale = Math.max(0.1, Math.min(3, modelScale * delta)); // 0.1 ~ 3 諛??쒗븳
     setModelScale(newScale);
 
-    // Live2D 모델 스케일 업데이트 (모델별 기본 스케일 고려)
+    // Live2D 紐⑤뜽 ?ㅼ????낅뜲?댄듃 (紐⑤뜽蹂?湲곕낯 ?ㅼ???怨좊젮)
     if (live2dModelRef.current) {
       let baseScale;
       switch (selectedModel) {
@@ -664,24 +654,22 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
     }
   }, [modelScale, selectedModel]);
 
-  // 전역 마우스 및 터치 이벤트 리스너 설정
+  // ?꾩뿭 留덉슦??諛??곗튂 ?대깽??由ъ뒪???ㅼ젙
   useEffect(() => {
     if (isDragging || isWindowDragging) {
-      // 마우스 이벤트
-      document.addEventListener('mousemove', handleMouseMove);
+      // 留덉슦???대깽??      document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
 
-      // 터치 이벤트
-      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      // ?곗튂 ?대깽??      document.addEventListener('touchmove', handleTouchMove, { passive: false });
       document.addEventListener('touchend', handleTouchEnd);
       document.addEventListener('touchcancel', handleTouchEnd);
 
       return () => {
-        // 마우스 이벤트 제거
+        // 留덉슦???대깽???쒓굅
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
 
-        // 터치 이벤트 제거
+        // ?곗튂 ?대깽???쒓굅
         document.removeEventListener('touchmove', handleTouchMove);
         document.removeEventListener('touchend', handleTouchEnd);
         document.removeEventListener('touchcancel', handleTouchEnd);
@@ -689,15 +677,14 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
     }
   }, [isDragging, isWindowDragging, handleMouseMove, handleMouseUp, handleTouchMove, handleTouchEnd]);
 
-  // PIXI.js + pixi-live2d-display 초기화
-  const initializeLive2D = useCallback(async () => {
-    // 이미 초기화 중이면 중복 실행 방지 (isLoading은 UI 상태용이므로 제외)
+  // PIXI.js + pixi-live2d-display 珥덇린??  const initializeLive2D = useCallback(async () => {
+    // ?대? 珥덇린??以묒씠硫?以묐났 ?ㅽ뻾 諛⑹? (isLoading? UI ?곹깭?⑹씠誘濡??쒖쇅)
     if (isInitializing) {
-      console.log('⏸️ 이미 초기화 중입니다. 중복 실행을 방지합니다.');
+      console.log('?몌툘 ?대? 珥덇린??以묒엯?덈떎. 以묐났 ?ㅽ뻾??諛⑹??⑸땲??');
       return;
     }
 
-    // console.log('🎬 pixi-live2d-display 초기화 시작...', {
+    // console.log('?렗 pixi-live2d-display 珥덇린???쒖옉...', {
     //   isInitializing,
     //   isLoading,
     //   selectedModel,
@@ -710,7 +697,7 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
       setIsLoading(true);
       setError(null);
 
-      console.log('🎨 모델 초기화 시작:', {
+      console.log('?렓 紐⑤뜽 珥덇린???쒖옉:', {
         selectedModel,
         availableModels: Object.keys(modelDefinitions),
         hasModel: !!modelDefinitions[selectedModel]
@@ -718,14 +705,14 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
 
       const model = modelDefinitions[selectedModel];
       if (!model) {
-        console.error('❌ 모델을 찾을 수 없음:', {
+        console.error('??紐⑤뜽??李얠쓣 ???놁쓬:', {
           selectedModel,
           availableModels: Object.keys(modelDefinitions)
         });
         throw new Error(`Model "${selectedModel}" not found`);
       }
 
-      console.log('✅ 모델 정의 찾음:', {
+      console.log('??紐⑤뜽 ?뺤쓽 李얠쓬:', {
         name: model.name,
         url: model.url,
         description: model.description
@@ -738,32 +725,32 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
         throw new Error('Container element not found');
       }
 
-      // 1. 기존 Live2D 모델 먼저 정리 (PIXI 앱보다 먼저)
+      // 1. 湲곗〈 Live2D 紐⑤뜽 癒쇱? ?뺣━ (PIXI ?깅낫??癒쇱?)
       if (live2dModelRef.current) {
         try {
           const model = live2dModelRef.current;
 
-          // 부모에서 제거
+          // 遺紐⑥뿉???쒓굅
           if (model.parent) {
             model.parent.removeChild(model);
           }
 
-          // 모델 완전 파괴
+          // 紐⑤뜽 ?꾩쟾 ?뚭눼
           model.destroy({ children: true, texture: true, baseTexture: true });
 
-          console.log('✅ Live2D 모델 정리 완료');
+          console.log('??Live2D 紐⑤뜽 ?뺣━ ?꾨즺');
         } catch (e) {
-          console.warn('⚠️ Live2D 모델 정리 중 오류 (무시됨):', e);
+          console.warn('?좑툘 Live2D 紐⑤뜽 ?뺣━ 以??ㅻ쪟 (臾댁떆??:', e);
         }
         live2dModelRef.current = null;
       }
 
-      // 2. 기존 PIXI 앱 완전 정리 (WebGL 컨텍스트 포함)
+      // 2. 湲곗〈 PIXI ???꾩쟾 ?뺣━ (WebGL 而⑦뀓?ㅽ듃 ?ы븿)
       if (pixiAppRef.current) {
         try {
           const app = pixiAppRef.current;
 
-          // WebGL 컨텍스트 이벤트 리스너 먼저 제거 (중요!)
+          // WebGL 而⑦뀓?ㅽ듃 ?대깽??由ъ뒪??癒쇱? ?쒓굅 (以묒슂!)
           if (webglContextListenersRef.current.canvas &&
             webglContextListenersRef.current.contextLost &&
             webglContextListenersRef.current.contextRestored) {
@@ -775,59 +762,59 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
               'webglcontextrestored',
               webglContextListenersRef.current.contextRestored
             );
-            console.log('🔇 WebGL 컨텍스트 이벤트 리스너 제거 완료');
+            console.log('?뵁 WebGL 而⑦뀓?ㅽ듃 ?대깽??由ъ뒪???쒓굅 ?꾨즺');
             webglContextListenersRef.current = { canvas: null, contextLost: null, contextRestored: null };
           }
 
-          // Ticker 중지
+          // Ticker 以묒?
           if (app.ticker) {
             app.ticker.stop();
           }
 
-          // Stage의 모든 자식 제거
+          // Stage??紐⑤뱺 ?먯떇 ?쒓굅
           if (app.stage) {
             app.stage.removeChildren();
           }
 
-          // 전체 앱 파괴 (renderer, stage, ticker 모두 포함)
-          // removeView: true로 DOM에서 캔버스도 제거
+          // ?꾩껜 ???뚭눼 (renderer, stage, ticker 紐⑤몢 ?ы븿)
+          // removeView: true濡?DOM?먯꽌 罹붾쾭?ㅻ룄 ?쒓굅
           app.destroy(true, {
             children: true,
             texture: true,
             baseTexture: true
           });
 
-          console.log('✅ PIXI 앱 완전 정리 완료');
+          console.log('??PIXI ???꾩쟾 ?뺣━ ?꾨즺');
         } catch (e) {
-          console.warn('⚠️ PIXI 앱 정리 중 오류 (무시됨):', e);
+          console.warn('?좑툘 PIXI ???뺣━ 以??ㅻ쪟 (臾댁떆??:', e);
         }
         pixiAppRef.current = null;
       }
 
-      // 3. PIXI 텍스처 캐시 완전 정리
+      // 3. PIXI ?띿뒪泥?罹먯떆 ?꾩쟾 ?뺣━
       try {
         if (PIXI.utils && PIXI.utils.clearTextureCache) {
           PIXI.utils.clearTextureCache();
-          console.log('✅ PIXI 텍스처 캐시 정리 완료');
+          console.log('??PIXI ?띿뒪泥?罹먯떆 ?뺣━ ?꾨즺');
         }
       } catch (cacheError) {
-        console.warn('⚠️ 텍스처 캐시 정리 실패 (무시됨):', cacheError);
+        console.warn('?좑툘 ?띿뒪泥?罹먯떆 ?뺣━ ?ㅽ뙣 (臾댁떆??:', cacheError);
       }
 
-      // 4. DOM에서 남은 캔버스 완전 제거
+      // 4. DOM?먯꽌 ?⑥? 罹붾쾭???꾩쟾 ?쒓굅
       while (container.firstChild) {
         container.removeChild(container.firstChild);
       }
 
-      // 5. WebGL 컨텍스트가 완전히 해제될 때까지 대기 (개인 아바타는 더 긴 대기)
+      // 5. WebGL 而⑦뀓?ㅽ듃媛 ?꾩쟾???댁젣???뚭퉴吏 ?湲?(媛쒖씤 ?꾨컮?????湲??湲?
       const isUserAvatar = selectedModel && !modelDefinitions[selectedModel]?.url?.startsWith('/live2d-models/');
-      const waitTime = isUserAvatar ? 1200 : 250; // 개인 아바타는 1200ms로 증가
-      console.log(`⏳ WebGL 정리 대기 중... (${waitTime}ms) ${isUserAvatar ? '[개인 아바타]' : '[기본 모델]'}`);
+      const waitTime = isUserAvatar ? 1200 : 250; // 媛쒖씤 ?꾨컮???1200ms濡?利앷?
+      console.log(`??WebGL ?뺣━ ?湲?以?.. (${waitTime}ms) ${isUserAvatar ? '[媛쒖씤 ?꾨컮?]' : '[湲곕낯 紐⑤뜽]'}`);
       await new Promise(resolve => setTimeout(resolve, waitTime));
 
-      // console.log('🎨 PIXI.js v7 앱 초기화...');
+      // console.log('?렓 PIXI.js v7 ??珥덇린??..');
 
-      // PIXI.js v7 Application 생성
+      // PIXI.js v7 Application ?앹꽦
       const app = new PIXI.Application({
         width,
         height,
@@ -837,99 +824,92 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
         powerPreference: 'high-performance',
-        // WebGL 컨텍스트 옵션 추가
-        hello: false, // PIXI 배너 숨기기
-        // WebGL 컨텍스트 안정성 옵션
-        preserveDrawingBuffer: false, // 성능 향상
+        // WebGL 而⑦뀓?ㅽ듃 ?듭뀡 異붽?
+        hello: false, // PIXI 諛곕꼫 ?④린湲?        // WebGL 而⑦뀓?ㅽ듃 ?덉젙???듭뀡
+        preserveDrawingBuffer: false, // ?깅뒫 ?μ긽
         clearBeforeRender: true,
-        // 컨텍스트 손실 방지 옵션
-        forceCanvas: false, // WebGL 사용 강제
+        // 而⑦뀓?ㅽ듃 ?먯떎 諛⑹? ?듭뀡
+        forceCanvas: false, // WebGL ?ъ슜 媛뺤젣
       });
 
-      console.log('✅ PIXI.js v7 앱 생성 완료');
+      console.log('??PIXI.js v7 ???앹꽦 ?꾨즺');
 
-      // WebGL 컨텍스트 손실/복원 이벤트 핸들러
-      const canvas = app.view as HTMLCanvasElement;
+      // WebGL 而⑦뀓?ㅽ듃 ?먯떎/蹂듭썝 ?대깽???몃뱾??      const canvas = app.view as HTMLCanvasElement;
       if (canvas) {
         const handleContextLost = (e: Event) => {
-          console.error('🚨 WebGL 컨텍스트 손실 감지!');
-          // e.preventDefault()를 호출하지 않으면 브라우저가 자동으로 복원 시도
-          // 하지만 우리는 수동으로 복원하므로 preventDefault 호출
+          console.error('?슚 WebGL 而⑦뀓?ㅽ듃 ?먯떎 媛먯?!');
+          // e.preventDefault()瑜??몄텧?섏? ?딆쑝硫?釉뚮씪?곗?媛 ?먮룞?쇰줈 蹂듭썝 ?쒕룄
+          // ?섏?留??곕━???섎룞?쇰줈 蹂듭썝?섎?濡?preventDefault ?몄텧
           e.preventDefault();
 
-          console.log('⚠️ 모델 초기화 상태 리셋 중...');
+          console.log('?좑툘 紐⑤뜽 珥덇린???곹깭 由ъ뀑 以?..');
           setIsInitializing(false);
           setIsLoading(false);
-          setError('WebGL 컨텍스트가 손실되었습니다. 복원 중...');
+          setError('WebGL 而⑦뀓?ㅽ듃媛 ?먯떎?섏뿀?듬땲?? 蹂듭썝 以?..');
         };
 
         const handleContextRestored = () => {
-          console.log('✅ WebGL 컨텍스트 복원됨');
+          console.log('??WebGL 而⑦뀓?ㅽ듃 蹂듭썝??);
 
-          // 컨텍스트 복원 후 안정화 대기
-          setTimeout(() => {
-            console.log('🔄 WebGL 안정화 완료 - 모델 재로드 시도:', selectedModel);
+          // 而⑦뀓?ㅽ듃 蹂듭썝 ???덉젙???湲?          setTimeout(() => {
+            console.log('?봽 WebGL ?덉젙???꾨즺 - 紐⑤뜽 ?щ줈???쒕룄:', selectedModel);
 
-            // 상태 완전 리셋 후 재시도
-            setError(null);
+            // ?곹깭 ?꾩쟾 由ъ뀑 ???ъ떆??            setError(null);
             setLastInitializedModel(null);
             setIsInitializing(false);
             setIsLoading(false);
 
-            // 모델 재로드 트리거 (selectedModel은 유지하되 lastInitializedModel을 null로)
-            // useEffect에서 자동으로 재초기화됨
-          }, 1500); // 1.5초 대기
-        };
+            // 紐⑤뜽 ?щ줈???몃━嫄?(selectedModel? ?좎??섎릺 lastInitializedModel??null濡?
+            // useEffect?먯꽌 ?먮룞?쇰줈 ?ъ큹湲고솕??          }, 1500); // 1.5珥??湲?        };
 
-        // 이벤트 리스너 등록
+        // ?대깽??由ъ뒪???깅줉
         canvas.addEventListener('webglcontextlost', handleContextLost as EventListener);
         canvas.addEventListener('webglcontextrestored', handleContextRestored as EventListener);
 
-        // ref에 저장 (나중에 제거할 수 있도록)
+        // ref?????(?섏쨷???쒓굅?????덈룄濡?
         webglContextListenersRef.current = {
           canvas: canvas,
           contextLost: handleContextLost as EventListener,
           contextRestored: handleContextRestored as EventListener
         };
 
-        console.log('🎧 WebGL 컨텍스트 이벤트 리스너 등록 완료');
+        console.log('?렒 WebGL 而⑦뀓?ㅽ듃 ?대깽??由ъ뒪???깅줉 ?꾨즺');
       }
 
-      // 이벤트 시스템 안전 설정 (PIXI v7 호환)
+      // ?대깽???쒖뒪???덉쟾 ?ㅼ젙 (PIXI v7 ?명솚)
       try {
-        // PIXI v7의 새로운 events API 사용
+        // PIXI v7???덈줈??events API ?ъ슜
         if (app.renderer && (app.renderer as any).events) {
           (app.renderer as any).events.autoPreventDefault = false;
         }
-        // Stage 이벤트 비활성화 (v7.2+ 방식)
+        // Stage ?대깽??鍮꾪솢?깊솕 (v7.2+ 諛⑹떇)
         app.stage.eventMode = 'none';
         (app.stage as any).interactiveChildren = false;
       } catch (eventError) {
-        console.warn('⚠️ 이벤트 시스템 설정 실패 (무시됨):', eventError);
+        console.warn('?좑툘 ?대깽???쒖뒪???ㅼ젙 ?ㅽ뙣 (臾댁떆??:', eventError);
       }
 
-      // DOM에 PIXI 캔버스 추가 (v7 방식)
+      // DOM??PIXI 罹붾쾭??異붽? (v7 諛⑹떇)
       if (canvas) {
         canvas.style.display = 'block';
-        canvas.style.touchAction = 'none'; // 터치 이벤트 최적화
-        container.appendChild(canvas);
+        canvas.style.touchAction = 'none'; // ?곗튂 ?대깽??理쒖쟻??        container.appendChild(canvas);
         pixiAppRef.current = app;
-        console.log('✅ PIXI 캔버스 DOM에 추가 완료');
+        console.log('??PIXI 罹붾쾭??DOM??異붽? ?꾨즺');
       } else {
-        throw new Error('PIXI canvas를 찾을 수 없습니다');
+        throw new Error('PIXI canvas瑜?李얠쓣 ???놁뒿?덈떎');
       }
 
-      console.log('🎨 pixi-live2d-display로 Live2D 모델 로드 시작:', model.url);
+      console.log('?렓 pixi-live2d-display濡?Live2D 紐⑤뜽 濡쒕뱶 ?쒖옉:', model.url);
 
-      // pixi-live2d-display로 Live2D 모델 로드 (안전 옵션)
+      // pixi-live2d-display濡?Live2D 紐⑤뜽 濡쒕뱶 (?덉쟾 ?듭뀡)
       const live2dModel = await Live2DModel.from(model.url, {
-        // 모션 로딩 실패 시 무시하고 계속 진행
+        // 紐⑥뀡 濡쒕뵫 ?ㅽ뙣 ??臾댁떆?섍퀬 怨꾩냽 吏꾪뻾
         onError: (error: any) => {
-          console.warn('⚠️ Live2D 모션/리소스 로딩 실패 (무시됨):', error.message || error);
+          console.warn('?좑툘 Live2D 紐⑥뀡/由ъ냼??濡쒕뵫 ?ㅽ뙣 (臾댁떆??:', error.message || error);
         }
       });
 
-      console.log('✅ Live2D 모델 로드 완료:', {
+      console.log('??Live2D 紐⑤뜽 濡쒕뱶 ?꾨즺:', {
         modelName: selectedModel,
         modelUrl: model.url,
         hasInternalModel: !!(live2dModel as any).internalModel,
@@ -937,18 +917,18 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
         height: live2dModel.height
       });
 
-      // 인터랙션 비활성화 (PIXI v7 방식, 이벤트 오류 방지)
+      // ?명꽣?숈뀡 鍮꾪솢?깊솕 (PIXI v7 諛⑹떇, ?대깽???ㅻ쪟 諛⑹?)
       try {
-        // PIXI v7.2+ eventMode 사용
+        // PIXI v7.2+ eventMode ?ъ슜
         (live2dModel as any).eventMode = 'none';
         (live2dModel as any).interactiveChildren = false;
 
-        // 내부 모델에도 적용
+        // ?대? 紐⑤뜽?먮룄 ?곸슜
         if ((live2dModel as any).internalModel) {
           (live2dModel as any).internalModel.eventMode = 'none';
         }
 
-        // registerInteraction 메서드 무력화 (오류 방지)
+        // registerInteraction 硫붿꽌??臾대젰??(?ㅻ쪟 諛⑹?)
         if (typeof (live2dModel as any).registerInteraction === 'function') {
           (live2dModel as any).registerInteraction = () => { };
         }
@@ -956,65 +936,58 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
           (live2dModel as any).unregisterInteraction = () => { };
         }
       } catch (interactionError) {
-        console.warn('⚠️ 인터랙션 비활성화 실패 (무시됨):', interactionError);
+        console.warn('?좑툘 ?명꽣?숈뀡 鍮꾪솢?깊솕 ?ㅽ뙣 (臾댁떆??:', interactionError);
       }
 
-      // 모델별 기본 크기 설정
+      // 紐⑤뜽蹂?湲곕낯 ?ш린 ?ㅼ젙
       let baseScale;
 
-      // 모델 타입에 따라 기본 스케일 자동 결정
-      const isProjectSekaiModel = selectedModel.match(/^\d{2}[a-z]+_/); // 01ichika, 02saki 등
-      const isCubismSDKModel = ['mao', 'mao_pro', 'shizuku', 'chitose', 'haru', 'Epsilon',
+      // 紐⑤뜽 ??낆뿉 ?곕씪 湲곕낯 ?ㅼ????먮룞 寃곗젙
+      const isProjectSekaiModel = selectedModel.match(/^\d{2}[a-z]+_/); // 01ichika, 02saki ??      const isCubismSDKModel = ['mao', 'mao_pro', 'shizuku', 'chitose', 'haru', 'Epsilon',
         'hijiki', 'tororo', 'hiyori_pro_ko', 'natori_pro_ko',
         'rice_pro_ko', 'miara_pro_en', 'haru_greeter_pro_jp'].includes(selectedModel);
 
       if (selectedModel === 'mao' || selectedModel === 'mao_pro') {
-        baseScale = 0.08; // mao는 특별히 큰 모델
+        baseScale = 0.08; // mao???밸퀎????紐⑤뜽
       } else if (selectedModel === 'ichika') {
-        baseScale = 0.18; // ichika는 작은 모델
+        baseScale = 0.18; // ichika???묒? 紐⑤뜽
       } else if (isProjectSekaiModel) {
-        // Project Sekai 모델들 (숫자로 시작)
-        baseScale = 0.24; // Project Sekai 모델들은 더 큰 스케일 필요
+        // Project Sekai 紐⑤뜽??(?レ옄濡??쒖옉)
+        baseScale = 0.24; // Project Sekai 紐⑤뜽?ㅼ? ?????ㅼ????꾩슂
       } else if (isCubismSDKModel) {
-        // Cubism SDK 모델들
-        baseScale = 0.10; // Cubism SDK 모델들은 작은 스케일
-      } else {
-        // 기타 모델들
-        baseScale = 0.18; // 기본값
-      }
+        // Cubism SDK 紐⑤뜽??        baseScale = 0.10; // Cubism SDK 紐⑤뜽?ㅼ? ?묒? ?ㅼ???      } else {
+        // 湲고? 紐⑤뜽??        baseScale = 0.18; // 湲곕낯媛?      }
 
-      // 사용자 조정 스케일과 기본 스케일 결합
+      // ?ъ슜??議곗젙 ?ㅼ??쇨낵 湲곕낯 ?ㅼ???寃고빀
       const finalScale = baseScale * modelScale;
 
-      console.log(`📏 ${selectedModel} 모델 스케일 설정:`, { baseScale, userScale: modelScale, finalScale });
+      console.log(`?뱩 ${selectedModel} 紐⑤뜽 ?ㅼ????ㅼ젙:`, { baseScale, userScale: modelScale, finalScale });
 
       live2dModel.scale.set(finalScale);
 
-      // 모델 타입에 따라 앵커와 Y 위치 조정
+      // 紐⑤뜽 ??낆뿉 ?곕씪 ?듭빱? Y ?꾩튂 議곗젙
       if (isProjectSekaiModel) {
-        // Project Sekai 모델은 더 아래쪽에 배치
-        live2dModel.anchor.set(0.5, 0.5); // 중앙 앵커
+        // Project Sekai 紐⑤뜽? ???꾨옒履쎌뿉 諛곗튂
+        live2dModel.anchor.set(0.5, 0.5); // 以묒븰 ?듭빱
         live2dModel.y = height * 0.65 + (model.initialYshift || 0) * 100 + modelPosition.y;
       } else {
-        // 기타 모델들
-        live2dModel.anchor.set(0.5, 0.5); // 중앙 앵커로 변경
-        live2dModel.y = height * 0.6 + (model.initialYshift || 0) * 100 + modelPosition.y;
+        // 湲고? 紐⑤뜽??        live2dModel.anchor.set(0.5, 0.5); // 以묒븰 ?듭빱濡?蹂寃?        live2dModel.y = height * 0.6 + (model.initialYshift || 0) * 100 + modelPosition.y;
       }
 
       live2dModel.x = width / 2 + (model.initialXshift || 0) + modelPosition.x;
 
-      // PIXI Stage에 Live2D 모델 추가 (v7 타입 캐스팅)
+      // PIXI Stage??Live2D 紐⑤뜽 異붽? (v7 ???罹먯뒪??
       app.stage.addChild(live2dModel as any);
       live2dModelRef.current = live2dModel;
 
-      console.log('✅ Live2D 모델 Stage에 추가 완료:', {
+      console.log('??Live2D 紐⑤뜽 Stage??異붽? ?꾨즺:', {
         scale: finalScale,
         position: `${live2dModel.x}, ${live2dModel.y}`,
         width: live2dModel.width,
         height: live2dModel.height
       });
 
-      // 전역 오류 처리 (Live2D 관련 오류 무시)
+      // ?꾩뿭 ?ㅻ쪟 泥섎━ (Live2D 愿???ㅻ쪟 臾댁떆)
       const handleGlobalError = (event: ErrorEvent) => {
         const errorMsg = event.message || event.error?.message || '';
         if (errorMsg.includes('manager.on is not a function') ||
@@ -1028,24 +1001,24 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
         }
       };
 
-      // 전역 오류 리스너 등록
+      // ?꾩뿭 ?ㅻ쪟 由ъ뒪???깅줉
       window.addEventListener('error', handleGlobalError);
 
-      // 5초 후 리스너 제거
+      // 5珥???由ъ뒪???쒓굅
       setTimeout(() => {
         window.removeEventListener('error', handleGlobalError);
       }, 10000);
 
-      console.log('✅ pixi-live2d-display 초기화 완료');
+      console.log('??pixi-live2d-display 珥덇린???꾨즺');
 
-      // 초기 감정 적용 (기본 상태)
+      // 珥덇린 媛먯젙 ?곸슜 (湲곕낯 ?곹깭)
       if (emotion && emotion !== 'neutral') {
         setTimeout(() => {
           if (live2dModelRef.current) {
             try {
               applyEmotionToModel(live2dModelRef.current, emotion);
             } catch (error) {
-              console.warn('초기 감정 적용 오류:', error);
+              console.warn('珥덇린 媛먯젙 ?곸슜 ?ㅻ쪟:', error);
             }
           }
         }, 1000);
@@ -1053,7 +1026,7 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
 
       setIsLoading(false);
       setIsInitializing(false);
-      setLastInitializedModel(selectedModel); // 성공한 모델 기록
+      setLastInitializedModel(selectedModel); // ?깃났??紐⑤뜽 湲곕줉
 
       if (onLoaded) {
         onLoaded(live2dModel);
@@ -1062,51 +1035,51 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
 
 
     } catch (error) {
-      console.error('❌ pixi-live2d-display 초기화 실패:', error);
-      setError(error instanceof Error ? error.message : 'Live2D 초기화 실패');
+      console.error('??pixi-live2d-display 珥덇린???ㅽ뙣:', error);
+      setError(error instanceof Error ? error.message : 'Live2D 珥덇린???ㅽ뙣');
       setIsLoading(false);
       setIsInitializing(false);
-      setLastInitializedModel(null); // 실패 시 리셋
+      setLastInitializedModel(null); // ?ㅽ뙣 ??由ъ뀑
 
       if (onError) {
-        onError(error instanceof Error ? error : new Error('Live2D 초기화 실패'));
+        onError(error instanceof Error ? error : new Error('Live2D 珥덇린???ㅽ뙣'));
       }
     }
   }, [selectedModel, modelDefinitions]);
 
-  // props로 받은 modelName 변경 시 내부 상태 업데이트
+  // props濡?諛쏆? modelName 蹂寃????대? ?곹깭 ?낅뜲?댄듃
   useEffect(() => {
-    // URL에서 개인 아바타 파라미터 확인
+    // URL?먯꽌 媛쒖씤 ?꾨컮? ?뚮씪誘명꽣 ?뺤씤
     const urlParams = new URLSearchParams(window.location.search);
     const isUserAvatarInUrl = urlParams.get('isUserAvatar') === 'true';
 
     if (modelName && modelName !== selectedModel) {
-      // 개인 아바타가 활성화되어 있고 URL에도 개인 아바타 파라미터가 있으면 props 변경 무시
+      // 媛쒖씤 ?꾨컮?媛 ?쒖꽦?붾릺???덇퀬 URL?먮룄 媛쒖씤 ?꾨컮? ?뚮씪誘명꽣媛 ?덉쑝硫?props 蹂寃?臾댁떆
       if (isUserAvatarActive && isUserAvatarInUrl) {
-        console.log(`⏸️ Props 변경 무시 (개인 아바타 활성): ${modelName}`);
+        console.log(`?몌툘 Props 蹂寃?臾댁떆 (媛쒖씤 ?꾨컮? ?쒖꽦): ${modelName}`);
         return;
       }
 
-      console.log(`🔄 Props에서 모델 변경 감지: ${selectedModel} → ${modelName}`);
+      console.log(`?봽 Props?먯꽌 紐⑤뜽 蹂寃?媛먯?: ${selectedModel} ??${modelName}`);
       setSelectedModel(modelName);
       setLastInitializedModel(null);
       setError(null);
-      setIsUserAvatarActive(false); // 일반 모델로 전환
+      setIsUserAvatarActive(false); // ?쇰컲 紐⑤뜽濡??꾪솚
     }
 
-    // URL에서 개인 아바타 파라미터가 제거되면 개인 아바타 상태 해제
+    // URL?먯꽌 媛쒖씤 ?꾨컮? ?뚮씪誘명꽣媛 ?쒓굅?섎㈃ 媛쒖씤 ?꾨컮? ?곹깭 ?댁젣
     if (isUserAvatarActive && !isUserAvatarInUrl) {
-      console.log(`🔄 개인 아바타 상태 해제 (URL 변경)`);
+      console.log(`?봽 媛쒖씤 ?꾨컮? ?곹깭 ?댁젣 (URL 蹂寃?`);
       setIsUserAvatarActive(false);
     }
   }, [modelName, selectedModel, isUserAvatarActive]);
 
-  // userAvatarChange 이벤트 리스닝 (개인 아바타 선택 시)
+  // userAvatarChange ?대깽??由ъ뒪??(媛쒖씤 ?꾨컮? ?좏깮 ??
   useEffect(() => {
     const handleUserAvatarChange = async (event: Event) => {
       const detail = (event as CustomEvent).detail;
-      console.log('💎 userAvatarChange 이벤트 수신:', detail);
-      console.log('💎 이벤트 detail 구조:', {
+      console.log('?뭿 userAvatarChange ?대깽???섏떊:', detail);
+      console.log('?뭿 ?대깽??detail 援ъ“:', {
         hasDetail: !!detail,
         hasAvatar: !!(detail && detail.avatar),
         avatarKeys: detail && detail.avatar ? Object.keys(detail.avatar) : [],
@@ -1118,7 +1091,7 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
         const avatarUrl = avatar.modelUrl || avatar.url;
         const avatarName = avatar.id || avatar.displayName;
 
-        console.log('💎 개인 아바타 필드 확인:', {
+        console.log('?뭿 媛쒖씤 ?꾨컮? ?꾨뱶 ?뺤씤:', {
           id: avatar.id,
           displayName: avatar.displayName,
           modelUrl: avatar.modelUrl,
@@ -1128,16 +1101,16 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
         });
 
         if (avatarUrl && avatarName) {
-          console.log('💎 개인 아바타로 전환 시작:', {
+          console.log('?뭿 媛쒖씤 ?꾨컮?濡??꾪솚 ?쒖옉:', {
             name: avatarName,
             url: avatarUrl,
             currentModel: selectedModel
           });
 
-          // 개인 아바타를 모델 정의에 추가
+          // 媛쒖씤 ?꾨컮?瑜?紐⑤뜽 ?뺤쓽??異붽?
           const userAvatarModel: ModelInfo = {
             name: avatarName,
-            description: `개인 아바타: ${avatar.displayName || avatarName}`,
+            description: `媛쒖씤 ?꾨컮?: ${avatar.displayName || avatarName}`,
             url: avatarUrl,
             kScale: 0.5,
             initialXshift: 0.15,
@@ -1148,55 +1121,54 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
             tapMotions: {}
           };
 
-          console.log('💎 생성된 모델 정의:', userAvatarModel);
+          console.log('?뭿 ?앹꽦??紐⑤뜽 ?뺤쓽:', userAvatarModel);
 
-          // 1. 먼저 모델 정의 업데이트
+          // 1. 癒쇱? 紐⑤뜽 ?뺤쓽 ?낅뜲?댄듃
           setModelDefinitions(prev => {
             const updated = {
               ...prev,
               [avatarName]: userAvatarModel
             };
-            console.log('💎 모델 정의 업데이트 완료:', {
+            console.log('?뭿 紐⑤뜽 ?뺤쓽 ?낅뜲?댄듃 ?꾨즺:', {
               totalModels: Object.keys(updated).length,
               hasNewModel: avatarName in updated
             });
             return updated;
           });
 
-          // 2. 상태 업데이트를 위해 충분히 대기 (React 배치 업데이트)
+          // 2. ?곹깭 ?낅뜲?댄듃瑜??꾪빐 異⑸텇???湲?(React 諛곗튂 ?낅뜲?댄듃)
           await new Promise(resolve => setTimeout(resolve, 200));
 
-          console.log('💎 모델 정의가 상태에 반영되었는지 확인');
+          console.log('?뭿 紐⑤뜽 ?뺤쓽媛 ?곹깭??諛섏쁺?섏뿀?붿? ?뺤씤');
 
-          // 3. 모델 변경 (이제 modelDefinitions에 새 모델이 있음)
+          // 3. 紐⑤뜽 蹂寃?(?댁젣 modelDefinitions????紐⑤뜽???덉쓬)
           if (selectedModel !== avatarName) {
-            console.log(`💎 모델 전환 준비: ${selectedModel} → ${avatarName}`);
+            console.log(`?뭿 紐⑤뜽 ?꾪솚 以鍮? ${selectedModel} ??${avatarName}`);
 
-            // 추가 안정화: 현재 모델을 명시적으로 초기화 상태로 리셋
+            // 異붽? ?덉젙?? ?꾩옱 紐⑤뜽??紐낆떆?곸쑝濡?珥덇린???곹깭濡?由ъ뀑
             setLastInitializedModel(null);
             setError(null);
             setIsInitializing(false);
             setIsLoading(false);
 
-            console.log('💎 WebGL 안정화를 위해 500ms 대기 중...');
-            // WebGL 안정화를 위한 추가 대기
-            await new Promise(resolve => setTimeout(resolve, 500));
+            console.log('?뭿 WebGL ?덉젙?붾? ?꾪빐 500ms ?湲?以?..');
+            // WebGL ?덉젙?붾? ?꾪븳 異붽? ?湲?            await new Promise(resolve => setTimeout(resolve, 500));
 
-            console.log(`💎 모델 전환 실행: ${avatarName}`);
-            setIsUserAvatarActive(true); // 개인 아바타 활성화 표시
+            console.log(`?뭿 紐⑤뜽 ?꾪솚 ?ㅽ뻾: ${avatarName}`);
+            setIsUserAvatarActive(true); // 媛쒖씤 ?꾨컮? ?쒖꽦???쒖떆
             setSelectedModel(avatarName);
           } else {
-            console.log('⚠️ 이미 해당 모델이 선택되어 있음:', avatarName);
+            console.log('?좑툘 ?대? ?대떦 紐⑤뜽???좏깮?섏뼱 ?덉쓬:', avatarName);
           }
         } else {
-          console.error('❌ 개인 아바타 정보 부족:', {
+          console.error('??媛쒖씤 ?꾨컮? ?뺣낫 遺議?', {
             avatarUrl,
             avatarName,
             avatar
           });
         }
       } else {
-        console.error('❌ 이벤트 detail 또는 avatar가 없음:', detail);
+        console.error('???대깽??detail ?먮뒗 avatar媛 ?놁쓬:', detail);
       }
     };
 
@@ -1207,25 +1179,25 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
     };
   }, [selectedModel]);
 
-  // 감정 변경 처리 (Expression + Motion 시스템)
+  // 媛먯젙 蹂寃?泥섎━ (Expression + Motion ?쒖뒪??
   useEffect(() => {
     if (live2dModelRef.current && emotion && !isLoading) {
       try {
-        console.log('🎭 감정 변경 시도:', {
+        console.log('?렚 媛먯젙 蹂寃??쒕룄:', {
           emotion,
           modelExists: !!live2dModelRef.current,
           isLoading,
           selectedModel
         });
 
-        console.log('🎭 Live2D 감정 + 모션 적용:', emotion);
+        console.log('?렚 Live2D 媛먯젙 + 紐⑥뀡 ?곸슜:', emotion);
         applyEmotionToModel(live2dModelRef.current, emotion);
 
       } catch (error) {
-        console.warn('감정 적용 중 오류:', error);
+        console.warn('媛먯젙 ?곸슜 以??ㅻ쪟:', error);
       }
     } else {
-      console.log('🎭 감정 변경 조건 불충족:', {
+      console.log('?렚 媛먯젙 蹂寃?議곌굔 遺덉땐議?', {
         hasModel: !!live2dModelRef.current,
         hasEmotion: !!emotion,
         isLoading,
@@ -1234,73 +1206,55 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
     }
   }, [emotion, isLoading, applyEmotionToModel, selectedModel]);
 
-  // TTS 함수를 부모 컴포넌트에 전달 (모델 로드 완료 후, 한 번만)
+  // TTS ?⑥닔瑜?遺紐?而댄룷?뚰듃???꾨떖 (紐⑤뜽??以鍮꾨맆 ?뚮쭏??理쒖떊 ?⑥닔 ?꾨떖)
   useEffect(() => {
-    if (live2dModelRef.current && onSpeakReady && typeof speak === 'function' && !isLoading && !error && !isTTSReady) {
-      console.log('🎤 TTS 함수 전달 시도:', {
-        modelExists: !!live2dModelRef.current,
-        speakFunctionType: typeof speak,
-        speakFunctionName: speak.name,
-        isLoading,
-        error,
-        isTTSReady,
-        selectedModel
-      });
+    if (!live2dModelRef.current || !onSpeakReady || typeof speak !== 'function' || isLoading || error) return;
 
-      // 약간의 지연 후 TTS 함수 전달 (한 번만)
-      const timer = setTimeout(() => {
-        if (onSpeakReady && typeof speak === 'function' && !isTTSReady) {
-          console.log('TTS 함수 전달 완료');
-          onSpeakReady(speak);
-          setIsTTSReady(true); // TTS 준비 완료 표시
+    // speak ?⑥닔媛 諛붾??뚮쭏??紐⑤뜽 濡쒕뱶 ???ы븿) 遺紐⑥뿉 理쒖떊 ?⑥닔 ?꾨떖
+    const timer = setTimeout(() => {
+      if (onSpeakReady && typeof speak === 'function') {
+        onSpeakReady(speak);
+        setIsTTSReady(true);
+      }
+    }, 500);
 
-          // 전달 후 즉시 테스트 (한 번만)
-          setTimeout(() => {
-            if (!isSpeaking) { // 현재 말하고 있지 않을 때만
-              speak("TTS 연결 완료");
-            }
-          }, 500);
-        }
-      }, 1000);
+    return () => clearTimeout(timer);
+  // speak媛 ??紐⑤뜽濡??ъ깮?깅맆 ?뚮쭏???ъ쟾??  }, [speak, onSpeakReady, isLoading, error, selectedModel]);
 
-      return () => clearTimeout(timer);
-    }
-  }, [live2dModelRef.current, onSpeakReady, speak, isLoading, error, selectedModel, isTTSReady, isSpeaking]);
-
-  // isSpeaking 상태를 부모에게 전달
+  // isSpeaking ?곹깭瑜?遺紐⑥뿉寃??꾨떖
   useEffect(() => {
     if (onSpeakingChange) {
       onSpeakingChange(isSpeaking);
     }
   }, [isSpeaking, onSpeakingChange]);
 
-  // 모델 변경 시 이전 상태 리셋
+  // 紐⑤뜽 蹂寃????댁쟾 ?곹깭 由ъ뀑
   useEffect(() => {
     setLastInitializedModel(null);
     setError(null);
-    setIsTTSReady(false); // TTS 상태도 리셋
-    // isUserAvatarActive는 리셋하지 않음 (개인 아바타 상태 유지)
+    setIsTTSReady(false); // TTS ?곹깭??由ъ뀑
+    // isUserAvatarActive??由ъ뀑?섏? ?딆쓬 (媛쒖씤 ?꾨컮? ?곹깭 ?좎?)
   }, [selectedModel]);
 
-  // 모델 정의 로드
+  // 紐⑤뜽 ?뺤쓽 濡쒕뱶
   useEffect(() => {
     const loadDefinitions = async () => {
       try {
         const definitions = await fetchModelDefinitions();
         setModelDefinitions(definitions);
 
-        console.log('✅ 모델 정의 로드 완료');
+        console.log('??紐⑤뜽 ?뺤쓽 濡쒕뱶 ?꾨즺');
       } catch (error) {
-        console.error('모델 정의 로드 실패:', error);
-        setError('모델 정의를 로드할 수 없습니다.');
+        console.error('紐⑤뜽 ?뺤쓽 濡쒕뱶 ?ㅽ뙣:', error);
+        setError('紐⑤뜽 ?뺤쓽瑜?濡쒕뱶?????놁뒿?덈떎.');
       }
     };
     loadDefinitions();
   }, []);
 
-  // 모델 변경 시 재초기화 (디바운싱 및 중복 실행 방지)
+  // 紐⑤뜽 蹂寃????ъ큹湲고솕 (?붾컮?댁떛 諛?以묐났 ?ㅽ뻾 諛⑹?)
   useEffect(() => {
-    console.log('🔄 Live2D useEffect 실행됨:', {
+    console.log('?봽 Live2D useEffect ?ㅽ뻾??', {
       modelDefinitionsCount: Object.keys(modelDefinitions).length,
       selectedModel,
       isInitializing,
@@ -1310,83 +1264,83 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
       alreadyInitialized: lastInitializedModel === selectedModel
     });
 
-    // 필요한 조건들 체크
+    // ?꾩슂??議곌굔??泥댄겕
     if (Object.keys(modelDefinitions).length === 0) {
-      console.log('⏸️ 모델 정의가 없어서 초기화 건너뜀');
+      console.log('?몌툘 紐⑤뜽 ?뺤쓽媛 ?놁뼱??珥덇린??嫄대꼫?');
       return;
     }
 
     if (!modelDefinitions[selectedModel]) {
-      console.log('⏸️ 선택된 모델이 존재하지 않아서 초기화 건너뜀:', selectedModel);
+      console.log('?몌툘 ?좏깮??紐⑤뜽??議댁옱?섏? ?딆븘??珥덇린??嫄대꼫?:', selectedModel);
       return;
     }
 
-    // 이미 같은 모델이 성공적으로 초기화된 경우 건너뜀
+    // ?대? 媛숈? 紐⑤뜽???깃났?곸쑝濡?珥덇린?붾맂 寃쎌슦 嫄대꼫?
     if (lastInitializedModel === selectedModel && !error) {
-      console.log('⏸️ 이미 초기화된 모델이므로 건너뜀:', selectedModel);
+      console.log('?몌툘 ?대? 珥덇린?붾맂 紐⑤뜽?대?濡?嫄대꼫?:', selectedModel);
       return;
     }
 
     let isMounted = true;
 
-    // 상태 강제 리셋 (이전 초기화 실패 시 복구)
+    // ?곹깭 媛뺤젣 由ъ뀑 (?댁쟾 珥덇린???ㅽ뙣 ??蹂듦뎄)
     if (isLoading && !isInitializing) {
-      console.log('🔄 이전 로딩 상태 강제 리셋');
+      console.log('?봽 ?댁쟾 濡쒕뵫 ?곹깭 媛뺤젣 由ъ뀑');
       setIsLoading(false);
       setError(null);
     }
 
     const initialize = async () => {
       if (isMounted) {
-        console.log('🚀 Live2D 초기화 함수 실행');
+        console.log('?? Live2D 珥덇린???⑥닔 ?ㅽ뻾');
         await initializeLive2D();
       }
     };
 
-    // 디바운싱으로 WebGL 컨텍스트 안정화 시간 확보
-    // 개인 아바타는 더 긴 대기 시간 필요
+    // ?붾컮?댁떛?쇰줈 WebGL 而⑦뀓?ㅽ듃 ?덉젙???쒓컙 ?뺣낫
+    // 媛쒖씤 ?꾨컮?????湲??湲??쒓컙 ?꾩슂
     const isUserAvatar = selectedModel && !modelDefinitions[selectedModel]?.url?.startsWith('/live2d-models/');
-    const debounceTime = isUserAvatar ? 1500 : 800; // 개인 아바타는 1.5초, 기본은 800ms
-    console.log(`⏱️ 모델 초기화 디바운싱: ${debounceTime}ms ${isUserAvatar ? '[개인 아바타]' : '[기본 모델]'}`);
+    const debounceTime = isUserAvatar ? 1500 : 800; // 媛쒖씤 ?꾨컮???1.5珥? 湲곕낯? 800ms
+    console.log(`?깍툘 紐⑤뜽 珥덇린???붾컮?댁떛: ${debounceTime}ms ${isUserAvatar ? '[媛쒖씤 ?꾨컮?]' : '[湲곕낯 紐⑤뜽]'}`);
     const initTimeout = setTimeout(initialize, debounceTime);
 
     return () => {
       isMounted = false;
       clearTimeout(initTimeout);
 
-      // 컴포넌트 언마운트 시 완전한 정리
+      // 而댄룷?뚰듃 ?몃쭏?댄듃 ???꾩쟾???뺣━
       try {
-        console.log('🧹 Live2D 컴포넌트 언마운트 - 정리 시작');
+        console.log('?㏏ Live2D 而댄룷?뚰듃 ?몃쭏?댄듃 - ?뺣━ ?쒖옉');
 
-        // 1. TTS 정리
+        // 1. TTS ?뺣━
         cleanup();
 
-        // 2. Live2D 모델 정리
+        // 2. Live2D 紐⑤뜽 ?뺣━
         if (live2dModelRef.current) {
           try {
             const model = live2dModelRef.current;
 
-            // 부모에서 제거
+            // 遺紐⑥뿉???쒓굅
             if (model.parent) {
               model.parent.removeChild(model);
             }
 
-            // 모델 완전 파괴
+            // 紐⑤뜽 ?꾩쟾 ?뚭눼
             model.destroy({ children: true, texture: true, baseTexture: true });
 
             live2dModelRef.current = null;
-            console.log('✅ Live2D 모델 정리 완료');
+            console.log('??Live2D 紐⑤뜽 ?뺣━ ?꾨즺');
           } catch (modelError) {
-            console.warn('⚠️ Live2D 모델 정리 실패:', modelError);
+            console.warn('?좑툘 Live2D 紐⑤뜽 ?뺣━ ?ㅽ뙣:', modelError);
           }
         }
 
-        // 3. PIXI 앱 정리
+        // 3. PIXI ???뺣━
         if (pixiAppRef.current) {
           try {
             const app = pixiAppRef.current;
 
-            // WebGL 컨텍스트 이벤트 리스너 먼저 제거 (중요!)
+            // WebGL 而⑦뀓?ㅽ듃 ?대깽??由ъ뒪??癒쇱? ?쒓굅 (以묒슂!)
             if (webglContextListenersRef.current.canvas &&
               webglContextListenersRef.current.contextLost &&
               webglContextListenersRef.current.contextRestored) {
@@ -1398,21 +1352,21 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
                 'webglcontextrestored',
                 webglContextListenersRef.current.contextRestored
               );
-              console.log('🔇 WebGL 컨텍스트 이벤트 리스너 제거 완료 (cleanup)');
+              console.log('?뵁 WebGL 而⑦뀓?ㅽ듃 ?대깽??由ъ뒪???쒓굅 ?꾨즺 (cleanup)');
               webglContextListenersRef.current = { canvas: null, contextLost: null, contextRestored: null };
             }
 
-            // Ticker 중지
+            // Ticker 以묒?
             if (app.ticker) {
               app.ticker.stop();
             }
 
-            // Stage 정리
+            // Stage ?뺣━
             if (app.stage) {
               app.stage.removeChildren();
             }
 
-            // 전체 앱 파괴
+            // ?꾩껜 ???뚭눼
             app.destroy(true, {
               children: true,
               texture: true,
@@ -1420,36 +1374,36 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
             });
 
             pixiAppRef.current = null;
-            console.log('✅ PIXI 앱 정리 완료');
+            console.log('??PIXI ???뺣━ ?꾨즺');
           } catch (appError) {
-            console.warn('⚠️ PIXI 앱 정리 실패:', appError);
+            console.warn('?좑툘 PIXI ???뺣━ ?ㅽ뙣:', appError);
           }
         }
 
-        // 4. PIXI 텍스처 캐시 정리
+        // 4. PIXI ?띿뒪泥?罹먯떆 ?뺣━
         try {
           if (PIXI.utils && PIXI.utils.clearTextureCache) {
             PIXI.utils.clearTextureCache();
           }
         } catch (cacheError) {
-          console.warn('⚠️ 텍스처 캐시 정리 실패:', cacheError);
+          console.warn('?좑툘 ?띿뒪泥?罹먯떆 ?뺣━ ?ㅽ뙣:', cacheError);
         }
 
-        // 5. DOM 정리
+        // 5. DOM ?뺣━
         if (containerRef.current) {
           while (containerRef.current.firstChild) {
             containerRef.current.removeChild(containerRef.current.firstChild);
           }
         }
 
-        console.log('✅ Live2D 컴포넌트 정리 완료');
+        console.log('??Live2D 而댄룷?뚰듃 ?뺣━ ?꾨즺');
       } catch (error) {
-        console.warn('⚠️ Live2D useEffect 정리 중 에러:', error);
+        console.warn('?좑툘 Live2D useEffect ?뺣━ 以??먮윭:', error);
       }
     };
   }, [selectedModel, initializeLive2D, modelDefinitions]);
 
-  // 모델 선택 핸들러 (MainContent에서 제어하므로 제거)
+  // 紐⑤뜽 ?좏깮 ?몃뱾??(MainContent?먯꽌 ?쒖뼱?섎?濡??쒓굅)
   // const handleModelSelect = useCallback((modelName: string) => {
   //   setSelectedModel(modelName);
   // }, []);
@@ -1457,17 +1411,17 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
   return (
     <div className={`live2d-avatar-pixi ${className}`} style={{
       position: 'fixed',
-      bottom: `${150 - windowPosition.y}px`, // 채팅 입력창 위로 이동 (150px)
+      bottom: `${150 - windowPosition.y}px`, // 梨꾪똿 ?낅젰李??꾨줈 ?대룞 (150px)
       right: `${20 - windowPosition.x}px`,
-      zIndex: 1000, // 채팅창보다 높지만 모달보다는 낮게
+      zIndex: 1000, // 梨꾪똿李쎈낫???믪?留?紐⑤떖蹂대떎????쾶
       width: `${width}px`,
       height: `${height}px`,
       background: 'transparent',
       overflow: 'visible',
-      pointerEvents: 'none' // 배경은 클릭 방지
+      pointerEvents: 'none' // 諛곌꼍? ?대┃ 諛⑹?
     }}>
 
-      {/* PIXI.js 컨테이너 */}
+      {/* PIXI.js 而⑦뀒?대꼫 */}
       <div
         ref={containerRef}
         onMouseDown={handleMouseDown}
@@ -1480,17 +1434,16 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
           background: 'transparent',
           cursor: isDragging ? 'grabbing' : 'grab',
           overflow: 'visible',
-          pointerEvents: 'all', // 캐릭터는 클릭/터치 가능
-          touchAction: 'none' // 기본 터치 동작 방지
+          pointerEvents: 'all', // 罹먮┃?곕뒗 ?대┃/?곗튂 媛??          touchAction: 'none' // 湲곕낯 ?곗튂 ?숈옉 諛⑹?
         }}
       />
 
-      {/* 상태 표시 */}
+      {/* ?곹깭 ?쒖떆 */}
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 rounded-lg">
           <div className="text-center text-white">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400 mx-auto mb-2"></div>
-            <p className="text-sm">pixi-live2d-display 로딩 중...</p>
+            <p className="text-sm">pixi-live2d-display 濡쒕뵫 以?..</p>
           </div>
         </div>
       )}
@@ -1501,35 +1454,35 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
             <div className="text-red-300 mb-2">
               <i className="fas fa-exclamation-triangle text-xl"></i>
             </div>
-            <p className="text-sm font-semibold">Live2D 로드 실패</p>
+            <p className="text-sm font-semibold">Live2D 濡쒕뱶 ?ㅽ뙣</p>
             <p className="text-xs mt-1 opacity-75">{error}</p>
           </div>
         </div>
       )}
 
-      {/* 말하는 중 표시 */}
+      {/* 留먰븯??以??쒖떆 */}
       {isSpeaking && (
         <div className="absolute top-2 right-2 bg-green-600 bg-opacity-80 text-white text-xs px-3 py-1 rounded-full animate-pulse">
           <div className="flex items-center space-x-1">
             <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
-            <span>🎤 말하는 중</span>
+            <span>?렎 留먰븯??以?/span>
           </div>
         </div>
       )}
 
-      {/* ===== 모션 캡처 컨트롤 영역 ===== */}
+      {/* ===== 紐⑥뀡 罹≪쿂 而⑦듃濡??곸뿭 ===== */}
       <div className="absolute bottom-4 right-4 flex flex-col items-end gap-2" style={{ pointerEvents: 'all', zIndex: 1001 }}>
 
-        {/* 모드 선택 드롭다운 (활성 시에만 표시) */}
+        {/* 紐⑤뱶 ?좏깮 ?쒕∼?ㅼ슫 (?쒖꽦 ?쒖뿉留??쒖떆) */}
         {isMotionCaptureEnabled && showModeSelector && (
           <div className="bg-gray-800 bg-opacity-95 rounded-lg shadow-xl border border-gray-600 overflow-hidden">
             <div className="px-3 py-2 text-xs text-gray-400 border-b border-gray-700 font-medium">
-              추적 모드 선택
+              異붿쟻 紐⑤뱶 ?좏깮
             </div>
             {([
-              { mode: 'face' as TrackingMode, icon: '😀', label: '얼굴만', desc: '머리·눈·입 (가벼움)' },
-              { mode: 'upper-body' as TrackingMode, icon: '🦴', label: '상반신', desc: '얼굴 + 몸통·팔 (보통)' },
-              { mode: 'full-body' as TrackingMode, icon: '🏃', label: '전신', desc: '얼굴 + 몸·팔·다리·손 (무거움)' },
+              { mode: 'face' as TrackingMode, icon: '??', label: '?쇨뎬留?, desc: '癒몃━쨌?댟룹엯 (媛踰쇱?)' },
+              { mode: 'upper-body' as TrackingMode, icon: '?솈', label: '?곷컲????, desc: '?쇨뎬쨌紐명넻쨌?붋룹넀 (蹂댄넻)' },
+              { mode: 'full-body' as TrackingMode, icon: '?룂', label: '?꾩떊+??, desc: '?꾩떊쨌?먃룸떎由?(臾닿굅?)' },
             ]).map(({ mode: m, icon, label, desc }) => (
               <button
                 key={m}
@@ -1548,24 +1501,24 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
                   <div className="font-medium">{label}</div>
                   <div className="text-xs opacity-70">{desc}</div>
                 </div>
-                {trackingMode === m && <span className="ml-auto text-xs">✓</span>}
+                {trackingMode === m && <span className="ml-auto text-xs">??/span>}
               </button>
             ))}
           </div>
         )}
 
-        {/* 모드 선택 버튼 (활성 시에만) */}
+        {/* 紐⑤뱶 ?좏깮 踰꾪듉 (?쒖꽦 ?쒖뿉留? */}
         {isMotionCaptureEnabled && (
           <button
             onClick={() => setShowModeSelector(!showModeSelector)}
             className="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium transition-all shadow-lg"
           >
-            {trackingMode === 'face' ? '😀 얼굴' : trackingMode === 'upper-body' ? '🦴 상반신' : '🏃 전신'}
-            <span className="ml-1">▾</span>
+            {trackingMode === 'face' ? '?? ?쇨뎬' : trackingMode === 'upper-body' ? '?솈 ?곷컲???? : '?룂 ?꾩떊+??}
+            <span className="ml-1">??/span>
           </button>
         )}
 
-        {/* 메인 모션 캡처 토글 버튼 */}
+        {/* 硫붿씤 紐⑥뀡 罹≪쿂 ?좉? 踰꾪듉 */}
         <button
           onClick={() => {
             setIsMotionCaptureEnabled(!isMotionCaptureEnabled);
@@ -1577,11 +1530,11 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
               : 'bg-gray-600 hover:bg-gray-700'
           }`}
         >
-          {isMotionCaptureEnabled ? '📹 모션 캡처 ON' : '📹 모션 캡처'}
+          {isMotionCaptureEnabled ? '?벞 紐⑥뀡 罹≪쿂 ON' : '?벞 紐⑥뀡 罹≪쿂'}
         </button>
       </div>
 
-      {/* 웹캠 비디오 (숨김) */}
+      {/* ?뱀틺 鍮꾨뵒??(?④?) */}
       {isMotionCaptureEnabled && videoRef && (
         <video
           ref={videoRef}
@@ -1592,28 +1545,28 @@ const Live2DAvatarPixi: React.FC<Live2DAvatarPixiProps> = ({
         />
       )}
 
-      {/* 추적 상태 표시 */}
+      {/* 異붿쟻 ?곹깭 ?쒖떆 */}
       {isMotionCaptureEnabled && initStatus && (
         <div className="absolute top-2 left-2 bg-yellow-600 bg-opacity-90 text-white text-xs px-3 py-1 rounded-full animate-pulse">
-          ⏳ {initStatus}
+          ??{initStatus}
         </div>
       )}
 
       {isMotionCaptureEnabled && isTrackingReady && !initStatus && (
         <div className="absolute top-2 left-2 bg-blue-600 bg-opacity-90 text-white text-xs px-3 py-1 rounded-full flex items-center gap-2">
-          <span>✅ {trackingMode === 'face' ? '얼굴' : trackingMode === 'upper-body' ? '상반신' : '전신'} 추적 중</span>
+          <span>??{trackingMode === 'face' ? '?쇨뎬' : trackingMode === 'upper-body' ? '?곷컲???? : '?꾩떊+??} 異붿쟻 以?/span>
           {bodyPose && (
-            <span className="opacity-70">| 신체 ✓</span>
+            <span className="opacity-70">| ?좎껜 ??/span>
           )}
           {handPose && (handPose.left || handPose.right) && (
-            <span className="opacity-70">| 손 ✓</span>
+            <span className="opacity-70">| ????/span>
           )}
         </div>
       )}
 
       {trackingError && isMotionCaptureEnabled && (
         <div className="absolute top-2 left-2 bg-red-600 bg-opacity-90 text-white text-xs px-3 py-1 rounded-full">
-          ❌ {trackingError}
+          ??{trackingError}
         </div>
       )}
 

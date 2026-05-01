@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+﻿import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   FaceLandmarker,
   PoseLandmarker,
@@ -8,12 +8,12 @@ import {
 } from '@mediapipe/tasks-vision';
 import { Face, Pose, Hand } from 'kalidokit';
 
-// ===== 타입 정의 =====
+// ===== ????뺤쓽 =====
 
-/** 추적 모드: face(얼굴만), upper-body(상반신), full-body(전신+손) */
+/** 異붿쟻 紐⑤뱶: face(?쇨뎬留?, upper-body(?곷컲????, full-body(?꾩떊+?? */
 export type TrackingMode = 'face' | 'upper-body' | 'full-body';
 
-/** 얼굴 포즈 데이터 */
+/** ?쇨뎬 ?ъ쫰 ?곗씠??*/
 export interface FacePoseData {
   head: { x: number; y: number; z: number };
   eye: { l: number; r: number };
@@ -26,7 +26,7 @@ export interface FacePoseData {
   pupil: { x: number; y: number };
 }
 
-/** 신체 포즈 데이터 */
+/** ?좎껜 ?ъ쫰 ?곗씠??*/
 export interface BodyPoseData {
   spine: { x: number; y: number; z: number };
   hips: {
@@ -45,7 +45,7 @@ export interface BodyPoseData {
   leftLowerLeg: { x: number; y: number; z: number };
 }
 
-/** 손가락 데이터 */
+/** ?먭????곗씠??*/
 export interface HandFingerData {
   wrist: { x: number; y: number; z: number };
   thumb: number;
@@ -55,21 +55,21 @@ export interface HandFingerData {
   little: number;
 }
 
-/** 양손 데이터 */
+/** ?묒넀 ?곗씠??*/
 export interface HandPoseData {
   left: HandFingerData | null;
   right: HandFingerData | null;
 }
 
-// CDN 경로 상수
+// CDN 寃쎈줈 ?곸닔
 const MEDIAPIPE_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm';
 const FACE_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
-// full 모델 사용 (heavy는 너무 무거움, lite는 정확도 낮음)
+// full 紐⑤뜽 ?ъ슜 (heavy???덈Т 臾닿굅?, lite???뺥솗????쓬)
 const POSE_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task';
 const HAND_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
 
 /**
- * GPU → CPU 자동 폴백으로 Landmarker를 생성하는 헬퍼
+ * GPU ??CPU ?먮룞 ?대갚?쇰줈 Landmarker瑜??앹꽦?섎뒗 ?ы띁
  */
 async function createWithFallback<T>(
   factory: (delegate: 'GPU' | 'CPU') => Promise<T>,
@@ -77,27 +77,24 @@ async function createWithFallback<T>(
 ): Promise<T> {
   try {
     const result = await factory('GPU');
-    console.log(`✅ ${name} 초기화 완료 (GPU)`);
+    console.log(`??${name} 珥덇린???꾨즺 (GPU)`);
     return result;
   } catch (gpuErr) {
-    console.warn(`⚠️ ${name} GPU 실패, CPU로 전환:`, gpuErr);
+    console.warn(`?좑툘 ${name} GPU ?ㅽ뙣, CPU濡??꾪솚:`, gpuErr);
     const result = await factory('CPU');
-    console.log(`✅ ${name} 초기화 완료 (CPU)`);
+    console.log(`??${name} 珥덇린???꾨즺 (CPU)`);
     return result;
   }
 }
 
 /**
- * 전신 모션 캡처 훅
- *
- * 구조:
- *  Effect 1: Vision 런타임 로드 (enabled 의존)
- *  Effect 2: FaceLandmarker 초기화 (enabled + vision 의존)
- *  Effect 3: 웹캠 + 감지 루프 (enabled + face ready 의존) ← 모드 변경에 무관
- *  Effect 4: PoseLandmarker 초기화/해제 (enabled + vision + mode 의존) ← 별도 관리
- *  Effect 5: HandLandmarker 초기화/해제 (enabled + vision + mode 의존) ← 별도 관리
- *
- * 모드를 바꿔도 웹캠과 얼굴 추적은 끊기지 않습니다.
+ * ?꾩떊 紐⑥뀡 罹≪쿂 ?? *
+ * 援ъ“:
+ *  Effect 1: Vision ?고???濡쒕뱶 (enabled ?섏〈)
+ *  Effect 2: FaceLandmarker 珥덇린??(enabled + vision ?섏〈)
+ *  Effect 3: ?뱀틺 + 媛먯? 猷⑦봽 (enabled + face ready ?섏〈) ??紐⑤뱶 蹂寃쎌뿉 臾닿?
+ *  Effect 4: PoseLandmarker 珥덇린???댁젣 (enabled + vision + mode ?섏〈) ??蹂꾨룄 愿由? *  Effect 5: HandLandmarker 珥덇린???댁젣 (enabled + vision + mode ?섏〈) ??蹂꾨룄 愿由? *
+ * 紐⑤뱶瑜?諛붽퓭???뱀틺怨??쇨뎬 異붿쟻? ?딄린吏 ?딆뒿?덈떎.
  */
 export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 'face') {
   const [facePose, setFacePose] = useState<FacePoseData | null>(null);
@@ -107,10 +104,9 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
   const [error, setError] = useState<string | null>(null);
   const [initStatus, setInitStatus] = useState('');
 
-  const [visionLoaded, setVisionLoaded] = useState(false); // vision 로드 완료 → 리렌더 트리거
-
+  const [visionLoaded, setVisionLoaded] = useState(false); // vision 濡쒕뱶 ?꾨즺 ??由щ젋???몃━嫄?
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const visionRef = useRef<any>(null); // FilesetResolver 결과 (실제 객체)
+  const visionRef = useRef<any>(null); // FilesetResolver 寃곌낵 (?ㅼ젣 媛앹껜)
   const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
   const poseLandmarkerRef = useRef<PoseLandmarker | null>(null);
   const handLandmarkerRef = useRef<HandLandmarker | null>(null);
@@ -120,25 +116,25 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
   const lastPoseTimestampRef = useRef(0);
   const lastHandTimestampRef = useRef(0);
 
-  // ====== Effect 1: Vision 런타임 로드 ======
+  // ====== Effect 1: Vision ?고???濡쒕뱶 ======
   useEffect(() => {
     if (!enabled) return;
     let mounted = true;
 
     const loadVision = async () => {
       try {
-        setInitStatus('MediaPipe 런타임 로딩...');
-        console.log('🎥 MediaPipe Vision 런타임 로딩 중...');
+        setInitStatus('MediaPipe ?고???濡쒕뵫...');
+        console.log('?렏 MediaPipe Vision ?고???濡쒕뵫 以?..');
         const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_CDN);
         if (mounted) {
           visionRef.current = vision;
-          setVisionLoaded(true); // ← 리렌더 트리거 → Effect 2,4,5 실행
-          console.log('✅ Vision 런타임 로드 완료');
+          setVisionLoaded(true); // ??由щ젋???몃━嫄???Effect 2,4,5 ?ㅽ뻾
+          console.log('??Vision ?고???濡쒕뱶 ?꾨즺');
         }
       } catch (err) {
-        console.error('❌ Vision 런타임 로드 실패:', err);
+        console.error('??Vision ?고???濡쒕뱶 ?ㅽ뙣:', err);
         if (mounted) {
-          setError('MediaPipe 런타임 로드 실패');
+          setError('MediaPipe ?고???濡쒕뱶 ?ㅽ뙣');
           setInitStatus('');
         }
       }
@@ -153,14 +149,14 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
     };
   }, [enabled]);
 
-  // ====== Effect 2: FaceLandmarker 초기화 (모드 전환과 무관) ======
+  // ====== Effect 2: FaceLandmarker 珥덇린??(紐⑤뱶 ?꾪솚怨?臾닿?) ======
   useEffect(() => {
     if (!enabled || !visionLoaded || !visionRef.current) return;
     let mounted = true;
 
     const initFace = async () => {
       try {
-        setInitStatus('얼굴 인식 모델 로딩...');
+        setInitStatus('?쇨뎬 ?몄떇 紐⑤뜽 濡쒕뵫...');
 
         const faceLandmarker = await createWithFallback(
           (delegate) =>
@@ -183,9 +179,9 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
         setInitStatus('');
         setError(null);
       } catch (err) {
-        console.error('❌ FaceLandmarker 초기화 실패:', err);
+        console.error('??FaceLandmarker 珥덇린???ㅽ뙣:', err);
         if (mounted) {
-          setError('얼굴 인식 모델 로드 실패');
+          setError('?쇨뎬 ?몄떇 紐⑤뜽 濡쒕뱶 ?ㅽ뙣');
           setInitStatus('');
         }
       }
@@ -201,20 +197,19 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
     };
   }, [enabled, visionLoaded]);
 
-  // ====== Effect 3: 웹캠 + 감지 루프 (모드 전환에 무관) ======
+  // ====== Effect 3: ?뱀틺 + 媛먯? 猷⑦봽 (紐⑤뱶 ?꾪솚??臾닿?) ======
   useEffect(() => {
     if (!enabled || !isReady) return;
     let mounted = true;
 
     const startWebcam = async () => {
       try {
-        // 이미 스트림이 있으면 재사용
-        if (streamRef.current) {
+        // ?대? ?ㅽ듃由쇱씠 ?덉쑝硫??ъ궗??        if (streamRef.current) {
           startDetectionLoop();
           return;
         }
 
-        console.log('🎥 웹캠 스트림 시작 중...');
+        console.log('?렏 ?뱀틺 ?ㅽ듃由??쒖옉 以?..');
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             width: { ideal: 640 },
@@ -233,9 +228,9 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
-          console.log('✅ 웹캠 스트림 시작 완료');
+          console.log('???뱀틺 ?ㅽ듃由??쒖옉 ?꾨즺');
 
-          // 비디오 준비 완료 후 감지 시작
+          // 鍮꾨뵒??以鍮??꾨즺 ??媛먯? ?쒖옉
           if (videoRef.current.readyState >= 2) {
             startDetectionLoop();
           } else {
@@ -245,8 +240,8 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
           }
         }
       } catch (err) {
-        console.error('❌ 웹캠 접근 실패:', err);
-        if (mounted) setError('웹캠 접근 권한이 필요합니다');
+        console.error('???뱀틺 ?묎렐 ?ㅽ뙣:', err);
+        if (mounted) setError('?뱀틺 ?묎렐 沅뚰븳???꾩슂?⑸땲??);
       }
     };
 
@@ -265,7 +260,7 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
     };
   }, [enabled, isReady]);
 
-  // ====== Effect 4: PoseLandmarker (모드 변경 시에만 추가/제거) ======
+  // ====== Effect 4: PoseLandmarker (紐⑤뱶 蹂寃??쒖뿉留?異붽?/?쒓굅) ======
   useEffect(() => {
     if (!enabled || !visionLoaded || !visionRef.current) return;
     const needsPose = mode === 'upper-body' || mode === 'full-body';
@@ -282,7 +277,7 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
       if (poseLandmarkerRef.current) return;
 
       try {
-        setInitStatus('신체 인식 모델 로딩...');
+        setInitStatus('?좎껜 ?몄떇 紐⑤뜽 濡쒕뵫...');
 
         const poseLandmarker = await createWithFallback(
           (delegate) =>
@@ -302,7 +297,7 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
         lastPoseTimestampRef.current = 0;
         setInitStatus('');
       } catch (err) {
-        console.error('❌ PoseLandmarker 초기화 실패:', err);
+        console.error('??PoseLandmarker 珥덇린???ㅽ뙣:', err);
         if (mounted) setInitStatus('');
       }
     };
@@ -314,10 +309,10 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
     };
   }, [enabled, visionLoaded, mode]);
 
-  // ====== Effect 5: HandLandmarker (full-body 모드에서만) ======
+  // ====== Effect 5: HandLandmarker (upper-body / full-body 紐⑤뱶?먯꽌 ?쒖꽦) ======
   useEffect(() => {
     if (!enabled || !visionLoaded || !visionRef.current) return;
-    const needsHand = mode === 'full-body';
+    const needsHand = mode === 'upper-body' || mode === 'full-body';
     if (!needsHand) {
       handLandmarkerRef.current?.close();
       handLandmarkerRef.current = null;
@@ -331,7 +326,7 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
       if (handLandmarkerRef.current) return;
 
       try {
-        setInitStatus('손 인식 모델 로딩...');
+        setInitStatus('???몄떇 紐⑤뜽 濡쒕뵫...');
 
         const handLandmarker = await createWithFallback(
           (delegate) =>
@@ -339,9 +334,9 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
               baseOptions: { modelAssetPath: HAND_MODEL_URL, delegate },
               runningMode: 'VIDEO',
               numHands: 2,
-              minHandDetectionConfidence: 0.5,
-              minHandPresenceConfidence: 0.5,
-              minTrackingConfidence: 0.5,
+              minHandDetectionConfidence: 0.4,
+              minHandPresenceConfidence: 0.4,
+              minTrackingConfidence: 0.4,
             }),
           'HandLandmarker',
         );
@@ -351,7 +346,7 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
         lastHandTimestampRef.current = 0;
         setInitStatus('');
       } catch (err) {
-        console.error('❌ HandLandmarker 초기화 실패:', err);
+        console.error('??HandLandmarker 珥덇린???ㅽ뙣:', err);
         if (mounted) setInitStatus('');
       }
     };
@@ -363,11 +358,11 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
     };
   }, [enabled, visionLoaded, mode]);
 
-  // ====== 감지 루프 (ref 기반이므로 모드 전환에도 끊기지 않음) ======
+  // ====== 媛먯? 猷⑦봽 (ref 湲곕컲?대?濡?紐⑤뱶 ?꾪솚?먮룄 ?딄린吏 ?딆쓬) ======
   const startDetectionLoop = useCallback(() => {
     if (!videoRef.current) return;
 
-    // 기존 루프가 있으면 취소
+    // 湲곗〈 猷⑦봽媛 ?덉쑝硫?痍⑥냼
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
@@ -384,10 +379,8 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
       const now = performance.now();
       frameCountRef.current++;
 
-      // MediaPipe는 타임스탬프가 단조 증가해야 함
-      // 각 landmarker별로 별도 타임스탬프 관리
-
-      // ---- (A) 얼굴 감지 (매 프레임) ----
+      // MediaPipe????꾩뒪?ы봽媛 ?⑥“ 利앷??댁빞 ??      // 媛?landmarker蹂꾨줈 蹂꾨룄 ??꾩뒪?ы봽 愿由?
+      // ---- (A) ?쇨뎬 媛먯? (留??꾨젅?? ----
       const faceRef = faceLandmarkerRef.current;
       if (faceRef && now > lastFaceTimestamp) {
         try {
@@ -422,11 +415,11 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
             }
           }
         } catch {
-          // 프레임 스킵 시 무시
+          // ?꾨젅???ㅽ궢 ??臾댁떆
         }
       }
 
-      // ---- (B) 신체 감지 (2프레임마다) ----
+      // ---- (B) ?좎껜 媛먯? (2?꾨젅?꾨쭏?? ----
       const poseRef = poseLandmarkerRef.current;
       if (poseRef && frameCountRef.current % 2 === 0 && now > lastPoseTimestampRef.current) {
         try {
@@ -518,11 +511,11 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
             }
           }
         } catch {
-          // 프레임 스킵 시 무시
+          // ?꾨젅???ㅽ궢 ??臾댁떆
         }
       }
 
-      // ---- (C) 손 감지 (3프레임마다) ----
+      // ---- (C) ??媛먯? (3?꾨젅?꾨쭏?? ----
       const handRef = handLandmarkerRef.current;
       if (handRef && frameCountRef.current % 3 === 0 && now > lastHandTimestampRef.current) {
         try {
@@ -541,17 +534,26 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
               const riggedHand = Hand.solve(handLandmarks as any, side) as any;
 
               if (riggedHand) {
+                // ?먭???援쏀옒 ?뺣룄: z異?媛곷룄(?덈뙎媛?媛 ?댁닔濡??먭??쎌씠 ??援쎌뼱 ?덉쓬
+                // 媛??먭??쎌쓽 Proximal쨌Intermediate쨌Distal 紐⑤뱺 愿???됯퇏
+                const fingerCurl = (name: string) => {
+                  const proximal  = Math.abs(riggedHand[`${side}${name}Proximal`]?.z  || 0);
+                  const inter     = Math.abs(riggedHand[`${side}${name}Intermediate`]?.z || 0);
+                  const distal    = Math.abs(riggedHand[`${side}${name}Distal`]?.z    || 0);
+                  return Math.min(1, (proximal + inter + distal) / (Math.PI * 1.5));
+                };
+
                 const fingerData: HandFingerData = {
                   wrist: {
                     x: riggedHand[side + 'Wrist']?.x || 0,
                     y: riggedHand[side + 'Wrist']?.y || 0,
                     z: riggedHand[side + 'Wrist']?.z || 0,
                   },
-                  thumb: Math.abs(riggedHand[side + 'ThumbProximal']?.x || 0),
-                  index: Math.abs(riggedHand[side + 'IndexProximal']?.x || 0),
-                  middle: Math.abs(riggedHand[side + 'MiddleProximal']?.x || 0),
-                  ring: Math.abs(riggedHand[side + 'RingProximal']?.x || 0),
-                  little: Math.abs(riggedHand[side + 'LittleProximal']?.x || 0),
+                  thumb:  fingerCurl('Thumb'),
+                  index:  fingerCurl('Index'),
+                  middle: fingerCurl('Middle'),
+                  ring:   fingerCurl('Ring'),
+                  little: fingerCurl('Little'),
                 };
 
                 if (side === 'Left') leftHandData = fingerData;
@@ -562,7 +564,7 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
             setHandPose({ left: leftHandData, right: rightHandData });
           }
         } catch {
-          // 프레임 스킵 시 무시
+          // ?꾨젅???ㅽ궢 ??臾댁떆
         }
       }
 
@@ -572,11 +574,11 @@ export function useMotionCapture(enabled: boolean = false, mode: TrackingMode = 
     detect();
   }, []);
 
-  // ====== 전체 비활성화 시 정리 ======
+  // ====== ?꾩껜 鍮꾪솢?깊솕 ???뺣━ ======
   useEffect(() => {
     if (enabled) return;
 
-    // 모든 것 정리
+    // 紐⑤뱺 寃??뺣━
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;

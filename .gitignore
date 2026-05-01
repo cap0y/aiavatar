@@ -13,3 +13,8 @@ vite.config.ts.*
 .next/
 backup/
 public/audio/
+public/feed-media/
+public/images/profile/
+public/images/order-files/
+public/images/chat/
+public/images/item/
