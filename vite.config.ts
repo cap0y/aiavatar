@@ -9,22 +9,21 @@ export default defineConfig({
   publicDir: '../public',
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './client/src'),
+      '@': path.resolve('./client/src'),
     },
   },
   server: {
-    port: 3001, // 포트 충돌 방지를 위해 3001로 변경
+    port: 3000, // 클라이언트 개발 서버 포트를 3000으로 변경
     host: true,
     open: true, // 자동으로 브라우저 열기
     cors: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:5001', // 백엔드 API 서버로 프록시 (포트 5001로 수정)
+        target: 'http://localhost:3001', // 백엔드 API 서버로 프록시
         changeOrigin: true,
         secure: false,
         ws: true,
-        timeout: 120000, // AI 이미지 생성을 위해 120초로 증가
-        proxyTimeout: 120000, // 프록시 타임아웃도 120초로 증가
+        timeout: 10000,
         // 연결 풀 관리
         agent: false,
         headers: {
@@ -34,7 +33,7 @@ export default defineConfig({
     },
     // HMR 연결 관리 강화
     hmr: {
-      port: 3002, // HMR 포트도 변경
+      port: 3002, // HMR 포트는 그대로 유지
       host: 'localhost',
       overlay: true, // 에러 오버레이 표시
     },
@@ -48,29 +47,21 @@ export default defineConfig({
   build: {
     outDir: '../dist/public',
     emptyOutDir: true,
-    // 프로덕션에서는 소스맵 비활성화 (빌드 크기 절감)
-    sourcemap: false,
-    rollupOptions: {
-      external: (id) => {
-        // pixi-live2d가 PIXI를 찾을 수 있도록 외부 의존성으로 처리하지 않음
-        return false;
-      }
-    }
+    // 소스맵 생성으로 디버깅 개선
+    sourcemap: true,
   },
   // 최적화 설정 - 문제가 되는 패키지들 제외
   optimizeDeps: {
     force: true, // 의존성 사전 번들링 강제 재실행
-    include: ['react', 'react-dom', 'pixi.js'], // 사전 번들링에 포함할 패키지
+    include: ['react', 'react-dom'], // 사전 번들링에 포함할 패키지
     exclude: [
       '@radix-ui/react-scroll-area', // 문제가 되는 패키지 제외
       'react-day-picker', // 문제가 되는 패키지 제외
-      'pixi-live2d', // 문제가 되는 패키지 제외
     ],
   },
   // 개발 모드에서 캐시 비활성화
   define: {
     __DEV__: JSON.stringify(true),
-    global: 'globalThis',
   },
   // CSS 설정
   css: {
